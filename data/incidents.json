@@ -1,0 +1,90 @@
+[
+  {
+    "record_id": "INC-0001",
+    "input": {
+      "description": "Forklift nearly hit a worker while reversing.",
+      "location": "Warehouse A",
+      "reporter_role": "Employee",
+      "incident_date": "2026-09-21",
+      "injury_reported": false,
+      "immediate_action": "Supervisor stopped the forklift"
+    },
+    "ai": {
+      "severity": "0.88",
+      "severity_explanation": "A reversing forklift came close to striking a worker, creating an immediate risk of serious injury.",
+      "hazard_category": "vehicle movement",
+      "incident_type": "near miss",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": true,
+        "exposure": true,
+        "equipment_involvement": true,
+        "work_stoppage": true,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "vehicle movement",
+        "location": "Warehouse A",
+        "datetime": "2026-09-21T14:20:00",
+        "activity": "forklift operation"
+      },
+      "recommended_immediate_action": "Suspend forklift movement in the affected area and review reversing procedures, visibility controls, and pedestrian separation.",
+      "supporting_phrase": "forklift nearly hit a worker while reversing"
+    },
+    "logic": {
+      "final_queue": "Priority Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Immediate danger cannot enter routine queue"
+    },
+    "metadata": {
+      "created_at": "2026-09-21T14:22:00",
+      "processed_at": "2026-09-21T14:22:06"
+    }
+  },
+  {
+    "record_id": "INC-0002",
+    "input": {
+      "description": "Water was found leaking from an air-conditioning unit onto the office floor.",
+      "location": "Office Level 3",
+      "reporter_role": "Staff",
+      "incident_date": "2026-09-22",
+      "injury_reported": false,
+      "immediate_action": "Wet floor sign was placed near the affected area"
+    },
+    "ai": {
+      "severity": "0.42",
+      "severity_explanation": "Water on the floor created a slip hazard, but the area was marked and no injury was reported.",
+      "hazard_category": "slip and fall",
+      "incident_type": "unsafe condition",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": false,
+        "exposure": true,
+        "equipment_involvement": true,
+        "work_stoppage": false,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "slip and fall",
+        "location": "Office Level 3",
+        "datetime": "2026-09-22T09:15:00",
+        "activity": "office operations"
+      },
+      "recommended_immediate_action": "Restrict access to the wet area, clean the floor, and arrange maintenance of the leaking air-conditioning unit.",
+      "supporting_phrase": "water leaking onto the office floor"
+    },
+    "logic": {
+      "final_queue": "Routine Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": false,
+      "rule_applied": "Non-critical incident may enter routine queue"
+    },
+    "metadata": {
+      "created_at": "2026-09-22T09:17:00",
+      "processed_at": "2026-09-22T09:17:04"
+    }
+  }
+]
