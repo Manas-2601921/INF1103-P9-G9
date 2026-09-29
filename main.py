@@ -19,10 +19,26 @@ def print_stored_incident_summaries(summaries):
             print("Escalation Required  : ", summary.get("escalation_required"))
             print("-"*60)
 
+# Just a Testing scripte below
 if __name__ == "__main__":
+    incident_location = "Warehouse A"
 
-    # data.save(dictionary object)
-    print_stored_incident_summaries(data.query_stored_incident_summaries())
+    matching_incidents = data.query_location(incident_location) 
+    matching_ids = {record["record_id"] for record in matching_incidents}
+
+    summaries = [
+        summary for summary in data.query_stored_incident_summaries()
+        if summary["record_id"] in matching_ids
+    ]
+    summaries.sort(key=lambda summary: float(summary["severity"]), reverse=True)
+
+    print(f"\nINCIDENT QUERY: Location = {incident_location}")
+    print(f"Matching incidents: {len(summaries)}\n")
+
+    if summaries:
+        print_stored_incident_summaries(summaries)
+    else:
+        print("No incidents found for the specified location.")
 
 
 '''
@@ -42,6 +58,7 @@ load():
 
 save():
     - argument is not a dictionary
+    - missing expected fields in a dictionary (e.g. input, ai, logic) or having extra fields
     - "data" folder does not exist (already solved)
     - load() fails
     - arugment contains non-JSON-serializable data

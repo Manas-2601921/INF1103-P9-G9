@@ -34,8 +34,9 @@ def save(record):
         f.write("\n")
         print("Saved record to data/incidents.json")
 
-def query():
-    pass
+def query(filter_fn):
+    records = load()
+    return [record for record in records if filter_fn(record)]
 
 ''' =================== Utility Functions Below ! =================== '''
 
@@ -62,3 +63,41 @@ def query_stored_incident_summaries():  # This function is to load every stored 
         })
 
     return summaries
+
+def query_description(description):
+    incidents = query(lambda record: record.get("input", {}).get("description") == description)
+    return incidents
+
+def query_location(location):
+    incidents = query(lambda record: record.get("input", {}).get("location") == location)
+    return incidents
+
+def query_reporter_role(reporter_role):
+    incidents = query(lambda record: record.get("input", {}).get("reporter_role") == reporter_role)
+    return incidents
+
+def query_incident_date(incident_date):
+    incidents = query(lambda record: record.get("input", {}).get("incident_date") == incident_date)
+    return incidents
+    
+def query_injury_reported(injury_reported):
+    incidents = query(lambda record: record.get("input", {}).get("injury_reported") == injury_reported)
+    return incidents
+
+def query_severity(severity, comparison_operator):
+    if comparison_operator == "==":
+        incidents = query(lambda record: float(record.get("ai", {}).get("severity")) == severity)
+    elif comparison_operator == ">":
+        incidents = query(lambda record: float(record.get("ai", {}).get("severity")) > severity)
+    elif comparison_operator == "<":
+        incidents = query(lambda record: float(record.get("ai", {}).get("severity")) < severity)
+    else:
+        print("Invalid comparison operator. Use '==', '>', or '<'.")
+        return [] # or raise an exception
+    return incidents
+
+def query_hazard_category(hazard_category):
+    incidents = query(lambda record: record.get("ai", {}).get("hazard_category") == hazard_category)
+    return incidents
+
+# And so on...
