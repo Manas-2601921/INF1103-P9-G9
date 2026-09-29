@@ -1,4 +1,5 @@
 import json
+#from data_manager import *
 
 # {
 #   "record_id": "",
@@ -61,7 +62,7 @@ def query_immediate_action():
             print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
 
 #Output Incident Information methods 
-def load_file(filepath, filePermission):
+def load_file(file_path, file_permission):
     '''
     This is a method to load files with error handling in place. 
 
@@ -71,7 +72,7 @@ def load_file(filepath, filePermission):
     
     '''
     try:
-        with open(filepath,filePermission, encoding="utf-8")as filehandler:
+        with open(file_path,file_permission, encoding="utf-8")as filehandler:
                     records = json.load(filehandler)
     except FileNotFoundError:
         # print("Data file is not found")
@@ -82,16 +83,23 @@ def load_file(filepath, filePermission):
     else:
         return records
 
-def generate_incident_review(incidentId):
-    if(incidentId == ""):
+def generate_incident_review(incident_id):
+    if(incident_id == ""):
         return "Error: Incident id is missing"
     records = load_file('testdata/incidentDummyRecords.json','r+')
     for record in records:
-        if(record["record_id"] == incidentId):
-            recordToGet = record
-        if recordToGet is None:
+        if(record["record_id"] == incident_id):
+            record_to_get = record
+        if record_to_get is None:
             return "Error: No such record exists in our records."
-    incidentReview = f"""Here is the information for the incident reported:\nIncident: {recordToGet["input"]["description"]}\nIncident location: {recordToGet["input"]["location"]}\nIncident date: {recordToGet["input"]["incident_date"]}\nFrom our application's analysis.. this incident needs {recordToGet["logic"]["final_queue"]}\nThis is serious because \n {recordToGet["ai"]["severity_explanation"]}"""
-    return incidentReview
+    incident_review = f"""Here is the information for the incident reported:\nIncident: {record_to_get["input"]["description"]}\nIncident location: {record_to_get["input"]["location"]}\nIncident date: {record_to_get["input"]["incident_date"]}\nFrom our application's analysis.. this incident needs {record_to_get["logic"]["final_queue"]}\nThis is serious because \n {record_to_get["ai"]["severity_explanation"]}"""
+    return incident_review
+
+def display_search_results(search_results_data): 
+    incident_number = 0
+    for data in search_results_data:
+        formated_data = f"#{str(incident_number)}\t{data['input']['incident_name']}\n{data['input']['description']}\n{data['input']['incident_datetime']}\t{data['input']['location']}"
+        print(formated_data)
+        incident_number+1
 
 print(generate_incident_review("INC-2026-0001"))
