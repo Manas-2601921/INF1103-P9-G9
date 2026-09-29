@@ -10,12 +10,23 @@ import json
 #     "injury_reported": false,
 #     "immediate_action": "Supervisor stopped the forklift"
 #   }                                                                           record template
+
+# Input incident information methods
 def generate_record_id():
     print("generate_record_id called")
+
     return 
 
 def query_description():
     print("query_description called")
+    while True:
+        newIncidentDescription = input("Enter the description of the incident (or type 'quit' to exit): ")
+        if newIncidentDescription.lower() == 'quit':
+            return "quit"
+        elif newIncidentDescription is None:
+            print("Invalid input. Please enter a valid incident description.")
+            continue
+        return newIncidentDescription
     return
 
 def query_location():
@@ -36,7 +47,18 @@ def query_injury_reported():
 
 def query_immediate_action():
     print("query_immediate_action called")
-    return
+    while True:
+        immediateAction = input("Was there any immediate action taken Y/N (or type 'quit' to exit): ")
+        if immediateAction.lower() == 'quit':
+            return "quit"
+        elif immediateAction.upper() == 'Y' or immediateAction.upper() == 'YES':
+            newImmediateAction = input("Please describe the immediate action taken: ")
+            return newImmediateAction
+        elif immediateAction.upper() == 'N' or immediateAction.upper() == 'NO':
+            immediateAction = "No immediate action was taken"
+            return immediateAction
+        else:
+            print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
 
 #Output Incident Information methods 
 def load_file(filepath, filePermission):
