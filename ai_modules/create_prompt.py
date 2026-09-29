@@ -61,8 +61,30 @@ SYSTEM_PROMPT = """You are the classification engine of a workplace incident tri
     choose the safest reasonable value and lower "confidence"."""
 input_fields =  ("description","location","reporter_role","incident_datetime","injury_reported","immediate_action")
 
+def validate_record_json(record_json: dict) -> dict:
+    """Validate the record_json received from the IO manager layer is a dictionary and it contains the incident_json inside the input field
+    
+    Args:
+        record_json: the shared record
+        
+    Returns:
+        The incident_json contained within the input section for the shared record. Returns an error if the shared record is the wrong data type or input field is missing
+    """
+
+    if isinstance(record_json,dict) == False:
+        # If record_json from io manager is not a dictionary throw error
+        raise TypeError(f"record_json is not a dictionary got {type(record_json).__name__} instead")
+    
+    try:
+        incident_json = record_json["input"]
+    except KeyError:
+        raise KeyError("record_json input section is missing or has empty fields")
+    except Exception as e:
+        raise e
+    return incident_json
+
 def validate_incident_json(incident_json: dict) -> dict:
-    """Validates the incident json received from the IO manager layer, ensure that the input is in a dictionary format and all required fields are present
+    """Validates the incident json inside the record json received from the IO manager layer, ensure that the input is in a dictionary format and all required fields are present
     
     Args:
         incident_json: the input section for the shared record
@@ -97,17 +119,17 @@ def build_user_prompt(incident_json: dict) -> str:
     """
 
     lines = ["Incident report to analyse:"]
-    for key in incident_json.keys: 
-        lines.append(f"{{key:incident_json[key]}}") # Construct user prompt using incident_json and combined them into a string
+    for key in incident_json.keys(): 
+        lines.append(str({key:incident_json[key]})) # Construct user prompt using incident_json and combined them into a string
     lines.append("Analyse this incident and reply with the JSON object only.")
     return "\n".join(lines)
 
 
-def build_analysis_messages(incident: dict) -> list[dict]:
+def build_analysis_messages(USER_PROMPT: str) -> list[dict]:
     """Build the chat messages for a first-pass incident analysis.
 
     Args:
-        incident: the ``input`` section of the shared record.
+        USER_PROMPT: from the build_user_prompt function
 
     Returns:
         A ``messages`` payload in chat-completions format: one system
@@ -115,7 +137,7 @@ def build_analysis_messages(incident: dict) -> list[dict]:
     """
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": build_user_prompt(incident)},
+        {"role": "user", "content": USER_PROMPT},
     ]
 
 
