@@ -18,8 +18,8 @@ def generate_record_id():
 
     return 
 
-def query_description():
-    print("query_description called")
+def prompt_description():
+    print("prompt_description called")
     while True:
         newIncidentDescription = input("Enter the description of the incident (or type 'quit' to exit): ")
         if newIncidentDescription.lower() == 'quit':
@@ -30,24 +30,24 @@ def query_description():
         return newIncidentDescription
     return
 
-def query_location():
-    print("query_location called")
+def prompt_location():
+    print("prompt_location called")
     return
 
-def query_reporter_role():
-    print("query_reporter_role called")
+def prompt_reporter_role():
+    print("prompt_reporter_role called")
     return
 
-def query_incident_date():
-    print("query_incident_date called")
+def prompt_incident_date():
+    print("prompt_incident_date called")
     return 
 
-def query_injury_reported():
-    print("query_injury_reported called")
+def prompt_injury_reported():
+    print("prompt_injury_reported called")
     return
 
-def query_immediate_action():
-    print("query_immediate_action called")
+def prompt_immediate_action():
+    print("prompt_immediate_action called")
     while True:
         immediateAction = input("Was there any immediate action taken Y/N (or type 'quit' to exit): ")
         if immediateAction.lower() == 'quit':
