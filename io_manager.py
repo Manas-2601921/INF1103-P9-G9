@@ -20,7 +20,7 @@ def generate_record_id():
     return 
 
 def prompt_description():
-    print("prompt_description called")
+    
     while True:
         newIncidentDescription = input("Enter the description of the incident (or type 'quit' to exit): ")
         if newIncidentDescription.lower() == 'quit':
@@ -32,9 +32,9 @@ def prompt_description():
     return
 
 def prompt_location():
-    print("prompt_location called")
     while True:
-        newIncidentLocation = input("Enter the location of the incident (or type 'quit' to exit): ")
+        newIncidentLocation = input(f"Enter the location of the incident (or type 'quit' to exit): " + "\nFor example: Warehouse, Office, Factory, etc.")
+
         if newIncidentLocation.lower() == 'quit':
             return "quit"
         elif newIncidentLocation is None:
@@ -44,8 +44,31 @@ def prompt_location():
     return
 
 def prompt_reporter_role():
-    print("prompt_reporter_role called")
-    return
+
+    while True:
+        newIncidentReporterRole = input(f"Enter your role in the company (or type 'quit' to exit): " + "\n1. Employee\n2. Supervisor\n3. Manager\n4. Client")
+
+        if newIncidentReporterRole.lower() == 'quit':
+            return "quit"
+        elif newIncidentReporterRole is None:
+            print("Invalid input. Please enter a valid role.")
+            continue
+        elif newIncidentReporterRole == "1" or newIncidentReporterRole.lower() == "employee":
+            newIncidentReporterRole = "Employee"
+            return newIncidentReporterRole
+        elif newIncidentReporterRole == "2" or newIncidentReporterRole.lower() == "supervisor":
+            newIncidentReporterRole = "Supervisor"
+            return newIncidentReporterRole
+        elif newIncidentReporterRole == "3" or newIncidentReporterRole.lower() == "manager":
+            newIncidentReporterRole = "Manager"
+            return newIncidentReporterRole
+        elif newIncidentReporterRole == "4" or newIncidentReporterRole.lower() == "client":
+            newIncidentReporterRole = "Client"
+            return newIncidentReporterRole
+        else:
+            print("Invalid input. Please enter a valid role.")
+            continue
+    
 
 def prompt_incident_date():
     print("prompt_incident_date called")
