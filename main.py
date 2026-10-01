@@ -49,19 +49,20 @@ general:
     - programming errors (use Exceptions)
 
 load():
-    - File does not exist
-    - Empty File
-    - Invalid / Corrupted JSON Format
-    - Valid JSON but wrong top level type (not a list)
+    - ✅File does not exist   - right now, showing the message and returning empty list
+    - ✅Empty File            - catched by JSONDecodeError - showing the message and returning empty list
+    - ✅Invalid / Corrupted JSON Format - JSONDecodeError - showing the message and returning empty list
+    - ✅Valid JSON but wrong top level type (not a list) - need to manually check
+    - (what if it still returns a list but the list contains non-dictionary items? - need to manually check))
     - Permission denied to read the file
     - Disk / Read errors
 
 save():
     - argument is not a dictionary
     - missing expected fields in a dictionary (e.g. input, ai, logic) or having extra fields
-    - "data" folder does not exist (already solved)
+    - ✅"data" folder does not exist (already solved)
     - load() fails
-    - arugment contains non-JSON-serializable data
+    - argument contains non-JSON-serializable data
     - Permission denied to write the file
     - Disk / IO failures
 

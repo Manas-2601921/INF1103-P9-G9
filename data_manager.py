@@ -2,12 +2,42 @@ from pathlib import Path
 from datetime import datetime
 import json
 
-incidents = Path("data/incidents.json")
+incidents_file = Path("data/incidents.json")
 
 def load():
-    if incidents.exists():
-        with open(incidents, "r", encoding="utf-8") as f:
-            return json.load(f)
+    if incidents_file.exists():
+        try:
+            with open(incidents_file, "r", encoding="utf-8") as f:
+                incidents_data = json.load(f)
+                if isinstance(incidents_data, list):
+                    return incidents_data
+                else:
+                    print("\n" + "-"*60 + "\n")
+                    print("[Error]   : Fail to load data.")
+                    print("[Reason]  : JSON returns a top-level type that is not a list. Please contact the support team.")
+                    print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
+                    print("\n" + "-"*60 + "\n")
+                    return []
+        except json.JSONDecodeError:    # if file exists but empty, this error is also raised
+            print("\n" + "-"*60 + "\n")
+            print("[Error]   : Fail to load data.")
+            print("[Reason]  : Invalid JSON format in the database file. Please contact the support team.")
+            print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
+            print("\n" + "-"*60 + "\n")
+            return []
+        except Exception as e:
+            print("\n" + "-"*60 + "\n")
+            print("[Error]   : Fail to load data.")
+            print("[Reason]  : An unexpected error occurred while reading the database file. Please contact the support team.")
+            print(f"[Details] : {str(e)}")
+            print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
+            print("\n" + "-"*60 + "\n")
+            return []
+    else:
+        print("\n" + "-"*60 + "\n")
+        print("Database file not found. The application must be running for the first time.\nA new database file will be created upon adding the first incident.")
+        print("\nIf you are sure that you have recently saved data, please contact the Support Team.")
+        print("\n" + "-"*60 + "\n")
     return []
 
 def save(record):
@@ -27,9 +57,9 @@ def save(record):
     content = json.dumps(records, indent=4, ensure_ascii=False)
 
     # Create the folder "data" if it doesn't exist
-    incidents.parent.mkdir(parents=True, exist_ok=True)
+    incidents_file.parent.mkdir(parents=True, exist_ok=True)
     
-    with open(incidents, "w", encoding="utf-8") as f:
+    with open(incidents_file, "a", encoding="utf-8") as f:
         f.write(content)
         f.write("\n")
         print("Saved record to data/incidents.json")
