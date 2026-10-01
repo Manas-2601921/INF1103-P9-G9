@@ -79,8 +79,6 @@ def validate_record_json(record_json: dict) -> dict:
         incident_json = record_json["input"]
     except KeyError:
         raise KeyError("record_json input section is missing or has empty fields")
-    except Exception as e:
-        raise e
     return incident_json
 
 def validate_incident_json(incident_json: dict) -> dict:
