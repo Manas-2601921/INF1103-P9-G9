@@ -33,6 +33,14 @@ def prompt_description():
 
 def prompt_location():
     print("prompt_location called")
+    while True:
+        newIncidentLocation = input("Enter the location of the incident (or type 'quit' to exit): ")
+        if newIncidentLocation.lower() == 'quit':
+            return "quit"
+        elif newIncidentLocation is None:
+            print("Invalid input. Please enter a valid incident location.")
+            continue
+        return newIncidentLocation
     return
 
 def prompt_reporter_role():
