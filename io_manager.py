@@ -76,6 +76,19 @@ def prompt_incident_date():
 
 def prompt_injury_reported():
     print("prompt_injury_reported called")
+    while True:
+        newIncidentInjuryReported = input("Was there any injury reported Y/N (or type 'quit' to exit): ")
+        if newIncidentInjuryReported.lower() == 'quit':
+            return "quit"
+        elif newIncidentInjuryReported.upper() == 'Y' or newIncidentInjuryReported.upper() == 'YES':
+            newIncidentInjuryReported = True
+            return newIncidentInjuryReported
+        elif newIncidentInjuryReported.upper() == 'N' or newIncidentInjuryReported.upper() == 'NO':
+            newIncidentInjuryReported = False
+            return newIncidentInjuryReported
+        else:
+            print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
+            continue
     return
 
 def prompt_immediate_action():
@@ -92,6 +105,7 @@ def prompt_immediate_action():
             return immediateAction
         else:
             print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
+            continue
 
 #Output Incident Information methods 
 def load_file(file_path, file_permission):
