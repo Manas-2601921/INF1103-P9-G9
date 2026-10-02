@@ -4,12 +4,12 @@ from difflib import SequenceMatcher
 severity_levels = {"low", "medium", "high"}
 
 hazard_categories = {
-    "electrical", "fire", "chemical", "ergonomic", "slip_trip_fall",
+    "electrical", "fire", "chemical", "ergonomic", "slip trip fall",
     "mechanical", "other",
 }
 
 incident_types = {
-    "injury", "unsafe_condition", "property_damage", "complaint",
+    "injury", "property damage", "complaint",
 }
 
 escalation_hazards = {"fire", "electrical"}
@@ -65,10 +65,27 @@ def is_fire_or_electrical_hazard(ai_output):
 
 
 def _parse_date(date_str):
+    """Parse "YYYY-MM-DD" or a full ISO datetime string into a datetime.
+
+    Full timestamps (e.g. "2026-09-21T20:30:00") are preferred when present
+    so recurrence/duplicate checks can use datetime precision; a date-only
+    string falls back to midnight on that day. Returns None on bad/missing
+    input instead of raising.
+    """
+    if not date_str:
+        return None
+    try:
+        return datetime.fromisoformat(date_str)
+    except (TypeError, ValueError):
+        pass
     try:
         return datetime.strptime(date_str, "%Y-%m-%d")
     except (TypeError, ValueError):
         return None
+
+
+def _incident_datetime(record):
+    return record.get("incident_datetime") or record.get("incident_date")
 
 
 def is_similar_incident(record, ai_output, past_record, past_ai_output):
@@ -77,6 +94,9 @@ def is_similar_incident(record, ai_output, past_record, past_ai_output):
     hazard_category = pattern.get("hazard_category") or ai_output.get("hazard_category")
     past_hazard_category = past_pattern.get("hazard_category") or past_ai_output.get("hazard_category")
     if hazard_category != past_hazard_category:
+        return False
+
+    if ai_output.get("incident_type") != past_ai_output.get("incident_type"):
         return False
 
     location = (pattern.get("location") or record.get("location") or "").strip().lower()
@@ -90,14 +110,14 @@ def is_similar_incident(record, ai_output, past_record, past_ai_output):
 
 
 def find_recent_similar_incidents(record, ai_output, history, reference_date=None, window_days=recurrence_window_days):
-    ref_date = _parse_date(reference_date) or _parse_date(record.get("incident_date")) or datetime.now()
+    ref_date = _parse_date(reference_date) or _parse_date(_incident_datetime(record)) or datetime.now()
     cutoff = ref_date - timedelta(days=window_days)
 
     similar = []
     for past_entry in history:
         past_record = past_entry.get("input", {})
         past_ai_output = past_entry.get("ai", {})
-        past_date = _parse_date(past_record.get("incident_date"))
+        past_date = _parse_date(_incident_datetime(past_record))
         if past_date is None or not (cutoff <= past_date <= ref_date):
             continue
 
@@ -121,6 +141,8 @@ def find_possible_duplicate(record, ai_output, history):
             continue
         if past_ai_output.get("hazard_category") != ai_output.get("hazard_category"):
             continue
+        if past_ai_output.get("incident_type") != ai_output.get("incident_type"):
+            continue
 
         similarity = _text_similarity(record.get("description"), past_record.get("description"))
         if similarity >= duplicate_text_similarity_threshold:
@@ -136,11 +158,7 @@ def determine_final_status(record, ai_output, history, reference_date=None):
             "final_queue": status_manual_review,
             "recurring": False,
             "duplicate_possible": False,
-            "duplicate_of": None,
-            "similar_incidents": [],
             "escalation_required": False,
-            "ai_explanation": ai_output.get("severity_explanation") if isinstance(ai_output, dict) else None,
-            "supporting_phrase": ai_output.get("supporting_phrase") if isinstance(ai_output, dict) else None,
             "rule_applied": f"invalid AI output: {'; '.join(problems)}",
         }
 
@@ -167,10 +185,6 @@ def determine_final_status(record, ai_output, history, reference_date=None):
         "final_queue": final_queue,
         "recurring": len(similar_incidents) > 0,
         "duplicate_possible": duplicate is not None,
-        "duplicate_of": duplicate.get("record_id") if duplicate else None,
-        "similar_incidents": [past.get("record_id") for past in similar_incidents],
         "escalation_required": high_severity_escalation,
-        "ai_explanation": ai_output.get("severity_explanation"),
-        "supporting_phrase": ai_output.get("supporting_phrase"),
         "rule_applied": rule_applied,
     }
