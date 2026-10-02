@@ -60,6 +60,15 @@ def has_injury_or_immediate_danger(ai_output):
     )
 
 
+def has_reporter_ai_contradiction(record, ai_output):
+    """True when the reporter explicitly flagged an injury but the AI output
+    doesn't reflect it at all — catches AI mistakes/API misses rather than
+    silently trusting a possibly-wrong classification."""
+    if not record.get("injury_reported"):
+        return False
+    return not has_injury_or_immediate_danger(ai_output)
+
+
 def is_fire_or_electrical_hazard(ai_output):
     return ai_output.get("hazard_category") in escalation_hazards
 
@@ -160,6 +169,15 @@ def determine_final_status(record, ai_output, history, reference_date=None):
             "duplicate_possible": False,
             "escalation_required": False,
             "rule_applied": f"invalid AI output: {'; '.join(problems)}",
+        }
+
+    if has_reporter_ai_contradiction(record, ai_output):
+        return {
+            "final_queue": status_manual_review,
+            "recurring": False,
+            "duplicate_possible": False,
+            "escalation_required": False,
+            "rule_applied": "reporter flagged an injury but AI output did not reflect it: contradictory AI output",
         }
 
     duplicate = find_possible_duplicate(record, ai_output, history)
