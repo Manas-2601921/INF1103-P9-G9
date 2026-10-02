@@ -4,7 +4,7 @@ from difflib import SequenceMatcher
 severity_levels = {"low", "medium", "high"}
 
 hazard_categories = {
-    "electrical", "fire", "chemical", "ergonomic", "slip trip fall",
+    "electrical", "fire", "chemical", "slip trip fall",
     "mechanical", "other",
 }
 
@@ -61,9 +61,6 @@ def has_injury_or_immediate_danger(ai_output):
 
 
 def has_reporter_ai_contradiction(record, ai_output):
-    """True when the reporter explicitly flagged an injury but the AI output
-    doesn't reflect it at all — catches AI mistakes/API misses rather than
-    silently trusting a possibly-wrong classification."""
     if not record.get("injury_reported"):
         return False
     return not has_injury_or_immediate_danger(ai_output)
@@ -74,27 +71,20 @@ def is_fire_or_electrical_hazard(ai_output):
 
 
 def _parse_date(date_str):
-    """Parse "YYYY-MM-DD" or a full ISO datetime string into a datetime.
-
-    Full timestamps (e.g. "2026-09-21T20:30:00") are preferred when present
-    so recurrence/duplicate checks can use datetime precision; a date-only
-    string falls back to midnight on that day. Returns None on bad/missing
-    input instead of raising.
-    """
-    if not date_str:
+    if not isinstance(date_str, str):
         return None
     try:
-        return datetime.fromisoformat(date_str)
-    except (TypeError, ValueError):
+        return datetime.strptime(date_str, "%d-%m-%Y %H:%M")
+    except ValueError:
         pass
     try:
-        return datetime.strptime(date_str, "%Y-%m-%d")
-    except (TypeError, ValueError):
+        return datetime.strptime(date_str, "%d-%m-%Y")
+    except ValueError:
         return None
 
 
 def _incident_datetime(record):
-    return record.get("incident_datetime") or record.get("incident_date")
+    return record.get("incident_datetime")
 
 
 def is_similar_incident(record, ai_output, past_record, past_ai_output):
@@ -144,7 +134,7 @@ def find_possible_duplicate(record, ai_output, history):
     for past_entry in history:
         past_record = past_entry.get("input", {})
         past_ai_output = past_entry.get("ai", {})
-        if past_record.get("incident_date") != record.get("incident_date"):
+        if past_record.get("incident_datetime") != record.get("incident_datetime"):
             continue
         if (past_record.get("location") or "").strip().lower() != (record.get("location") or "").strip().lower():
             continue
@@ -160,7 +150,16 @@ def find_possible_duplicate(record, ai_output, history):
     return None
 
 
-def determine_final_status(record, ai_output, history, reference_date=None):
+def score(ai_output):
+    base = {"low": 1, "medium": 2, "high": 3}.get(ai_output.get("severity"), 0)
+    if is_fire_or_electrical_hazard(ai_output):
+        base += 1
+    if has_injury_or_immediate_danger(ai_output):
+        base += 1
+    return base
+
+
+def evaluate(record, ai_output, history, reference_date=None):
     is_valid, problems = validate_ai_output(ai_output)
     if not is_valid:
         return {
@@ -206,3 +205,10 @@ def determine_final_status(record, ai_output, history, reference_date=None):
         "escalation_required": high_severity_escalation,
         "rule_applied": rule_applied,
     }
+
+
+def route(record, ai_output, history, reference_date=None):
+    return evaluate(record, ai_output, history, reference_date)["final_queue"]
+
+
+determine_final_status = evaluate
