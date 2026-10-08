@@ -14,10 +14,6 @@ from datetime import datetime
 #   }                                                                           record template
 
 # Input incident information methods
-def generate_record_id():
-    print("generate_record_id called")
-
-    return 
 
 def prompt_description():
     
