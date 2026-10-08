@@ -19,6 +19,12 @@ required_ai_fields = (
     "indicators", "recommended_immediate_action", "supporting_phrase",
 )
 
+field_value_rules = (
+    ("severity", severity_levels),
+    ("hazard_category", hazard_categories),
+    ("incident_type", incident_types),
+)
+
 recurrence_window_days = 30
 duplicate_text_similarity_threshold = 0.85
 
@@ -37,12 +43,12 @@ def validate_ai_output(ai_output):
     for field in required_ai_fields:
         if field not in ai_output or ai_output[field] in (None, ""):
             problems.append(f"missing field: {field}")
-    if "severity" in ai_output and ai_output["severity"] not in severity_levels:
-        problems.append(f"invalid severity: {ai_output.get('severity')}")
-    if "hazard_category" in ai_output and ai_output["hazard_category"] not in hazard_categories:
-        problems.append(f"invalid hazard_category: {ai_output.get('hazard_category')}")
-    if "incident_type" in ai_output and ai_output["incident_type"] not in incident_types:
-        problems.append(f"invalid incident_type: {ai_output.get('incident_type')}")
+            continue
+
+        for rule_field, allowed_values in field_value_rules:
+            if field == rule_field and ai_output[field] not in allowed_values:
+                problems.append(f"invalid {field}: {ai_output[field]}")
+
     indicators = ai_output.get("indicators")
     if indicators is not None and not isinstance(indicators, dict):
         problems.append("indicators must be a dict")
