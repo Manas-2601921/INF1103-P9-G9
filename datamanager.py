@@ -2,7 +2,7 @@ from pathlib import Path
 from datetime import datetime
 import json
 
-incidents_file = Path("data/incidents.json")
+incidents_file = Path("testdata/incidentDummyRecords.json")
 
 def load():
     if incidents_file.exists():

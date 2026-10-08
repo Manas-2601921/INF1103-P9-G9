@@ -147,14 +147,14 @@ def generate_incident_review(incident_id):
         if(record["record_id"] == incident_id):
             record_to_get = record
             display_datetime = datetime.fromisoformat(record_to_get["input"]["incident_datetime"]).strftime("%d %B %Y, %H:%M")
-            incident_review = f"""Here is the information for the incident reported:\nIncident: {record_to_get["input"]["description"]}\nIncident location: {record_to_get["input"]["location"]}\nIncident timestamp: {display_datetime}\nFrom our application's analysis.. this incident needs {record_to_get["logic"]["final_queue"]}\nThis is serious because \n {record_to_get["ai"]["severity_explanation"]}"""
+            incident_review = f"""\n\nHere is the information for the incident reported:\nIncident: {record_to_get["input"]["description"]}\nIncident location: {record_to_get["input"]["location"]}\nIncident timestamp: {display_datetime}\nFrom our application's analysis.. this incident needs {record_to_get["logic"]["final_queue"]}\nThis is serious because\n{record_to_get["ai"]["severity_explanation"]}"""
     if record_to_get is None:
                 return "Error: No such record exists in our records."
     return incident_review
 
 def handle_search_options():
     search_results = {}
-    user_search_option = input("What would you like to search by:\n1. Title \n2. Category\n3. Date \nEnter your option number here: ")
+    user_search_option = input("What would you like to search by:\n1. Title \n2. Category\n3. Date \n\nEnter your option number here: ")
     if(user_search_option.isdigit() == False):
         print("Invalid input. Please enter a valid option number.")
     else:
@@ -165,7 +165,7 @@ def handle_search_options():
             #search option is valid, now we can proceed to search for the incident
             if(int_search_option == 1):
     
-                title_search_value = input("Enter the name of the incident you want to search for: ")
+                title_search_value = input("\n\nEnter the name of the incident you want to search for: ")
                 #method to search for the incident by title
                 if not title_search_value.strip():
                     print("Name of the incident is empty.")
@@ -186,11 +186,11 @@ def handle_search_options():
                         return search_results,category_search_value
             
             elif(int_search_option == 3):
-                datetime_search_type = input("Search incident datetime by \n1. Date and Time Range\n2.Specific Datetime\nEnter your option number here: ")
+                datetime_search_type = input("\nSearch incident datetime by \n1. Date and Time Range\n2.Specific Datetime\nEnter your option number here: ")
                 datetime_search_type_int = int(datetime_search_type)
                 if(datetime_search_type_int == 1):
                     #user wants to search by date and time
-                    search_start_datetime_input = input("Enter the start datetime you want to search by (e.g. YYYY-MM-DD HH:MM, 2023-10-25 14:30): ")
+                    search_start_datetime_input = input("\nEnter the start datetime you want to search by (e.g. YYYY-MM-DD HH:MM, 2023-10-25 14:30): ")
                     try:
                         valid_start_datetime = datetime.strptime(search_start_datetime_input, "%Y-%m-%d %H:%M").isoformat(timespec="seconds")
                     except ValueError:
@@ -253,24 +253,22 @@ Incident Date: 16/09/2004 Location: Clarke Quay"""
     if(search_results_data == 0):
         print(f" No Search Results for '{user_search_query}':")
     else:
-        print(f"{num_of_search_results} Search Results for '{user_search_query}':")
+        print(f"\n\n{num_of_search_results} Search Results for '{user_search_query}':")
         for data in search_results_data:
 
-            formated_data = f"#{str(incident_number)}\t{data['input']['incident_name']}\n{data['input']['description']}\n{datetime.fromisoformat(data['input']['incident_datetime']).strftime("%d %B %Y, %H:%M")}\t{data['input']['location']}"
+            formated_data = f"#{str(incident_number)}\t{data['input']['incident_name']}\n{data['input']['description']}\n{datetime.fromisoformat(data['input']['incident_datetime']).strftime("%d %B %Y, %H:%M")}\t{data['input']['location']}\n"
             print(formated_data)
             incident_number += 1
-        user_view_details = input("Would you like to view the details of any particular incident? Please enter Yes or No: ")
-        if user_view_details == "Yes":
-            try:
-                view_incident_number = int(input("Enter the search result number of the incident to view: "))
-                
-            except ValueError:
-                print("Error: invalid search result number")
-            view_incident_data_id = search_results_data[view_incident_number]['record_id']
-            review = generate_incident_review(view_incident_data_id)
-            print(review)
-        if user_view_details == "No":
-            print("Thank you for using our search service")
+
+        try:
+            view_incident_number = int(input("Enter the search result number to view incident details: "))
+        except ValueError:
+            print("Error: invalid search result number")
+
+        view_incident_data_id = search_results_data[view_incident_number]['record_id']
+        review = generate_incident_review(view_incident_data_id)
+        print(review)
+
 
 
 #print(generate_incident_review("INC-2026-0001"))
