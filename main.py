@@ -22,8 +22,10 @@ def print_stored_incident_summaries(summaries):
 # Just a Testing scripte below
 if __name__ == "__main__":
     incident_location = "Warehouse A"
+    reporter_role = "Employee"
+    severity = 0.5
 
-    matching_incidents = data.query_location(incident_location) 
+    matching_incidents = data.query_severity(severity, ">")
     matching_ids = {record["record_id"] for record in matching_incidents}
 
     summaries = [
@@ -32,13 +34,13 @@ if __name__ == "__main__":
     ]
     summaries.sort(key=lambda summary: float(summary["severity"]), reverse=True)
 
-    print(f"\nINCIDENT QUERY: Location = {incident_location}")
+    print(f"\nINCIDENT QUERY: severity > {severity}")
     print(f"Matching incidents: {len(summaries)}\n")
 
     if summaries:
         print_stored_incident_summaries(summaries)
     else:
-        print("No incidents found for the specified location.")
+        print("No incidents found for the specified reporter role.")
 
 
 '''

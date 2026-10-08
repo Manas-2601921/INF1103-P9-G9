@@ -18,6 +18,7 @@ def load():
                     print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
                     print("\n" + "-"*60 + "\n")
                     return []
+                
         except json.JSONDecodeError:    # if file exists but empty, this error is also raised
             print("\n" + "-"*60 + "\n")
             print("[Error]   : Fail to load data.")
@@ -25,6 +26,7 @@ def load():
             print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
             print("\n" + "-"*60 + "\n")
             return []
+        
         except Exception as e:
             print("\n" + "-"*60 + "\n")
             print("[Error]   : Fail to load data.")
@@ -33,6 +35,7 @@ def load():
             print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
             print("\n" + "-"*60 + "\n")
             return []
+        
     else:
         print("\n" + "-"*60 + "\n")
         print("Database file not found. The application must be running for the first time.\nA new database file will be created upon adding the first incident.")
