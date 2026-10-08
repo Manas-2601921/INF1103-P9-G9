@@ -66,9 +66,22 @@ def prompt_reporter_role():
             continue
     
 
-def prompt_incident_date():
-    print("prompt_incident_date called")
-    return 
+def prompt_incident_date_time():
+    while True:
+        print("prompt_incident_date_time called")
+        newIncidentDateTime = input("Enter the date and time of the incident (DD-MM-YYYY HH:MM) (or type 'quit' to exit):")
+        if newIncidentDateTime.lower() == 'quit':
+            return "quit"
+        elif newIncidentDateTime is None:
+            print("Invalid input. Please enter a valid incident date and time.")
+            continue
+        else:
+            try:
+                newIncidentDateTime = datetime.strptime(newIncidentDateTime, "%d-%m-%Y %H:%M")
+                return newIncidentDateTime
+            except ValueError:
+                print("Invalid date and time format. Please enter the date and time in the format DD-MM-YYYY HH:MM.")
+                continue
 
 def prompt_injury_reported():
     print("prompt_injury_reported called")
