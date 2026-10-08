@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-#from data_manager import *
+import datamanager #temporary data manager file import to test workability with data manager
 
 # {
 #   "record_id": "",
@@ -141,13 +141,15 @@ def load_file(file_path, file_permission):
 def generate_incident_review(incident_id):
     if(incident_id == ""):
         return "Error: Incident id is missing"
-    records = load_file('testdata/incidentDummyRecords.json','r+')
+    records = datamanager.load()
+    record_to_get = None
     for record in records:
         if(record["record_id"] == incident_id):
             record_to_get = record
-        if record_to_get is None:
-            return "Error: No such record exists in our records."
-    incident_review = f"""Here is the information for the incident reported:\nIncident: {record_to_get["input"]["description"]}\nIncident location: {record_to_get["input"]["location"]}\nIncident date: {record_to_get["input"]["incident_date"]}\nFrom our application's analysis.. this incident needs {record_to_get["logic"]["final_queue"]}\nThis is serious because \n {record_to_get["ai"]["severity_explanation"]}"""
+            display_datetime = datetime.fromisoformat(record_to_get["input"]["incident_datetime"]).strftime("%d %B %Y, %H:%M")
+            incident_review = f"""Here is the information for the incident reported:\nIncident: {record_to_get["input"]["description"]}\nIncident location: {record_to_get["input"]["location"]}\nIncident timestamp: {display_datetime}\nFrom our application's analysis.. this incident needs {record_to_get["logic"]["final_queue"]}\nThis is serious because \n {record_to_get["ai"]["severity_explanation"]}"""
+    if record_to_get is None:
+                return "Error: No such record exists in our records."
     return incident_review
 
 def handle_search_options():
@@ -162,23 +164,73 @@ def handle_search_options():
         else:
             #search option is valid, now we can proceed to search for the incident
             if(int_search_option == 1):
+    
                 title_search_value = input("Enter the name of the incident you want to search for: ")
                 #method to search for the incident by title
-                return search_results,title_search_value
+                if not title_search_value.strip():
+                    print("Name of the incident is empty.")
+                    return False
+                else:
+                    search_results = datamanager.query(lambda record: record.get("input", {}).get("incident_name") == title_search_value)
+                    return search_results,title_search_value
+
+            
             elif(int_search_option == 2):
-                category_search_value = input("Enter the category of the incident you want to search for: ")
-                #method to search for the incident by category
-                return search_results,category_search_value
+                    category_search_value = input("Enter the category of the incident you want to search for: ")
+                    if not category_search_value.strip():
+                        print("Category of Incident is empty. No category to search by.")
+                        return False
+                    else:
+                        search_results = datamanager.query(lambda record: record.get("ai", {}).get("hazard_category") == category_search_value)
+                        #method to search for the incident by category
+                        return search_results,category_search_value
+            
             elif(int_search_option == 3):
-                date_search_value = input("Enter the date of the incident you want to search for. Follow the format (YYYY-MM-DD): ")
-                #convert string to datetime object
-                #handle the case where the user enters an invalid date format
-                try:
-                    date_search_value = datetime.strptime(date_search_value, "%Y-%m-%d")
-                except ValueError:
-                    print("Invalid date format. Please enter the date in the format (YYYY-MM-DD).")
-                #method to search for the incident by date
-                return search_results,date_search_value
+                datetime_search_type = input("Search incident datetime by \n1. Date and Time Range\n2.Specific Datetime\nEnter your option number here: ")
+                datetime_search_type_int = int(datetime_search_type)
+                if(datetime_search_type_int == 1):
+                    #user wants to search by date and time
+                    search_start_datetime_input = input("Enter the start datetime you want to search by (e.g. YYYY-MM-DD HH:MM, 2023-10-25 14:30): ")
+                    try:
+                        valid_start_datetime = datetime.strptime(search_start_datetime_input, "%Y-%m-%d %H:%M").isoformat(timespec="seconds")
+                    except ValueError:
+                        print(f"Invalid format. Please follow the format: YYYY-MM-DD HH:MM (e.g., 2023-10-25 14:30)")
+                        return False
+                    try:
+                        search_end_datetime_input = input("Enter the end datetime you want to search by (e.g. YYYY-MM-DD HH:MM, 2023-10-25 14:30): ")
+                        valid_end_datetime = datetime.strptime(search_end_datetime_input, "%Y-%m-%d %H:%M").isoformat(timespec="seconds")
+                    except ValueError:
+                        print(f"Invalid format. Please follow the format: YYYY-MM-DD HH:MM (e.g., 2023-10-25 14:30)")
+                        return False
+                    if(valid_start_datetime > valid_end_datetime):
+                        print("start value cannot be greater than end value")
+                        return False
+                    search_results = datamanager.query(lambda record: valid_start_datetime <= record.get("input", {}).get("incident_datetime") <= valid_end_datetime)
+                    search_string = f"incidents betweeen {search_start_datetime_input} and {search_end_datetime_input}"
+                    return search_results, search_string
+                elif(datetime_search_type_int == 2):
+                    search_datetime_input =  input("Enter the datetime you want to search by (e.g. YYYY-MM-DD HH:MM, 2023-10-25 14:30): ")
+                    try:
+                         valid_search_datetime = datetime.strptime(search_datetime_input, "%Y-%m-%d %H:%M").isoformat(timespec="seconds")
+                    except ValueError:
+                        print(f"Invalid format. Please follow the format: YYYY-MM-DD HH:MM (e.g., 2023-10-25 14:30)")
+                        return False
+
+                    search_results = datamanager.query(lambda record: record.get("input", {}).get("incident_datetime") == valid_search_datetime)
+                    return search_results,search_datetime_input
+                else:
+                    print("Invalid option number entered.")
+                    return False
+                
+                # #convert string to datetime object
+                # #handle the case where the user enters an invalid date format
+                # try:
+                #     date_search_value = datetime.strptime(date_search_value, "%Y-%m-%d")
+                # except ValueError:
+                #     print("Invalid date format. Please enter the date in the format (YYYY-MM-DD).")
+                # #method to search for the incident by date
+                # search_results = datamanager.query(lambda record: record.get("input", {}).get("incident_datetime") == date_search_value)
+                # return search_results,date_search_value
             
 def display_search_results(search_results_data, user_search_query): 
     #SEARCH RESULTS DATA MUST RETURN INCIDENTID 
@@ -195,21 +247,34 @@ Incident Date: 16/09/2004 Location: Clarke Quay
 #1 Falling of ladder
 A worker was painting the building when he fell off the lader
 Incident Date: 16/09/2004 Location: Clarke Quay"""
+
     incident_number = 0
     num_of_search_results = len(search_results_data)
-    print(f"{num_of_search_results} Search Results for '{user_search_query}':")
-    for data in search_results_data:
-        formated_data = f"#{str(incident_number)}\t{data['input']['incident_name']}\n{data['input']['description']}\n{data['input']['incident_datetime']}\t{data['input']['location']}"
-        print(formated_data)
-        incident_number += 1
-    user_view_details = input("Would you like to view the details of any particular incident? If yes, please enter the number that the incident is listed as in the search results: ")
-    if user_view_details.isdigit():
-        user_view_details = int(user_view_details)
-        if user_view_details < 0 or user_view_details >= num_of_search_results:
-            print("Invalid input. Please enter a valid incident number.")
-        else:
-            return
-            #need to fetch the incident data based on incidentId and display the details of the incident
+    if(search_results_data == 0):
+        print(f" No Search Results for '{user_search_query}':")
+    else:
+        print(f"{num_of_search_results} Search Results for '{user_search_query}':")
+        for data in search_results_data:
+
+            formated_data = f"#{str(incident_number)}\t{data['input']['incident_name']}\n{data['input']['description']}\n{datetime.fromisoformat(data['input']['incident_datetime']).strftime("%d %B %Y, %H:%M")}\t{data['input']['location']}"
+            print(formated_data)
+            incident_number += 1
+        user_view_details = input("Would you like to view the details of any particular incident? Please enter Yes or No: ")
+        if user_view_details == "Yes":
+            try:
+                view_incident_number = int(input("Enter the search result number of the incident to view: "))
+                
+            except ValueError:
+                print("Error: invalid search result number")
+            view_incident_data_id = search_results_data[view_incident_number]['record_id']
+            review = generate_incident_review(view_incident_data_id)
+            print(review)
+        if user_view_details == "No":
+            print("Thank you for using our search service")
 
 
-print(generate_incident_review("INC-2026-0001"))
+#print(generate_incident_review("INC-2026-0001"))
+searchOptions = handle_search_options()
+if(searchOptions != False):
+    display_search_results(searchOptions[0],searchOptions[1])
+    

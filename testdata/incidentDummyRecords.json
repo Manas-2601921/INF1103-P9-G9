@@ -2,10 +2,11 @@
   {
     "record_id": "INC-2026-0001",
     "input": {
+      "incident_name": "Forklift Near Miss with Pedestrian",
       "description": "Forklift nearly hit a worker while reversing.",
       "location": "Warehouse",
       "reporter_role": "Employee",
-      "incident_date": "2026-09-21",
+      "incident_datetime": "2026-09-21T14:10:00",
       "injury_reported": false,
       "immediate_action": "Supervisor stopped the forklift"
     },
@@ -46,10 +47,11 @@
   {
     "record_id": "INC-2026-0002",
     "input": {
+      "incident_name": "Damaged Electrical Cable in Maintenance Bay",
       "description": "Exposed electrical cable with damaged insulation found near the maintenance bay.",
       "location": "Warehouse A",
       "reporter_role": "Maintenance Technician",
-      "incident_date": "2026-09-21",
+      "incident_datetime": "2026-09-21T20:30:00",
       "injury_reported": false,
       "immediate_action": "Area cordoned off with cones"
     },
@@ -90,10 +92,11 @@
   {
     "record_id": "INC-2026-0003",
     "input": {
+      "incident_name": "Slip on Wet Cafeteria Floor",
       "description": "Wet floor near the cafeteria entrance with no warning sign. Employee slipped and bruised their knee.",
       "location": "Cafeteria",
       "reporter_role": "Employee",
-      "incident_date": "2026-09-19",
+      "incident_datetime": "2026-09-19T12:45:00",
       "injury_reported": true,
       "immediate_action": "First aid applied and floor dried"
     },
@@ -134,10 +137,11 @@
   {
     "record_id": "INC-2026-0004",
     "input": {
+      "incident_name": "Chemical Leak in Storage Room",
       "description": "Chemical container leaking a strong-smelling liquid in the storage room. Two workers reported dizziness.",
       "location": "Chemical Storage Room",
       "reporter_role": "Supervisor",
-      "incident_date": "2026-09-18",
+      "incident_datetime": "2026-09-18T09:20:00",
       "injury_reported": true,
       "immediate_action": "Room evacuated and ventilation turned on"
     },
@@ -178,10 +182,11 @@
   {
     "record_id": "INC-2026-0005",
     "input": {
+      "incident_name": "Repeat Falling Pallet in Aisle 7",
       "description": "Another pallet fell from the top rack in aisle 7 during unloading. No one was underneath.",
       "location": "Warehouse B",
       "reporter_role": "Forklift Operator",
-      "incident_date": "2026-09-20",
+      "incident_datetime": "2026-09-20T16:00:00",
       "injury_reported": false,
       "immediate_action": "Aisle closed and pallet removed"
     },
@@ -222,10 +227,11 @@
   {
     "record_id": "INC-2026-0006",
     "input": {
+      "incident_name": "Box Cutter Hand Laceration",
       "description": "Worker suffered a deep cut to the hand while using a box cutter without gloves.",
       "location": "Packing Station 3",
       "reporter_role": "Team Lead",
-      "incident_date": "2026-09-17",
+      "incident_datetime": "2026-09-17T10:40:00",
       "injury_reported": true,
       "immediate_action": "Worker sent to clinic for stitches"
     },
@@ -266,10 +272,11 @@
   {
     "record_id": "INC-2026-0007",
     "input": {
+      "incident_name": "Duplicate Report: Exposed Cable in Maintenance Bay",
       "description": "Exposed electrical cable with damaged insulation spotted in the maintenance bay.",
       "location": "Warehouse A",
       "reporter_role": "Employee",
-      "incident_date": "2026-09-21",
+      "incident_datetime": "2026-09-21T21:05:00",
       "injury_reported": false,
       "immediate_action": "None"
     },
@@ -310,10 +317,11 @@
   {
     "record_id": "INC-2026-0008",
     "input": {
+      "incident_name": "Blocked Emergency Exit in East Corridor",
       "description": "Emergency exit door in the east corridor is blocked by stacked boxes.",
       "location": "Office Building, East Corridor",
       "reporter_role": "Safety Officer",
-      "incident_date": "2026-09-16",
+      "incident_datetime": "2026-09-16T08:50:00",
       "injury_reported": false,
       "immediate_action": "Boxes moved by reporter"
     },
@@ -354,10 +362,11 @@
   {
     "record_id": "INC-2026-0009",
     "input": {
+      "incident_name": "Unprotected Work at Height on Dock Roof",
       "description": "Contractor working at height on the loading dock roof without a harness.",
       "location": "Loading Dock",
       "reporter_role": "Contractor",
-      "incident_date": "2026-09-22",
+      "incident_datetime": "2026-09-22T10:15:00",
       "injury_reported": false,
       "immediate_action": "Work halted by site manager"
     },
@@ -398,10 +407,11 @@
   {
     "record_id": "INC-2026-0010",
     "input": {
+      "incident_name": "Unstable Office Chair Wheel",
       "description": "Office chair has a wobbly wheel and feels unstable when sitting.",
       "location": "Open Office, Level 2",
       "reporter_role": "Employee",
-      "incident_date": "2026-09-23",
+      "incident_datetime": "2026-09-23T15:30:00",
       "injury_reported": false,
       "immediate_action": "Chair swapped for a spare"
     },
@@ -442,10 +452,11 @@
   {
     "record_id": "INC-2026-0011",
     "input": {
+      "incident_name": "Empty Fire Extinguisher in Paint Shop",
       "description": "Fire extinguisher in the paint shop was found empty during a routine check.",
       "location": "Paint Shop",
       "reporter_role": "Safety Officer",
-      "incident_date": "2026-09-24",
+      "incident_datetime": "2026-09-24T08:15:00",
       "injury_reported": false,
       "immediate_action": "Extinguisher tagged out and replacement requested"
     },
@@ -486,10 +497,11 @@
   {
     "record_id": "INC-2026-0012",
     "input": {
+      "incident_name": "Noise Exposure at Stamping Press",
       "description": "Worker reported ringing in their ears after a full shift near the stamping press without hearing protection.",
       "location": "Stamping Floor",
       "reporter_role": "Employee",
-      "incident_date": "2026-09-22",
+      "incident_datetime": "2026-09-22T18:00:00",
       "injury_reported": true,
       "immediate_action": "Worker referred to occupational health"
     },
@@ -530,10 +542,11 @@
   {
     "record_id": "INC-2026-0013",
     "input": {
+      "incident_name": "Unpermitted Confined Space Entry",
       "description": "Confined space entry into a storage tank was started without a permit or gas monitor.",
       "location": "Tank Farm",
       "reporter_role": "Site Supervisor",
-      "incident_date": "2026-09-25",
+      "incident_datetime": "2026-09-25T07:40:00",
       "injury_reported": false,
       "immediate_action": "Entry stopped and worker recalled from the tank"
     },
@@ -574,10 +587,11 @@
   {
     "record_id": "INC-2026-0014",
     "input": {
+      "incident_name": "Missing Mezzanine Guard Rail",
       "description": "Guard rail missing on the second-floor mezzanine near the parts bin.",
       "location": "Mezzanine, Building 2",
       "reporter_role": "Maintenance Technician",
-      "incident_date": "2026-09-15",
+      "incident_datetime": "2026-09-15T11:00:00",
       "injury_reported": false,
       "immediate_action": "Barrier tape put up around the opening"
     },
@@ -618,10 +632,11 @@
   {
     "record_id": "INC-2026-0015",
     "input": {
+      "incident_name": "Aggressive Dog Encounter on Delivery Route",
       "description": "Delivery driver reported feeling threatened by a dog at a residential drop-off address.",
       "location": "Off-site Delivery Route",
       "reporter_role": "Driver",
-      "incident_date": "2026-09-23",
+      "incident_datetime": "2026-09-23T13:10:00",
       "injury_reported": false,
       "immediate_action": "Driver left the property and reported to dispatch"
     },
@@ -662,10 +677,11 @@
   {
     "record_id": "INC-2026-0016",
     "input": {
+      "incident_name": "Second Falling Pallet Event in Aisle 7",
       "description": "Second report this month of a pallet falling from the top rack in aisle 7.",
       "location": "Warehouse B",
       "reporter_role": "Warehouse Associate",
-      "incident_date": "2026-09-26",
+      "incident_datetime": "2026-09-26T09:50:00",
       "injury_reported": false,
       "immediate_action": "Aisle closed pending rack inspection"
     },
@@ -706,10 +722,11 @@
   {
     "record_id": "INC-2026-0017",
     "input": {
+      "incident_name": "Heat Exhaustion at Construction Site",
       "description": "Employee experienced heat exhaustion symptoms while working outdoors during a heatwave with no shade breaks scheduled.",
       "location": "Outdoor Construction Site",
       "reporter_role": "Site Foreman",
-      "incident_date": "2026-09-14",
+      "incident_datetime": "2026-09-14T13:30:00",
       "injury_reported": true,
       "immediate_action": "Worker moved to shade and given water; paramedics called"
     },
@@ -750,10 +767,11 @@
   {
     "record_id": "INC-2026-0018",
     "input": {
+      "incident_name": "Coolant Spill at CNC Station 4",
       "description": "Spilled coolant on the machine shop floor near CNC station 4, no signage placed yet.",
       "location": "Machine Shop",
       "reporter_role": "Machine Operator",
-      "incident_date": "2026-09-25",
+      "incident_datetime": "2026-09-25T15:00:00",
       "injury_reported": false,
       "immediate_action": "Operator stood by to warn others"
     },
@@ -794,10 +812,11 @@
   {
     "record_id": "INC-2026-0019",
     "input": {
+      "incident_name": "Overhead Crane Grinding Noise",
       "description": "Overhead crane made an unusual grinding noise during a lift and was taken out of service.",
       "location": "Fabrication Bay",
       "reporter_role": "Crane Operator",
-      "incident_date": "2026-09-26",
+      "incident_datetime": "2026-09-26T14:20:00",
       "injury_reported": false,
       "immediate_action": "Crane locked out and maintenance notified"
     },
@@ -838,10 +857,11 @@
   {
     "record_id": "INC-2026-0020",
     "input": {
+      "incident_name": "Loose Break Room Fridge Hinge",
       "description": "Break room refrigerator door hinge is loose and squeaks when opened.",
       "location": "Break Room, Level 1",
       "reporter_role": "Employee",
-      "incident_date": "2026-09-24",
+      "incident_datetime": "2026-09-24T12:00:00",
       "injury_reported": false,
       "immediate_action": "Reported to facilities for repair"
     },
