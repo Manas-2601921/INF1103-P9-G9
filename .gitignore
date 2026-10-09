@@ -1,3 +1,10 @@
+__pycache__/
+*.pyc
+*.corrupt.bak
+~$*
+test/
+TeamProjectSpecification.docx
+TeamProjectSpecification.pdf
 # Python bytecode
 __pycache__/
 *.py[cod]
