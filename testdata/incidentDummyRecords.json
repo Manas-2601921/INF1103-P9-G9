@@ -1,0 +1,902 @@
+[
+  {
+    "record_id": "INC-2026-0001",
+    "input": {
+      "incident_name": "Forklift Near Miss with Pedestrian",
+      "description": "Forklift nearly hit a worker while reversing.",
+      "location": "Warehouse",
+      "reporter_role": "Employee",
+      "incident_datetime": "2026-09-21T14:10:00",
+      "injury_reported": false,
+      "immediate_action": "Supervisor stopped the forklift"
+    },
+    "ai": {
+      "severity": "0.86",
+      "severity_explanation": "A reversing forklift came close to striking a pedestrian, indicating a serious near miss with potential for fatal injury.",
+      "hazard_category": "vehicle/mobile equipment",
+      "incident_type": "near miss",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": true,
+        "exposure": true,
+        "equipment_involvement": true,
+        "work_stoppage": true,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "vehicle/mobile equipment",
+        "location": "Warehouse A",
+        "datetime": "2026-09-21T14:10:00",
+        "activity": "material handling"
+      },
+      "recommended_immediate_action": "Separate pedestrian and forklift routes and require a spotter during reversing until a review is completed.",
+      "supporting_phrase": "Forklift nearly hit a worker while reversing"
+    },
+    "logic": {
+      "final_queue": "Priority Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Immediate danger cannot enter routine queue"
+    },
+    "metadata": {
+      "created_at": "2026-09-21T14:32:00",
+      "processed_at": "2026-09-21T14:32:07"
+    }
+  },
+  {
+    "record_id": "INC-2026-0002",
+    "input": {
+      "incident_name": "Damaged Electrical Cable in Maintenance Bay",
+      "description": "Exposed electrical cable with damaged insulation found near the maintenance bay.",
+      "location": "Warehouse A",
+      "reporter_role": "Maintenance Technician",
+      "incident_datetime": "2026-09-21T20:30:00",
+      "injury_reported": false,
+      "immediate_action": "Area cordoned off with cones"
+    },
+    "ai": {
+      "severity": "0.93",
+      "severity_explanation": "An exposed electrical cable created an immediate risk of electric shock.",
+      "hazard_category": "electrical",
+      "incident_type": "unsafe condition",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": true,
+        "exposure": true,
+        "equipment_involvement": true,
+        "work_stoppage": false,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "electrical",
+        "location": "Warehouse A",
+        "datetime": "2026-09-21T20:30:00",
+        "activity": "equipment maintenance"
+      },
+      "recommended_immediate_action": "Isolate the affected electrical equipment and prevent access until it has been inspected.",
+      "supporting_phrase": "exposed electrical cable with damaged insulation"
+    },
+    "logic": {
+      "final_queue": "Priority Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Immediate danger cannot enter routine queue"
+    },
+    "metadata": {
+      "created_at": "2026-09-21T20:30:00",
+      "processed_at": "2026-09-21T20:30:08"
+    }
+  },
+  {
+    "record_id": "INC-2026-0003",
+    "input": {
+      "incident_name": "Slip on Wet Cafeteria Floor",
+      "description": "Wet floor near the cafeteria entrance with no warning sign. Employee slipped and bruised their knee.",
+      "location": "Cafeteria",
+      "reporter_role": "Employee",
+      "incident_datetime": "2026-09-19T12:45:00",
+      "injury_reported": true,
+      "immediate_action": "First aid applied and floor dried"
+    },
+    "ai": {
+      "severity": "0.42",
+      "severity_explanation": "A minor slip caused a bruise; the hazard was quickly corrected but the lack of signage is a control gap.",
+      "hazard_category": "slip/trip/fall",
+      "incident_type": "injury",
+      "indicators": {
+        "injury": true,
+        "immediate_danger": false,
+        "exposure": true,
+        "equipment_involvement": false,
+        "work_stoppage": false,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "slip/trip/fall",
+        "location": "Cafeteria",
+        "datetime": "2026-09-19T12:45:00",
+        "activity": "walking"
+      },
+      "recommended_immediate_action": "Place wet floor signage and review cleaning procedures during peak hours.",
+      "supporting_phrase": "Employee slipped and bruised their knee"
+    },
+    "logic": {
+      "final_queue": "Routine Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": false,
+      "rule_applied": "Minor injury with hazard already controlled"
+    },
+    "metadata": {
+      "created_at": "2026-09-19T13:05:00",
+      "processed_at": "2026-09-19T13:05:05"
+    }
+  },
+  {
+    "record_id": "INC-2026-0004",
+    "input": {
+      "incident_name": "Chemical Leak in Storage Room",
+      "description": "Chemical container leaking a strong-smelling liquid in the storage room. Two workers reported dizziness.",
+      "location": "Chemical Storage Room",
+      "reporter_role": "Supervisor",
+      "incident_datetime": "2026-09-18T09:20:00",
+      "injury_reported": true,
+      "immediate_action": "Room evacuated and ventilation turned on"
+    },
+    "ai": {
+      "severity": "0.95",
+      "severity_explanation": "A chemical leak with symptomatic exposure to multiple workers indicates a severe, potentially ongoing health hazard.",
+      "hazard_category": "chemical",
+      "incident_type": "chemical release",
+      "indicators": {
+        "injury": true,
+        "immediate_danger": true,
+        "exposure": true,
+        "equipment_involvement": false,
+        "work_stoppage": true,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "chemical",
+        "location": "Chemical Storage Room",
+        "datetime": "2026-09-18T09:20:00",
+        "activity": "chemical storage"
+      },
+      "recommended_immediate_action": "Keep the area evacuated, arrange medical evaluation for exposed workers, and engage the hazmat response team.",
+      "supporting_phrase": "Two workers reported dizziness"
+    },
+    "logic": {
+      "final_queue": "Urgent Escalation",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Multiple workers exposed to hazardous substance requires escalation"
+    },
+    "metadata": {
+      "created_at": "2026-09-18T09:35:00",
+      "processed_at": "2026-09-18T09:35:06"
+    }
+  },
+  {
+    "record_id": "INC-2026-0005",
+    "input": {
+      "incident_name": "Repeat Falling Pallet in Aisle 7",
+      "description": "Another pallet fell from the top rack in aisle 7 during unloading. No one was underneath.",
+      "location": "Warehouse B",
+      "reporter_role": "Forklift Operator",
+      "incident_datetime": "2026-09-20T16:00:00",
+      "injury_reported": false,
+      "immediate_action": "Aisle closed and pallet removed"
+    },
+    "ai": {
+      "severity": "0.71",
+      "severity_explanation": "A falling load with no injury but a clear potential for serious harm, and this appears to be a repeat of earlier events.",
+      "hazard_category": "falling objects",
+      "incident_type": "near miss",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": true,
+        "exposure": false,
+        "equipment_involvement": true,
+        "work_stoppage": true,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "falling objects",
+        "location": "Warehouse B",
+        "datetime": "2026-09-20T16:00:00",
+        "activity": "unloading"
+      },
+      "recommended_immediate_action": "Inspect rack loading limits and pallet condition in aisle 7 before reopening.",
+      "supporting_phrase": "Another pallet fell from the top rack"
+    },
+    "logic": {
+      "final_queue": "Priority Review",
+      "recurring": true,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Recurring hazard with high potential severity is prioritized"
+    },
+    "metadata": {
+      "created_at": "2026-09-20T16:15:00",
+      "processed_at": "2026-09-20T16:15:09"
+    }
+  },
+  {
+    "record_id": "INC-2026-0006",
+    "input": {
+      "incident_name": "Box Cutter Hand Laceration",
+      "description": "Worker suffered a deep cut to the hand while using a box cutter without gloves.",
+      "location": "Packing Station 3",
+      "reporter_role": "Team Lead",
+      "incident_datetime": "2026-09-17T10:40:00",
+      "injury_reported": true,
+      "immediate_action": "Worker sent to clinic for stitches"
+    },
+    "ai": {
+      "severity": "0.68",
+      "severity_explanation": "A laceration requiring medical treatment resulted from missing PPE and unsafe tool use.",
+      "hazard_category": "manual tools",
+      "incident_type": "injury",
+      "indicators": {
+        "injury": true,
+        "immediate_danger": false,
+        "exposure": true,
+        "equipment_involvement": true,
+        "work_stoppage": false,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "manual tools",
+        "location": "Packing Station 3",
+        "datetime": "2026-09-17T10:40:00",
+        "activity": "packing"
+      },
+      "recommended_immediate_action": "Reinforce mandatory glove use and provide safety cutters at packing stations.",
+      "supporting_phrase": "deep cut to the hand while using a box cutter without gloves"
+    },
+    "logic": {
+      "final_queue": "Priority Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": false,
+      "rule_applied": "Injury requiring medical treatment goes to priority queue"
+    },
+    "metadata": {
+      "created_at": "2026-09-17T11:10:00",
+      "processed_at": "2026-09-17T11:10:04"
+    }
+  },
+  {
+    "record_id": "INC-2026-0007",
+    "input": {
+      "incident_name": "Duplicate Report: Exposed Cable in Maintenance Bay",
+      "description": "Exposed electrical cable with damaged insulation spotted in the maintenance bay.",
+      "location": "Warehouse A",
+      "reporter_role": "Employee",
+      "incident_datetime": "2026-09-21T21:05:00",
+      "injury_reported": false,
+      "immediate_action": "None"
+    },
+    "ai": {
+      "severity": "0.90",
+      "severity_explanation": "This report closely matches an earlier electrical hazard report and describes the same immediate shock risk.",
+      "hazard_category": "electrical",
+      "incident_type": "unsafe condition",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": true,
+        "exposure": true,
+        "equipment_involvement": true,
+        "work_stoppage": false,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "electrical",
+        "location": "Warehouse A",
+        "datetime": "2026-09-21T21:05:00",
+        "activity": "equipment maintenance"
+      },
+      "recommended_immediate_action": "Confirm the existing hazard has been isolated and link this report to the original record.",
+      "supporting_phrase": "Exposed electrical cable with damaged insulation"
+    },
+    "logic": {
+      "final_queue": "Priority Review",
+      "recurring": false,
+      "duplicate_possible": true,
+      "escalation_required": true,
+      "rule_applied": "Possible duplicate of INC-2026-0002; hazard still treated as immediate danger"
+    },
+    "metadata": {
+      "created_at": "2026-09-21T21:05:00",
+      "processed_at": "2026-09-21T21:05:06"
+    }
+  },
+  {
+    "record_id": "INC-2026-0008",
+    "input": {
+      "incident_name": "Blocked Emergency Exit in East Corridor",
+      "description": "Emergency exit door in the east corridor is blocked by stacked boxes.",
+      "location": "Office Building, East Corridor",
+      "reporter_role": "Safety Officer",
+      "incident_datetime": "2026-09-16T08:50:00",
+      "injury_reported": false,
+      "immediate_action": "Boxes moved by reporter"
+    },
+    "ai": {
+      "severity": "0.55",
+      "severity_explanation": "A blocked emergency exit could hinder evacuation, though the obstruction was cleared and no incident occurred.",
+      "hazard_category": "fire/emergency egress",
+      "incident_type": "unsafe condition",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": false,
+        "exposure": false,
+        "equipment_involvement": false,
+        "work_stoppage": false,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "fire/emergency egress",
+        "location": "Office Building, East Corridor",
+        "datetime": "2026-09-16T08:50:00",
+        "activity": "storage"
+      },
+      "recommended_immediate_action": "Add floor markings and signage to keep exit routes clear and schedule a follow-up inspection.",
+      "supporting_phrase": "Emergency exit door is blocked by stacked boxes"
+    },
+    "logic": {
+      "final_queue": "Routine Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": false,
+      "rule_applied": "Hazard corrected and no exposure occurred"
+    },
+    "metadata": {
+      "created_at": "2026-09-16T09:00:00",
+      "processed_at": "2026-09-16T09:00:03"
+    }
+  },
+  {
+    "record_id": "INC-2026-0009",
+    "input": {
+      "incident_name": "Unprotected Work at Height on Dock Roof",
+      "description": "Contractor working at height on the loading dock roof without a harness.",
+      "location": "Loading Dock",
+      "reporter_role": "Contractor",
+      "incident_datetime": "2026-09-22T10:15:00",
+      "injury_reported": false,
+      "immediate_action": "Work halted by site manager"
+    },
+    "ai": {
+      "severity": "0.91",
+      "severity_explanation": "Working at height without fall protection creates a high risk of a fatal fall.",
+      "hazard_category": "working at height",
+      "incident_type": "unsafe act",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": true,
+        "exposure": true,
+        "equipment_involvement": false,
+        "work_stoppage": true,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "working at height",
+        "location": "Loading Dock",
+        "datetime": "2026-09-22T10:15:00",
+        "activity": "roof maintenance"
+      },
+      "recommended_immediate_action": "Keep work stopped until fall protection is provided and the contractor's safety briefing is verified.",
+      "supporting_phrase": "working at height on the loading dock roof without a harness"
+    },
+    "logic": {
+      "final_queue": "Urgent Escalation",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Life-threatening unsafe act requires escalation"
+    },
+    "metadata": {
+      "created_at": "2026-09-22T10:25:00",
+      "processed_at": "2026-09-22T10:25:07"
+    }
+  },
+  {
+    "record_id": "INC-2026-0010",
+    "input": {
+      "incident_name": "Unstable Office Chair Wheel",
+      "description": "Office chair has a wobbly wheel and feels unstable when sitting.",
+      "location": "Open Office, Level 2",
+      "reporter_role": "Employee",
+      "incident_datetime": "2026-09-23T15:30:00",
+      "injury_reported": false,
+      "immediate_action": "Chair swapped for a spare"
+    },
+    "ai": {
+      "severity": "0.12",
+      "severity_explanation": "A faulty chair wheel poses a low risk of minor injury and was already replaced.",
+      "hazard_category": "ergonomics/furniture",
+      "incident_type": "unsafe condition",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": false,
+        "exposure": false,
+        "equipment_involvement": true,
+        "work_stoppage": false,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "ergonomics/furniture",
+        "location": "Open Office, Level 2",
+        "datetime": "2026-09-23T15:30:00",
+        "activity": "desk work"
+      },
+      "recommended_immediate_action": "Send the faulty chair for repair or disposal.",
+      "supporting_phrase": "wobbly wheel and feels unstable"
+    },
+    "logic": {
+      "final_queue": "Low Priority",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": false,
+      "rule_applied": "Low severity with hazard already resolved"
+    },
+    "metadata": {
+      "created_at": "2026-09-23T15:40:00",
+      "processed_at": "2026-09-23T15:40:02"
+    }
+  },
+  {
+    "record_id": "INC-2026-0011",
+    "input": {
+      "incident_name": "Empty Fire Extinguisher in Paint Shop",
+      "description": "Fire extinguisher in the paint shop was found empty during a routine check.",
+      "location": "Paint Shop",
+      "reporter_role": "Safety Officer",
+      "incident_datetime": "2026-09-24T08:15:00",
+      "injury_reported": false,
+      "immediate_action": "Extinguisher tagged out and replacement requested"
+    },
+    "ai": {
+      "severity": "0.60",
+      "severity_explanation": "A flammable-material area with a nonfunctional extinguisher leaves a fire risk uncovered until it is replaced.",
+      "hazard_category": "fire/emergency egress",
+      "incident_type": "unsafe condition",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": false,
+        "exposure": false,
+        "equipment_involvement": true,
+        "work_stoppage": false,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "fire/emergency egress",
+        "location": "Paint Shop",
+        "datetime": "2026-09-24T08:15:00",
+        "activity": "safety inspection"
+      },
+      "recommended_immediate_action": "Replace the empty extinguisher immediately and verify all others in the paint shop are charged.",
+      "supporting_phrase": "fire extinguisher in the paint shop was found empty"
+    },
+    "logic": {
+      "final_queue": "Priority Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Uncontrolled hazard in flammable area requires priority handling"
+    },
+    "metadata": {
+      "created_at": "2026-09-24T08:20:00",
+      "processed_at": "2026-09-24T08:20:05"
+    }
+  },
+  {
+    "record_id": "INC-2026-0012",
+    "input": {
+      "incident_name": "Noise Exposure at Stamping Press",
+      "description": "Worker reported ringing in their ears after a full shift near the stamping press without hearing protection.",
+      "location": "Stamping Floor",
+      "reporter_role": "Employee",
+      "incident_datetime": "2026-09-22T18:00:00",
+      "injury_reported": true,
+      "immediate_action": "Worker referred to occupational health"
+    },
+    "ai": {
+      "severity": "0.58",
+      "severity_explanation": "Reported tinnitus after unprotected noise exposure indicates a health hazard with potential for lasting harm.",
+      "hazard_category": "noise",
+      "incident_type": "injury",
+      "indicators": {
+        "injury": true,
+        "immediate_danger": false,
+        "exposure": true,
+        "equipment_involvement": true,
+        "work_stoppage": false,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "noise",
+        "location": "Stamping Floor",
+        "datetime": "2026-09-22T18:00:00",
+        "activity": "machine operation"
+      },
+      "recommended_immediate_action": "Verify hearing protection availability and enforce use in the stamping area.",
+      "supporting_phrase": "ringing in their ears after a full shift near the stamping press"
+    },
+    "logic": {
+      "final_queue": "Routine Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": false,
+      "rule_applied": "Health symptom reported without immediate danger goes to routine queue"
+    },
+    "metadata": {
+      "created_at": "2026-09-22T19:05:00",
+      "processed_at": "2026-09-22T19:05:04"
+    }
+  },
+  {
+    "record_id": "INC-2026-0013",
+    "input": {
+      "incident_name": "Unpermitted Confined Space Entry",
+      "description": "Confined space entry into a storage tank was started without a permit or gas monitor.",
+      "location": "Tank Farm",
+      "reporter_role": "Site Supervisor",
+      "incident_datetime": "2026-09-25T07:40:00",
+      "injury_reported": false,
+      "immediate_action": "Entry stopped and worker recalled from the tank"
+    },
+    "ai": {
+      "severity": "0.97",
+      "severity_explanation": "Unpermitted confined space entry without gas monitoring carries a high risk of asphyxiation or explosion.",
+      "hazard_category": "confined space",
+      "incident_type": "unsafe act",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": true,
+        "exposure": true,
+        "equipment_involvement": false,
+        "work_stoppage": true,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "confined space",
+        "location": "Tank Farm",
+        "datetime": "2026-09-25T07:40:00",
+        "activity": "tank inspection"
+      },
+      "recommended_immediate_action": "Halt all confined space work until permits and atmospheric testing procedures are confirmed in place.",
+      "supporting_phrase": "confined space entry into a storage tank was started without a permit"
+    },
+    "logic": {
+      "final_queue": "Urgent Escalation",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Unpermitted confined space entry requires immediate escalation"
+    },
+    "metadata": {
+      "created_at": "2026-09-25T07:45:00",
+      "processed_at": "2026-09-25T07:45:06"
+    }
+  },
+  {
+    "record_id": "INC-2026-0014",
+    "input": {
+      "incident_name": "Missing Mezzanine Guard Rail",
+      "description": "Guard rail missing on the second-floor mezzanine near the parts bin.",
+      "location": "Mezzanine, Building 2",
+      "reporter_role": "Maintenance Technician",
+      "incident_datetime": "2026-09-15T11:00:00",
+      "injury_reported": false,
+      "immediate_action": "Barrier tape put up around the opening"
+    },
+    "ai": {
+      "severity": "0.77",
+      "severity_explanation": "A missing guard rail at height creates a fall hazard even though a temporary barrier has been placed.",
+      "hazard_category": "falling objects",
+      "incident_type": "unsafe condition",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": true,
+        "exposure": true,
+        "equipment_involvement": false,
+        "work_stoppage": false,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "falling objects",
+        "location": "Mezzanine, Building 2",
+        "datetime": "2026-09-15T11:00:00",
+        "activity": "material handling"
+      },
+      "recommended_immediate_action": "Install a permanent guard rail and restrict access until repaired.",
+      "supporting_phrase": "Guard rail missing on the second-floor mezzanine"
+    },
+    "logic": {
+      "final_queue": "Priority Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Fall hazard with only temporary control in place"
+    },
+    "metadata": {
+      "created_at": "2026-09-15T11:20:00",
+      "processed_at": "2026-09-15T11:20:05"
+    }
+  },
+  {
+    "record_id": "INC-2026-0015",
+    "input": {
+      "incident_name": "Aggressive Dog Encounter on Delivery Route",
+      "description": "Delivery driver reported feeling threatened by a dog at a residential drop-off address.",
+      "location": "Off-site Delivery Route",
+      "reporter_role": "Driver",
+      "incident_datetime": "2026-09-23T13:10:00",
+      "injury_reported": false,
+      "immediate_action": "Driver left the property and reported to dispatch"
+    },
+    "ai": {
+      "severity": "0.35",
+      "severity_explanation": "An aggressive animal encounter with no injury poses a moderate but situational risk to off-site staff.",
+      "hazard_category": "workplace violence/animal",
+      "incident_type": "near miss",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": false,
+        "exposure": true,
+        "equipment_involvement": false,
+        "work_stoppage": false,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "workplace violence/animal",
+        "location": "Off-site Delivery Route",
+        "datetime": "2026-09-23T13:10:00",
+        "activity": "delivery"
+      },
+      "recommended_immediate_action": "Flag the address in the delivery system and brief drivers on animal-related precautions.",
+      "supporting_phrase": "feeling threatened by a dog at a residential drop-off address"
+    },
+    "logic": {
+      "final_queue": "Routine Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": false,
+      "rule_applied": "No injury and hazard is situational rather than facility-based"
+    },
+    "metadata": {
+      "created_at": "2026-09-23T13:25:00",
+      "processed_at": "2026-09-23T13:25:04"
+    }
+  },
+  {
+    "record_id": "INC-2026-0016",
+    "input": {
+      "incident_name": "Second Falling Pallet Event in Aisle 7",
+      "description": "Second report this month of a pallet falling from the top rack in aisle 7.",
+      "location": "Warehouse B",
+      "reporter_role": "Warehouse Associate",
+      "incident_datetime": "2026-09-26T09:50:00",
+      "injury_reported": false,
+      "immediate_action": "Aisle closed pending rack inspection"
+    },
+    "ai": {
+      "severity": "0.74",
+      "severity_explanation": "A second falling-pallet event in the same aisle within a month confirms an unresolved recurring hazard.",
+      "hazard_category": "falling objects",
+      "incident_type": "near miss",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": true,
+        "exposure": false,
+        "equipment_involvement": true,
+        "work_stoppage": true,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "falling objects",
+        "location": "Warehouse B",
+        "datetime": "2026-09-26T09:50:00",
+        "activity": "unloading"
+      },
+      "recommended_immediate_action": "Conduct a full structural inspection of the aisle 7 racking system before resuming use.",
+      "supporting_phrase": "Second report this month of a pallet falling from the top rack"
+    },
+    "logic": {
+      "final_queue": "Priority Review",
+      "recurring": true,
+      "duplicate_possible": true,
+      "escalation_required": true,
+      "rule_applied": "Confirmed recurring hazard linked to INC-2026-0005"
+    },
+    "metadata": {
+      "created_at": "2026-09-26T10:00:00",
+      "processed_at": "2026-09-26T10:00:08"
+    }
+  },
+  {
+    "record_id": "INC-2026-0017",
+    "input": {
+      "incident_name": "Heat Exhaustion at Construction Site",
+      "description": "Employee experienced heat exhaustion symptoms while working outdoors during a heatwave with no shade breaks scheduled.",
+      "location": "Outdoor Construction Site",
+      "reporter_role": "Site Foreman",
+      "incident_datetime": "2026-09-14T13:30:00",
+      "injury_reported": true,
+      "immediate_action": "Worker moved to shade and given water; paramedics called"
+    },
+    "ai": {
+      "severity": "0.82",
+      "severity_explanation": "Heat exhaustion requiring paramedic response indicates a serious health event from inadequate heat controls.",
+      "hazard_category": "environmental/heat",
+      "incident_type": "injury",
+      "indicators": {
+        "injury": true,
+        "immediate_danger": true,
+        "exposure": true,
+        "equipment_involvement": false,
+        "work_stoppage": true,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "environmental/heat",
+        "location": "Outdoor Construction Site",
+        "datetime": "2026-09-14T13:30:00",
+        "activity": "outdoor construction work"
+      },
+      "recommended_immediate_action": "Implement mandatory shade breaks and hydration schedules for outdoor work during high heat.",
+      "supporting_phrase": "heat exhaustion symptoms while working outdoors during a heatwave"
+    },
+    "logic": {
+      "final_queue": "Urgent Escalation",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Medical emergency from environmental exposure requires escalation"
+    },
+    "metadata": {
+      "created_at": "2026-09-14T13:50:00",
+      "processed_at": "2026-09-14T13:50:07"
+    }
+  },
+  {
+    "record_id": "INC-2026-0018",
+    "input": {
+      "incident_name": "Coolant Spill at CNC Station 4",
+      "description": "Spilled coolant on the machine shop floor near CNC station 4, no signage placed yet.",
+      "location": "Machine Shop",
+      "reporter_role": "Machine Operator",
+      "incident_datetime": "2026-09-25T15:00:00",
+      "injury_reported": false,
+      "immediate_action": "Operator stood by to warn others"
+    },
+    "ai": {
+      "severity": "0.48",
+      "severity_explanation": "An unmarked coolant spill on a walkway is a slip hazard that has not yet caused injury.",
+      "hazard_category": "slip/trip/fall",
+      "incident_type": "unsafe condition",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": false,
+        "exposure": true,
+        "equipment_involvement": false,
+        "work_stoppage": false,
+        "uncontrolled_hazard": true
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "slip/trip/fall",
+        "location": "Machine Shop",
+        "datetime": "2026-09-25T15:00:00",
+        "activity": "machining"
+      },
+      "recommended_immediate_action": "Clean up the spill and place wet floor signage immediately.",
+      "supporting_phrase": "Spilled coolant on the machine shop floor"
+    },
+    "logic": {
+      "final_queue": "Routine Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": false,
+      "rule_applied": "Spill hazard with active monitoring in place, no exposure yet occurred"
+    },
+    "metadata": {
+      "created_at": "2026-09-25T15:10:00",
+      "processed_at": "2026-09-25T15:10:03"
+    }
+  },
+  {
+    "record_id": "INC-2026-0019",
+    "input": {
+      "incident_name": "Overhead Crane Grinding Noise",
+      "description": "Overhead crane made an unusual grinding noise during a lift and was taken out of service.",
+      "location": "Fabrication Bay",
+      "reporter_role": "Crane Operator",
+      "incident_datetime": "2026-09-26T14:20:00",
+      "injury_reported": false,
+      "immediate_action": "Crane locked out and maintenance notified"
+    },
+    "ai": {
+      "severity": "0.80",
+      "severity_explanation": "An unusual noise from an overhead crane during a lift suggests a mechanical fault with potential for load failure.",
+      "hazard_category": "equipment failure",
+      "incident_type": "unsafe condition",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": true,
+        "exposure": false,
+        "equipment_involvement": true,
+        "work_stoppage": true,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "equipment failure",
+        "location": "Fabrication Bay",
+        "datetime": "2026-09-26T14:20:00",
+        "activity": "crane lift"
+      },
+      "recommended_immediate_action": "Keep the crane out of service until a full mechanical inspection is completed.",
+      "supporting_phrase": "unusual grinding noise during a lift"
+    },
+    "logic": {
+      "final_queue": "Priority Review",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": true,
+      "rule_applied": "Potential equipment failure during a lift operation requires priority review"
+    },
+    "metadata": {
+      "created_at": "2026-09-26T14:30:00",
+      "processed_at": "2026-09-26T14:30:06"
+    }
+  },
+  {
+    "record_id": "INC-2026-0020",
+    "input": {
+      "incident_name": "Loose Break Room Fridge Hinge",
+      "description": "Break room refrigerator door hinge is loose and squeaks when opened.",
+      "location": "Break Room, Level 1",
+      "reporter_role": "Employee",
+      "incident_datetime": "2026-09-24T12:00:00",
+      "injury_reported": false,
+      "immediate_action": "Reported to facilities for repair"
+    },
+    "ai": {
+      "severity": "0.08",
+      "severity_explanation": "A squeaky refrigerator hinge is a minor maintenance issue with negligible safety risk.",
+      "hazard_category": "facilities/maintenance",
+      "incident_type": "unsafe condition",
+      "indicators": {
+        "injury": false,
+        "immediate_danger": false,
+        "exposure": false,
+        "equipment_involvement": true,
+        "work_stoppage": false,
+        "uncontrolled_hazard": false
+      },
+      "repeat_pattern_indicators": {
+        "hazard_category": "facilities/maintenance",
+        "location": "Break Room, Level 1",
+        "datetime": "2026-09-24T12:00:00",
+        "activity": "break"
+      },
+      "recommended_immediate_action": "Schedule routine facilities repair for the hinge.",
+      "supporting_phrase": "refrigerator door hinge is loose and squeaks"
+    },
+    "logic": {
+      "final_queue": "Low Priority",
+      "recurring": false,
+      "duplicate_possible": false,
+      "escalation_required": false,
+      "rule_applied": "Negligible risk maintenance issue"
+    },
+    "metadata": {
+      "created_at": "2026-09-24T12:05:00",
+      "processed_at": "2026-09-24T12:05:02"
+    }
+  }
+]
