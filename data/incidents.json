@@ -1,0 +1,574 @@
+[
+    {
+        "record_id": "INC-0001",
+        "input": {
+            "description": "Forklift nearly hit a worker while reversing.",
+            "location": "Warehouse A",
+            "reporter_role": "Employee",
+            "incident_date": "2026-09-21",
+            "injury_reported": false,
+            "immediate_action": "Supervisor stopped the forklift"
+        },
+        "ai": {
+            "severity": "0.88",
+            "severity_explanation": "A reversing forklift came close to striking a worker, creating an immediate risk of serious injury.",
+            "hazard_category": "vehicle movement",
+            "incident_type": "near miss",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": true,
+                "exposure": true,
+                "equipment_involvement": true,
+                "work_stoppage": true,
+                "uncontrolled_hazard": true
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "vehicle movement",
+                "location": "Warehouse A",
+                "datetime": "2026-09-21T14:20:00",
+                "activity": "forklift operation"
+            },
+            "recommended_immediate_action": "Suspend forklift movement in the affected area and review reversing procedures, visibility controls, and pedestrian separation.",
+            "supporting_phrase": "forklift nearly hit a worker while reversing"
+        },
+        "logic": {
+            "final_queue": "Priority Review",
+            "recurring": false,
+            "duplicate_possible": false,
+            "escalation_required": true,
+            "rule_applied": "Immediate danger cannot enter routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-09-21T14:22:00",
+            "processed_at": "2026-09-21T14:22:06"
+        }
+    },
+    {
+        "record_id": "INC-0002",
+        "input": {
+            "description": "Water was found leaking from an air-conditioning unit onto the office floor.",
+            "location": "Office Level 3",
+            "reporter_role": "Staff",
+            "incident_date": "2026-09-22",
+            "injury_reported": false,
+            "immediate_action": "Wet floor sign was placed near the affected area"
+        },
+        "ai": {
+            "severity": "0.42",
+            "severity_explanation": "Water on the floor created a slip hazard, but the area was marked and no injury was reported.",
+            "hazard_category": "slip and fall",
+            "incident_type": "unsafe condition",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": false,
+                "exposure": true,
+                "equipment_involvement": true,
+                "work_stoppage": false,
+                "uncontrolled_hazard": false
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "slip and fall",
+                "location": "Office Level 3",
+                "datetime": "2026-09-22T09:15:00",
+                "activity": "office operations"
+            },
+            "recommended_immediate_action": "Restrict access to the wet area, clean the floor, and arrange maintenance of the leaking air-conditioning unit.",
+            "supporting_phrase": "water leaking onto the office floor"
+        },
+        "logic": {
+            "final_queue": "Routine Review",
+            "recurring": false,
+            "duplicate_possible": false,
+            "escalation_required": false,
+            "rule_applied": "Non-critical incident may enter routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-09-22T09:17:00",
+            "processed_at": "2026-09-22T09:17:04"
+        }
+    },
+    {
+        "record_id": "INC-0003",
+        "input": {
+            "description": "An employee tripped over a loose cable in the meeting room. No injury was reported.",
+            "location": "Meeting Room B",
+            "reporter_role": "Employee",
+            "incident_date": "2026-09-26",
+            "injury_reported": false,
+            "immediate_action": "The cable was secured and the walkway was cleared."
+        },
+        "ai": {
+            "severity": "0.35",
+            "severity_explanation": "A loose cable caused a trip without injury, and the hazard was removed.",
+            "hazard_category": "trip and fall",
+            "incident_type": "near miss",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": false,
+                "exposure": true,
+                "equipment_involvement": false,
+                "work_stoppage": false,
+                "uncontrolled_hazard": false
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "trip and fall",
+                "location": "Meeting Room B",
+                "datetime": "2026-09-26T10:30:00",
+                "activity": "walking through meeting room"
+            },
+            "recommended_immediate_action": "Check other meeting rooms for loose cables and keep walkways clear.",
+            "supporting_phrase": "tripped over a loose cable"
+        },
+        "logic": {
+            "final_queue": "Routine Review",
+            "recurring": false,
+            "duplicate_possible": false,
+            "escalation_required": false,
+            "rule_applied": "Non-critical incident may enter routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-09-26T10:30:00",
+            "processed_at": "2026-09-26T00:08:01"
+        }
+    },
+    {
+        "record_id": "INC-0004",
+        "input": {
+            "description": "Forklift reversed into a storage rack, causing several boxes to fall. No one was injured.",
+            "location": "Warehouse A",
+            "reporter_role": "Employee",
+            "incident_date": "2026-09-27",
+            "injury_reported": false,
+            "immediate_action": "Forklift operations were paused and the area was cordoned off."
+        },
+        "ai": {
+            "severity": "0.82",
+            "severity_explanation": "A forklift collision created a significant falling-object and vehicle movement hazard.",
+            "hazard_category": "vehicle movement",
+            "incident_type": "unsafe act",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": true,
+                "exposure": true,
+                "equipment_involvement": true,
+                "work_stoppage": true,
+                "uncontrolled_hazard": true
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "vehicle movement",
+                "location": "Warehouse A",
+                "datetime": "2026-09-27T11:10:00",
+                "activity": "forklift operation"
+            },
+            "recommended_immediate_action": "Inspect the forklift and storage rack, review operator procedures, and reinforce pedestrian and vehicle separation.",
+            "supporting_phrase": "forklift reversed into a storage rack"
+        },
+        "logic": {
+            "final_queue": "Priority Review",
+            "recurring": true,
+            "duplicate_possible": false,
+            "escalation_required": true,
+            "rule_applied": "Immediate danger cannot enter routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-09-27T11:12:00",
+            "processed_at": "2026-09-27T11:12:05"
+        }
+    },
+    {
+        "record_id": "INC-0005",
+        "input": {
+            "description": "A puddle formed near the pantry entrance after a water dispenser leaked.",
+            "location": "Office Level 3",
+            "reporter_role": "Staff",
+            "incident_date": "2026-09-27",
+            "injury_reported": false,
+            "immediate_action": "The spill was mopped and a wet floor sign was placed."
+        },
+        "ai": {
+            "severity": "0.38",
+            "severity_explanation": "The leak created a slip hazard, but the area was quickly controlled and no injury occurred.",
+            "hazard_category": "slip and fall",
+            "incident_type": "unsafe condition",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": false,
+                "exposure": true,
+                "equipment_involvement": true,
+                "work_stoppage": false,
+                "uncontrolled_hazard": false
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "slip and fall",
+                "location": "Office Level 3",
+                "datetime": "2026-09-27T13:40:00",
+                "activity": "office operations"
+            },
+            "recommended_immediate_action": "Repair the leaking dispenser and inspect the surrounding floor for residual moisture.",
+            "supporting_phrase": "puddle formed near the pantry entrance"
+        },
+        "logic": {
+            "final_queue": "Routine Review",
+            "recurring": true,
+            "duplicate_possible": true,
+            "escalation_required": false,
+            "rule_applied": "Non-critical incident may enter routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-09-27T13:42:00",
+            "processed_at": "2026-09-27T13:42:04"
+        }
+    },
+    {
+        "record_id": "INC-0006",
+        "input": {
+            "description": "A worker received a minor cut while opening packaging with a utility knife.",
+            "location": "Warehouse B",
+            "reporter_role": "Supervisor",
+            "incident_date": "2026-09-27",
+            "injury_reported": true,
+            "immediate_action": "First aid was provided and the utility knife was removed from use."
+        },
+        "ai": {
+            "severity": "0.61",
+            "severity_explanation": "A minor injury occurred while using a cutting tool, requiring first aid and review of safe handling procedures.",
+            "hazard_category": "sharp object",
+            "incident_type": "injury",
+            "indicators": {
+                "injury": true,
+                "immediate_danger": false,
+                "exposure": true,
+                "equipment_involvement": true,
+                "work_stoppage": false,
+                "uncontrolled_hazard": false
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "sharp object",
+                "location": "Warehouse B",
+                "datetime": "2026-09-27T15:05:00",
+                "activity": "package opening"
+            },
+            "recommended_immediate_action": "Review knife handling procedures and provide approved safety cutters where appropriate.",
+            "supporting_phrase": "minor cut while opening packaging"
+        },
+        "logic": {
+            "final_queue": "Priority Review",
+            "recurring": false,
+            "duplicate_possible": false,
+            "escalation_required": true,
+            "rule_applied": "Reported injury requires priority review"
+        },
+        "metadata": {
+            "created_at": "2026-09-27T15:08:00",
+            "processed_at": "2026-09-27T15:08:03"
+        }
+    },
+    {
+        "record_id": "INC-0007",
+        "input": {
+            "description": "A loose extension cable was found across the walkway in Meeting Room B.",
+            "location": "Meeting Room B",
+            "reporter_role": "Employee",
+            "incident_date": "2026-09-28",
+            "injury_reported": false,
+            "immediate_action": "The cable was taped down and moved away from the main walkway."
+        },
+        "ai": {
+            "severity": "0.31",
+            "severity_explanation": "The cable presented a trip hazard similar to a previous incident, but no injury occurred.",
+            "hazard_category": "trip and fall",
+            "incident_type": "unsafe condition",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": false,
+                "exposure": true,
+                "equipment_involvement": false,
+                "work_stoppage": false,
+                "uncontrolled_hazard": false
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "trip and fall",
+                "location": "Meeting Room B",
+                "datetime": "2026-09-28T09:25:00",
+                "activity": "meeting room setup"
+            },
+            "recommended_immediate_action": "Use permanent cable management and inspect other meeting rooms for similar hazards.",
+            "supporting_phrase": "loose extension cable across the walkway"
+        },
+        "logic": {
+            "final_queue": "Routine Review",
+            "recurring": true,
+            "duplicate_possible": true,
+            "escalation_required": false,
+            "rule_applied": "Non-critical incident may enter routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-09-28T09:28:00",
+            "processed_at": "2026-09-28T09:28:04"
+        }
+    },
+    {
+        "record_id": "INC-0008",
+        "input": {
+            "description": "An exposed electrical wire was discovered behind a workstation.",
+            "location": "Office Level 3",
+            "reporter_role": "Staff",
+            "incident_date": "2026-09-28",
+            "injury_reported": false,
+            "immediate_action": "Power to the workstation was switched off and access was restricted."
+        },
+        "ai": {
+            "severity": "0.91",
+            "severity_explanation": "The exposed wire created an immediate electrical shock hazard.",
+            "hazard_category": "electrical",
+            "incident_type": "unsafe condition",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": true,
+                "exposure": true,
+                "equipment_involvement": true,
+                "work_stoppage": true,
+                "uncontrolled_hazard": true
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "electrical",
+                "location": "Office Level 3",
+                "datetime": "2026-09-28T10:45:00",
+                "activity": "office operations"
+            },
+            "recommended_immediate_action": "Keep the circuit isolated and arrange inspection by qualified maintenance personnel.",
+            "supporting_phrase": "exposed electrical wire"
+        },
+        "logic": {
+            "final_queue": "Priority Review",
+            "recurring": false,
+            "duplicate_possible": false,
+            "escalation_required": true,
+            "rule_applied": "Immediate danger cannot enter routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-09-28T10:47:00",
+            "processed_at": "2026-09-28T10:47:06"
+        }
+    },
+    {
+        "record_id": "INC-0009",
+        "input": {
+            "description": "A cleaner slipped on a wet floor near the restroom but did not fall or suffer injury.",
+            "location": "Office Level 3",
+            "reporter_role": "Contractor",
+            "incident_date": "2026-09-28",
+            "injury_reported": false,
+            "immediate_action": "The floor was dried and warning signs were placed."
+        },
+        "ai": {
+            "severity": "0.46",
+            "severity_explanation": "A person was directly exposed to a wet-floor hazard, but no injury occurred.",
+            "hazard_category": "slip and fall",
+            "incident_type": "near miss",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": false,
+                "exposure": true,
+                "equipment_involvement": false,
+                "work_stoppage": false,
+                "uncontrolled_hazard": false
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "slip and fall",
+                "location": "Office Level 3",
+                "datetime": "2026-09-28T12:20:00",
+                "activity": "cleaning"
+            },
+            "recommended_immediate_action": "Review cleaning procedures and ensure warning signs are placed before wet cleaning begins.",
+            "supporting_phrase": "slipped on a wet floor"
+        },
+        "logic": {
+            "final_queue": "Routine Review",
+            "recurring": true,
+            "duplicate_possible": true,
+            "escalation_required": false,
+            "rule_applied": "Non-critical incident may enter routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-09-28T12:22:00",
+            "processed_at": "2026-09-28T12:22:04"
+        }
+    },
+    {
+        "record_id": "INC-0010",
+        "input": {
+            "description": "A pallet was stacked too high and became unstable near a busy warehouse aisle.",
+            "location": "Warehouse A",
+            "reporter_role": "Supervisor",
+            "incident_date": "2026-09-28",
+            "injury_reported": false,
+            "immediate_action": "The aisle was closed and the pallet was restacked."
+        },
+        "ai": {
+            "severity": "0.79",
+            "severity_explanation": "The unstable pallet could have fallen onto nearby workers and caused serious injury.",
+            "hazard_category": "falling object",
+            "incident_type": "unsafe condition",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": true,
+                "exposure": true,
+                "equipment_involvement": false,
+                "work_stoppage": true,
+                "uncontrolled_hazard": true
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "falling object",
+                "location": "Warehouse A",
+                "datetime": "2026-09-28T14:10:00",
+                "activity": "warehouse storage"
+            },
+            "recommended_immediate_action": "Inspect nearby pallets and reinforce safe stacking height limits.",
+            "supporting_phrase": "pallet was stacked too high"
+        },
+        "logic": {
+            "final_queue": "Priority Review",
+            "recurring": false,
+            "duplicate_possible": false,
+            "escalation_required": true,
+            "rule_applied": "Immediate danger cannot enter routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-09-28T14:12:00",
+            "processed_at": "2026-09-28T14:12:05"
+        }
+    },
+    {
+        "record_id": "INC-0011",
+        "input": {
+            "description": "A worker reported dizziness after using a strong cleaning chemical in a poorly ventilated room.",
+            "location": "Meeting Room B",
+            "reporter_role": "Contractor",
+            "incident_date": "2026-09-29",
+            "injury_reported": true,
+            "immediate_action": "The worker was moved to fresh air and cleaning was stopped."
+        },
+        "ai": {
+            "severity": "0.86",
+            "severity_explanation": "Chemical exposure caused physical symptoms and required immediate removal from the area.",
+            "hazard_category": "chemical exposure",
+            "incident_type": "injury",
+            "indicators": {
+                "injury": true,
+                "immediate_danger": true,
+                "exposure": true,
+                "equipment_involvement": false,
+                "work_stoppage": true,
+                "uncontrolled_hazard": true
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "chemical exposure",
+                "location": "Meeting Room B",
+                "datetime": "2026-09-29T08:50:00",
+                "activity": "cleaning"
+            },
+            "recommended_immediate_action": "Ventilate the room, review chemical handling controls, and verify correct PPE and dilution procedures.",
+            "supporting_phrase": "dizziness after using a strong cleaning chemical"
+        },
+        "logic": {
+            "final_queue": "Priority Review",
+            "recurring": false,
+            "duplicate_possible": false,
+            "escalation_required": true,
+            "rule_applied": "Reported injury requires priority review"
+        },
+        "metadata": {
+            "created_at": "2026-09-29T08:53:00",
+            "processed_at": "2026-09-29T08:53:05"
+        }
+    },
+    {
+        "record_id": "INC-0012",
+        "input": {
+            "description": "A forklift horn was not working during a pre-use inspection.",
+            "location": "Warehouse A",
+            "reporter_role": "Employee",
+            "incident_date": "2026-09-29",
+            "injury_reported": false,
+            "immediate_action": "The forklift was tagged out and removed from service."
+        },
+        "ai": {
+            "severity": "0.67",
+            "severity_explanation": "A defective horn increased the risk of collision in an active warehouse.",
+            "hazard_category": "vehicle movement",
+            "incident_type": "unsafe condition",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": false,
+                "exposure": true,
+                "equipment_involvement": true,
+                "work_stoppage": true,
+                "uncontrolled_hazard": false
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "vehicle movement",
+                "location": "Warehouse A",
+                "datetime": "2026-09-29T10:15:00",
+                "activity": "forklift operation"
+            },
+            "recommended_immediate_action": "Repair the horn before reuse and inspect other forklifts for similar defects.",
+            "supporting_phrase": "forklift horn was not working"
+        },
+        "logic": {
+            "final_queue": "Priority Review",
+            "recurring": true,
+            "duplicate_possible": false,
+            "escalation_required": false,
+            "rule_applied": "Recurring operational hazard requires priority review"
+        },
+        "metadata": {
+            "created_at": "2026-09-29T10:18:00",
+            "processed_at": "2026-09-29T10:18:04"
+        }
+    },
+    {
+        "record_id": "INC-0013",
+        "input": {
+            "description": "A damaged power strip was found under a desk with visible burn marks.",
+            "location": "Office Level 3",
+            "reporter_role": "Employee",
+            "incident_date": "2026-09-29",
+            "injury_reported": false,
+            "immediate_action": "The power strip was unplugged and removed from service."
+        },
+        "ai": {
+            "severity": "0.84",
+            "severity_explanation": "Visible burn marks indicated a potential electrical and fire hazard.",
+            "hazard_category": "electrical",
+            "incident_type": "unsafe condition",
+            "indicators": {
+                "injury": false,
+                "immediate_danger": true,
+                "exposure": true,
+                "equipment_involvement": true,
+                "work_stoppage": false,
+                "uncontrolled_hazard": true
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "electrical",
+                "location": "Office Level 3",
+                "datetime": "2026-09-29T15:30:00",
+                "activity": "office operations"
+            },
+            "recommended_immediate_action": "Inspect nearby electrical accessories and replace damaged equipment immediately.",
+            "supporting_phrase": "power strip with visible burn marks"
+        },
+        "logic": {
+            "final_queue": "Priority Review",
+            "recurring": true,
+            "duplicate_possible": true,
+            "escalation_required": true,
+            "rule_applied": "Immediate danger cannot enter routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-09-29T15:32:00",
+            "processed_at": "2026-09-29T15:32:05"
+        }
+    }
+]
