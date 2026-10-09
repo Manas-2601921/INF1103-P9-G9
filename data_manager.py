@@ -85,7 +85,7 @@ def save(record):
     # Create the folder "data" if it doesn't exist
     incidents_file.parent.mkdir(parents=True, exist_ok=True)
     
-    with open(incidents_file, "a", encoding="utf-8") as f:
+    with open(incidents_file, "w", encoding="utf-8") as f:
         f.write(content)
         f.write("\n")
         print("Saved record to data/incidents.json")
