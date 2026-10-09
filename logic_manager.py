@@ -4,12 +4,12 @@ from difflib import SequenceMatcher
 severity_levels = {"low", "medium", "high"}
 
 hazard_categories = {
-    "electrical", "fire", "chemical", "slip trip fall",
-    "mechanical", "other",
+    "electrical", "fire", "chemical", "ergonomic", "slip/trip/fall",
+    "mechanical", "biological", "psychosocial", "other",
 }
 
 incident_types = {
-    "injury", "property damage", "complaint",
+    "near-miss", "injury", "unsafe condition", "property damage", "complaint",
 }
 
 escalation_hazards = {"fire", "electrical"}
@@ -145,6 +145,11 @@ def _parse_date(date_str):
         pass
     try:
         return datetime.strptime(date_str, "%d-%m-%Y")
+    except ValueError:
+        pass
+    try:
+        # main.py stores incident datetimes as ISO strings
+        return datetime.fromisoformat(date_str)
     except ValueError:
         return None
 
@@ -376,6 +381,8 @@ def evaluate(record, ai_output, history, reference_date=None):
         "duplicate_possible": duplicate is not None,
         "escalation_required": high_severity_escalation,
         "rule_applied": rule_applied,
+        "ai_explanation": ai_output.get("severity_explanation"),
+        "supporting_phrase": ai_output.get("supporting_phrase"),
     }
 
 
