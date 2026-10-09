@@ -10,7 +10,7 @@
             "immediate_action": "Supervisor stopped the forklift"
         },
         "ai": {
-            "severity": "0.88",
+            "severity": 0.88,
             "severity_explanation": "A reversing forklift came close to striking a worker, creating an immediate risk of serious injury.",
             "hazard_category": "vehicle movement",
             "incident_type": "near miss",
@@ -54,7 +54,7 @@
             "immediate_action": "Wet floor sign was placed near the affected area"
         },
         "ai": {
-            "severity": "0.42",
+            "severity": 0.42,
             "severity_explanation": "Water on the floor created a slip hazard, but the area was marked and no injury was reported.",
             "hazard_category": "slip and fall",
             "incident_type": "unsafe condition",
@@ -98,7 +98,7 @@
             "immediate_action": "The cable was secured and the walkway was cleared."
         },
         "ai": {
-            "severity": "0.35",
+            "severity": 0.35,
             "severity_explanation": "A loose cable caused a trip without injury, and the hazard was removed.",
             "hazard_category": "trip and fall",
             "incident_type": "near miss",
@@ -142,7 +142,7 @@
             "immediate_action": "Forklift operations were paused and the area was cordoned off."
         },
         "ai": {
-            "severity": "0.82",
+            "severity": 0.82,
             "severity_explanation": "A forklift collision created a significant falling-object and vehicle movement hazard.",
             "hazard_category": "vehicle movement",
             "incident_type": "unsafe act",
@@ -186,7 +186,7 @@
             "immediate_action": "The spill was mopped and a wet floor sign was placed."
         },
         "ai": {
-            "severity": "0.38",
+            "severity": 0.38,
             "severity_explanation": "The leak created a slip hazard, but the area was quickly controlled and no injury occurred.",
             "hazard_category": "slip and fall",
             "incident_type": "unsafe condition",
@@ -230,7 +230,7 @@
             "immediate_action": "First aid was provided and the utility knife was removed from use."
         },
         "ai": {
-            "severity": "0.61",
+            "severity": 0.61,
             "severity_explanation": "A minor injury occurred while using a cutting tool, requiring first aid and review of safe handling procedures.",
             "hazard_category": "sharp object",
             "incident_type": "injury",
@@ -274,7 +274,7 @@
             "immediate_action": "The cable was taped down and moved away from the main walkway."
         },
         "ai": {
-            "severity": "0.31",
+            "severity": 0.31,
             "severity_explanation": "The cable presented a trip hazard similar to a previous incident, but no injury occurred.",
             "hazard_category": "trip and fall",
             "incident_type": "unsafe condition",
@@ -318,7 +318,7 @@
             "immediate_action": "Power to the workstation was switched off and access was restricted."
         },
         "ai": {
-            "severity": "0.91",
+            "severity": 0.91,
             "severity_explanation": "The exposed wire created an immediate electrical shock hazard.",
             "hazard_category": "electrical",
             "incident_type": "unsafe condition",
@@ -362,7 +362,7 @@
             "immediate_action": "The floor was dried and warning signs were placed."
         },
         "ai": {
-            "severity": "0.46",
+            "severity": 0.46,
             "severity_explanation": "A person was directly exposed to a wet-floor hazard, but no injury occurred.",
             "hazard_category": "slip and fall",
             "incident_type": "near miss",
@@ -406,7 +406,7 @@
             "immediate_action": "The aisle was closed and the pallet was restacked."
         },
         "ai": {
-            "severity": "0.79",
+            "severity": 0.79,
             "severity_explanation": "The unstable pallet could have fallen onto nearby workers and caused serious injury.",
             "hazard_category": "falling object",
             "incident_type": "unsafe condition",
@@ -450,7 +450,7 @@
             "immediate_action": "The worker was moved to fresh air and cleaning was stopped."
         },
         "ai": {
-            "severity": "0.86",
+            "severity": 0.86,
             "severity_explanation": "Chemical exposure caused physical symptoms and required immediate removal from the area.",
             "hazard_category": "chemical exposure",
             "incident_type": "injury",
@@ -494,7 +494,7 @@
             "immediate_action": "The forklift was tagged out and removed from service."
         },
         "ai": {
-            "severity": "0.67",
+            "severity": 0.67,
             "severity_explanation": "A defective horn increased the risk of collision in an active warehouse.",
             "hazard_category": "vehicle movement",
             "incident_type": "unsafe condition",
@@ -538,7 +538,7 @@
             "immediate_action": "The power strip was unplugged and removed from service."
         },
         "ai": {
-            "severity": "0.84",
+            "severity": 0.84,
             "severity_explanation": "Visible burn marks indicated a potential electrical and fire hazard.",
             "hazard_category": "electrical",
             "incident_type": "unsafe condition",
@@ -569,6 +569,56 @@
         "metadata": {
             "created_at": "2026-09-29T15:32:00",
             "processed_at": "2026-09-29T15:32:05"
+        }
+    },
+    {
+        "record_id": "INC-0014",
+        "input": {
+            "description": "Forklift hit a worker",
+            "location": "Factory",
+            "reporter_role": "Supervisor",
+            "incident_datetime": "2026-02-01T12:30:00",
+            "injury_reported": true,
+            "immediate_action": "No immediate action was taken"
+        },
+        "ai": {
+            "severity": "high",
+            "confidence": 0.85,
+            "severity_explanation": "A forklift struck a worker and an injury was reported, which is a vehicle-pedestrian strike with a realistic possibility of severe harm. No immediate action was taken, leaving the hazard uncontrolled.",
+            "hazard_category": "mechanical",
+            "incident_type": "injury",
+            "indicators": {
+                "injury": true,
+                "immediate_danger": true,
+                "exposure": true,
+                "equipment_involvement": true,
+                "work_stoppage": false,
+                "uncontrolled_hazard": true
+            },
+            "repeat_pattern_indicators": {
+                "hazard_category": "mechanical",
+                "location": "Factory",
+                "datetime": "2026-02-01T12:30:00",
+                "activity": "forklift operation"
+            },
+            "recommended_immediate_action": "Stop forklift operations in the area and arrange immediate medical attention for the worker.",
+            "supporting_phrase": "Forklift hit a worker",
+            "severity_score": 0.9
+        },
+        "logic": {
+            "final_queue": "Priority Review",
+            "recurring": false,
+            "duplicate_possible": false,
+            "duplicate_of": null,
+            "similar_incidents": [],
+            "escalation_required": false,
+            "ai_explanation": "A forklift struck a worker and an injury was reported, which is a vehicle-pedestrian strike with a realistic possibility of severe harm. No immediate action was taken, leaving the hazard uncontrolled.",
+            "supporting_phrase": "Forklift hit a worker",
+            "rule_applied": "injury, immediate danger or uncontrolled hazard cannot be routed to a routine queue"
+        },
+        "metadata": {
+            "created_at": "2026-02-01T12:30:00",
+            "processed_at": "2026-10-09T23:26:28"
         }
     }
 ]

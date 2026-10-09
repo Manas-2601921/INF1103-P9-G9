@@ -1,0 +1,15 @@
+# Never copy into the image
+.git
+.gitignore
+.github
+.venv
+venv
+__pycache__
+*.pyc
+.env
+.env.*
+*.md
+.zcodeignore
+Engineering Report
+docker-image
+submission-zip
