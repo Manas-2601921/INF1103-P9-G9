@@ -16,8 +16,28 @@ sample_record_json = {
 }
 
 def ai_manager(record_json: dict) -> list:
+    """Analyse one incident report with the AI and return its classified result.
+
+    Validates the shared record and its incident fields, builds the analysis
+    prompt, then queries the LLM. The reply is checked against the JSON
+    schema in the system prompt; when it breaks the rules the AI is
+    reprompted with the exact violations, up to a maximum of 3 attempts.
+
+    Args:
+        record_json: the shared record from the IO manager layer. Must be a
+            dictionary with an "input" section containing all the required
+            incident fields (description, location, reporter_role,
+            incident_datetime, injury_reported, immediate_action).
+
+    Returns:
+        (True, parsed_output) when the AI reply passes schema validation,
+        where parsed_output is the classified analysis dict. Otherwise
+        (None, message) explaining the failure: an invalid record or
+        incident json, a malformed API response, or schema validation still
+        failing after 3 attempts.
+    """
     try:
-        incident_json = validate_record_json(sample_record_json)
+        incident_json = validate_record_json(record_json)
         incident_json = validate_incident_json(incident_json)
     except (TypeError,KeyError) as exc:
         return None, f"Invalid record or incident json input: {exc}"
@@ -35,9 +55,10 @@ def ai_manager(record_json: dict) -> list:
 
         parsed_output, validation_errors = validate_ai_output(llm_response)
         if not validation_errors:
-            return parsed_output
+            return True, parsed_output
         llm_prompt = build_retry_messages(incident_json, llm_response, validation_errors)
 
     return None, f"AI output failed schema validation after {max_validation_attempts} attempts: {validation_errors}"
 
-print(ai_manager(sample_record_json))
+if __name__ == "__main__":
+    print(ai_manager(sample_record_json))
