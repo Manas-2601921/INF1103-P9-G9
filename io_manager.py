@@ -272,7 +272,10 @@ Incident Date: 16/09/2004 Location: Clarke Quay"""
 
 
 #print(generate_incident_review("INC-2026-0001"))
-searchOptions = handle_search_options()
-if(searchOptions != False):
-    display_search_results(searchOptions[0],searchOptions[1])
+if __name__ == "__main__":
+    # importing this module (e.g. from main.py) must not start the
+    # interactive search session
+    searchOptions = handle_search_options()
+    if(searchOptions != False):
+        display_search_results(searchOptions[0],searchOptions[1])
     
