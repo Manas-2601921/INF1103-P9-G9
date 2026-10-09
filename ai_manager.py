@@ -15,7 +15,7 @@ sample_record_json = {
   }
 }
 
-def ai_manager(record_json: dict) -> list:
+def ai_manager(record_json: dict) -> tuple[bool, dict] | tuple[None, str]:
     """Analyse one incident report with the AI and return its classified result.
 
     Validates the shared record and its incident fields, builds the analysis
