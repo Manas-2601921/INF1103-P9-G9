@@ -49,6 +49,14 @@ def prompt_location():
         return newIncidentLocation
     return
 
+# Accepted answers for the role prompt: option number or role name (any case)
+ROLE_OPTIONS = {
+    "1": "Employee", "employee": "Employee",
+    "2": "Supervisor", "supervisor": "Supervisor",
+    "3": "Manager", "manager": "Manager",
+    "4": "Client", "client": "Client",
+}
+
 def prompt_reporter_role():
     """
     Prompts the user to select their role in the company.
@@ -62,29 +70,23 @@ def prompt_reporter_role():
         chooses to exit.
     """
 
-    while True:
-        newIncidentReporterRole = input(f"Enter your role in the company (or type 'quit' to exit): " + "\n1. Employee\n2. Supervisor\n3. Manager\n4. Client")
+    print("\nSelect your role in the company:")
+    print("  1. Employee")
+    print("  2. Supervisor")
+    print("  3. Manager")
+    print("  4. Client")
 
-        if newIncidentReporterRole.lower() == 'quit':
+    while True:
+        answer = input("Enter the option number or role name (or type 'quit' to exit): ").strip()
+
+        if answer.lower() == 'quit':
             return "quit"
-        elif newIncidentReporterRole is None:
-            print("Invalid input. Please enter a valid role.")
-            continue
-        elif newIncidentReporterRole == "1" or newIncidentReporterRole.lower() == "employee":
-            newIncidentReporterRole = "Employee"
-            return newIncidentReporterRole
-        elif newIncidentReporterRole == "2" or newIncidentReporterRole.lower() == "supervisor":
-            newIncidentReporterRole = "Supervisor"
-            return newIncidentReporterRole
-        elif newIncidentReporterRole == "3" or newIncidentReporterRole.lower() == "manager":
-            newIncidentReporterRole = "Manager"
-            return newIncidentReporterRole
-        elif newIncidentReporterRole == "4" or newIncidentReporterRole.lower() == "client":
-            newIncidentReporterRole = "Client"
-            return newIncidentReporterRole
-        else:
-            print("Invalid input. Please enter a valid role.")
-            continue
+
+        role = ROLE_OPTIONS.get(answer.lower())
+        if role:
+            return role
+
+        print("Invalid input. Please enter a valid role.")
     
 
 def prompt_incident_date_time():
