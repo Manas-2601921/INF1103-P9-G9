@@ -2,20 +2,20 @@ import json
 from datetime import datetime
 import datamanager #temporary data manager file import to test workability with data manager
 
-# {
-#   "record_id": "",
-#   "input": {
-#     "description": "Forklift nearly hit a worker while reversing.",
-#     "location": "Warehouse",
-#     "reporter_role": "Employee",
-#     "incident_date": "2026-09-21",
-#     "injury_reported": false,
-#     "immediate_action": "Supervisor stopped the forklift"
-#   }                                                                           record template
 
 # Input incident information methods
 
-def prompt_description():
+def prompt_description(): 
+    """
+    Prompts the user to enter a description of the incident.
+
+    Repeatedly asks for input until a description is provided or the
+    user chooses to quit.
+
+    Returns:
+        str: The incident description entered by the user, or "quit"
+        if the user chooses to exit.
+    """
     
     while True:
         newIncidentDescription = input("Enter the description of the incident (or type 'quit' to exit): ")
@@ -28,6 +28,16 @@ def prompt_description():
     return
 
 def prompt_location():
+    """
+    Prompts the user to enter the location where the incident occurred.
+
+    Provides examples of possible incident locations and repeats the
+    prompt until a location is entered or the user chooses to quit.
+
+    Returns:
+        str: The incident location entered by the user, or "quit"
+        if the user chooses to exit.
+    """
     while True:
         newIncidentLocation = input(f"Enter the location of the incident (or type 'quit' to exit): " + "\nFor example: Warehouse, Office, Factory, etc.")
 
@@ -40,6 +50,17 @@ def prompt_location():
     return
 
 def prompt_reporter_role():
+    """
+    Prompts the user to select their role in the company.
+
+    Accepts either the corresponding number or the role name.
+    Valid roles are Employee, Supervisor, Manager, and Client.
+    Repeats the prompt if an invalid role is entered.
+
+    Returns:
+        str: The selected role in title case, or "quit" if the user
+        chooses to exit.
+    """
 
     while True:
         newIncidentReporterRole = input(f"Enter your role in the company (or type 'quit' to exit): " + "\n1. Employee\n2. Supervisor\n3. Manager\n4. Client")
@@ -67,6 +88,17 @@ def prompt_reporter_role():
     
 
 def prompt_incident_date_time():
+    """
+    Prompts the user to enter the date and time of the incident.
+
+    Validates the input against the DD-MM-YYYY HH:MM format using
+    datetime.strptime(). Repeats the prompt if the input format or
+    date and time is invalid.
+
+    Returns:
+        datetime: A datetime object representing the incident date and time,
+        or "quit" if the user chooses to exit.
+    """
     while True:
         print("prompt_incident_date_time called")
         newIncidentDateTime = input("Enter the date and time of the incident (DD-MM-YYYY HH:MM) (or type 'quit' to exit):")
@@ -84,6 +116,17 @@ def prompt_incident_date_time():
                 continue
 
 def prompt_injury_reported():
+    """
+    Asks the user whether an injury was reported during the incident.
+
+    Accepts 'Y' or 'YES' for an affirmative response and 'N' or 'NO'
+    for a negative response. Repeats the prompt if the input is invalid.
+
+    Returns:
+        bool or str: True if an injury was reported, False if no injury
+        was reported, or "quit" if the user chooses to exit.
+    """
+
     print("prompt_injury_reported called")
     while True:
         newIncidentInjuryReported = input("Was there any injury reported Y/N (or type 'quit' to exit): ")
@@ -101,6 +144,19 @@ def prompt_injury_reported():
     return
 
 def prompt_immediate_action():
+    """
+    Asks the user whether immediate action was taken following the incident.
+
+    If the user confirms that action was taken, prompts for a description
+    of the action. If the user answers no, returns a default message.
+    Repeats the prompt if the response is invalid.
+
+    Returns:
+        str: A description of the immediate action taken, the message
+        "No immediate action was taken", or "quit" if the user chooses
+        to exit.
+    """
+
     print("prompt_immediate_action called")
     while True:
         immediateAction = input("Was there any immediate action taken Y/N (or type 'quit' to exit): ")
