@@ -219,7 +219,7 @@ def search_by_category() -> None:
     # print_stored_incident_summaries(summaries)
 
     search_options = io.handle_search_options()
-    if(search_options == True):
+    if(search_options != False):
         io.display_search_results(search_options[0],search_options[1])
 
 
