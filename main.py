@@ -72,6 +72,9 @@ def collect_incident_input() -> dict | None:
         user cancelled by typing 'quit' or interrupting the prompts.
     """
     try:
+        incident_name = io.prompt_incident_name()
+        if incident_name == "quit":
+            return None
         description = io.prompt_description()
         if description == "quit":
             return None
@@ -97,6 +100,7 @@ def collect_incident_input() -> dict | None:
     # prompt_incident_date_time returns a datetime object; the shared record
     # stores an ISO string so the logic rules and the data file agree.
     return {
+        "incident_name": incident_name,
         "description": description,
         "location": location,
         "reporter_role": reporter_role,
