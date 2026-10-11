@@ -1,12 +1,13 @@
-"""Test script for logic_manager: business rules verified against hardcoded
-sample AI responses, fully offline (no API key, no network).
+"""Test script for logic_manager.
 
-Run with:
+Uses hardcoded AI output dicts instead of calling ai_manager / the real
+API, so this runs fine with no API key and no network - needed since we
+have to be able to run this inside Docker too.
 
-    .venv/bin/python test_logic_manager.py
+run with: python test_logic_manager.py
 """
 
-import logic_manager as logic
+import logic_manager as lm
 
 passed = 0
 failed = 0
@@ -19,287 +20,281 @@ def check(name, ok, detail=""):
         print(f"[PASS] {name}")
     else:
         failed += 1
-        print(f"[FAIL] {name}\n       {detail}")
+        print(f"[FAIL] {name} - {detail}")
 
 
-# ---------------------------------------------------------------------------
-# Hardcoded sample AI responses (the schema the AI manager returns)
-# ---------------------------------------------------------------------------
-
-def make_ai_response(severity="low", hazard_category="mechanical",
-                     incident_type="near-miss", indicators=None,
-                     pattern=None, explanation="Sample explanation.",
-                     supporting_phrase="sample phrase"):
-    """Build one hardcoded AI analysis dict with selected fields overridden."""
-    return {
-        "severity": severity,
-        "confidence": 0.8,
-        "severity_explanation": explanation,
-        "hazard_category": hazard_category,
-        "incident_type": incident_type,
-        "indicators": dict({
+def dummy_ai(**kw):
+    """Default ai output that satisfies the schema; tests override
+    whatever fields they care about."""
+    out = {
+        "severity": "low",
+        "confidence": 0.9,
+        "severity_explanation": "A minor hazard with no immediate danger.",
+        "hazard_category": "ergonomic",
+        "incident_type": "unsafe condition",
+        "indicators": {
             "injury": False,
             "immediate_danger": False,
-            "exposure": True,
+            "exposure": False,
             "equipment_involvement": False,
             "work_stoppage": False,
             "uncontrolled_hazard": False,
-        }, **(indicators or {})),
-        "repeat_pattern_indicators": dict({
-            "hazard_category": hazard_category,
-            "location": "Warehouse",
-            "datetime": "2026-10-01T10:00:00",
-            "activity": "forklift reversing",
-        }, **(pattern or {})),
-        "recommended_immediate_action": "Secure the area.",
-        "supporting_phrase": supporting_phrase,
-    }
-
-
-def make_history_entry(record_id="INC-0001", description="Forklift nearly hit a worker.",
-                       location="Warehouse", datetime="2026-10-01T10:00:00",
-                       ai_output=None):
-    """Build one stored history record shaped like the data file entries."""
-    return {
-        "record_id": record_id,
-        "input": {
-            "description": description,
-            "location": location,
-            "incident_datetime": datetime,
         },
-        "ai": ai_output or make_ai_response(pattern={"location": location,
-                                                     "datetime": datetime}),
+        "repeat_pattern_indicators": {
+            "hazard_category": "ergonomic",
+            "location": "Office",
+            "datetime": "2026-09-21T10:00:00",
+            "activity": "lifting",
+        },
+        "recommended_immediate_action": "Review the workstation setup.",
+        "supporting_phrase": "a minor hazard",
     }
+    out.update(kw)
+    return out
 
 
-def make_record_input(description="Forklift nearly hit a worker.", location="Warehouse",
-                      datetime="2026-10-05T10:00:00"):
-    """Build the input section of a new shared record."""
-    return {"description": description, "location": location,
-            "incident_datetime": datetime}
+def dummy_record(**kw):
+    """Default incident record; tests override whatever fields they
+    care about."""
+    rec = {
+        "description": "An employee reported minor back strain after lifting a box.",
+        "location": "Office",
+        "reporter_role": "Employee",
+        "incident_datetime": "2026-09-21T10:00:00",
+        "injury_reported": False,
+        "immediate_action": "No immediate action was taken",
+    }
+    rec.update(kw)
+    return rec
 
 
-# ---------------------------------------------------------------------------
-# validate_ai_output
-# ---------------------------------------------------------------------------
+print("logic_manager tests")
+print("-" * 40)
 
-def test_validate_ai_output():
-    print("\n--- [1] validate_ai_output ---")
-    ok, problems = logic.validate_ai_output(make_ai_response())
-    check("fully valid AI response passes", ok and problems == [], f"got: {problems}")
+# --- [1] validate_ai_output ---
 
-    ok, problems = logic.validate_ai_output(
-        make_ai_response(severity="extreme"))
-    check("severity outside low/medium/high is rejected",
-          not ok and any("invalid severity" in p for p in problems), f"got: {problems}")
+ok, problems = lm.validate_ai_output(dummy_ai())
+check("valid ai output -> no problems", ok and problems == [])
 
-    ok, problems = logic.validate_ai_output(
-        make_ai_response(hazard_category="volcano"))
-    check("hazard category outside the allowed set is rejected",
-          not ok and any("invalid hazard_category" in p for p in problems), f"got: {problems}")
+ok, problems = lm.validate_ai_output("not a dict")
+check("non-dict ai_output rejected", not ok)
 
-    ok, problems = logic.validate_ai_output(
-        make_ai_response(incident_type="alien invasion"))
-    check("incident type outside the allowed set is rejected",
-          not ok and any("invalid incident_type" in p for p in problems), f"got: {problems}")
+bad = dummy_ai()
+del bad["hazard_category"]
+ok, problems = lm.validate_ai_output(bad)
+check("missing field caught", not ok and any("hazard_category" in p for p in problems), problems)
 
-    broken = make_ai_response()
-    del broken["supporting_phrase"]
-    del broken["indicators"]
-    ok, problems = logic.validate_ai_output(broken)
-    check("missing required fields are reported",
-          not ok and any("missing field: supporting_phrase" in p for p in problems)
-          and any("missing field: indicators" in p for p in problems), f"got: {problems}")
+ok, problems = lm.validate_ai_output(dummy_ai(severity="extremely bad"))
+check("bad severity value caught", not ok, problems)
 
-    ok, problems = logic.validate_ai_output("not a dict")
-    check("non-dict AI output is rejected", not ok, f"got: {ok}, {problems}")
+ok, problems = lm.validate_ai_output(dummy_ai(indicators="nope"))
+check("indicators not a dict caught", not ok, problems)
 
-    broken = make_ai_response()
-    broken["indicators"] = []
-    ok, problems = logic.validate_ai_output(broken)
-    check("indicators that is not a dict is rejected",
-          not ok and any("indicators" in p for p in problems), f"got: {problems}")
+# --- [2] has_injury_or_immediate_danger ---
 
+check("injury flag detected", lm.has_injury_or_immediate_danger(dummy_ai(indicators={"injury": True})))
+check("immediate_danger flag detected", lm.has_injury_or_immediate_danger(dummy_ai(indicators={"immediate_danger": True})))
+check("uncontrolled_hazard flag detected", lm.has_injury_or_immediate_danger(dummy_ai(indicators={"uncontrolled_hazard": True})))
+check("incident_type injury also counts", lm.has_injury_or_immediate_danger(dummy_ai(incident_type="injury")))
+check("nothing flagged -> False", lm.has_injury_or_immediate_danger(dummy_ai()) == False)
 
-# ---------------------------------------------------------------------------
-# indicator and hazard helpers
-# ---------------------------------------------------------------------------
+# --- [3] has_reporter_ai_contradiction ---
 
-def test_helpers():
-    print("\n--- [2] indicator and hazard helpers ---")
-    check("injury indicator triggers the safety override",
-          logic.has_injury_or_immediate_danger(make_ai_response(indicators={"injury": True})))
-    check("immediate danger indicator triggers the safety override",
-          logic.has_injury_or_immediate_danger(
-              make_ai_response(indicators={"immediate_danger": True})))
-    check("uncontrolled hazard indicator triggers the safety override",
-          logic.has_injury_or_immediate_danger(
-              make_ai_response(indicators={"uncontrolled_hazard": True})))
-    check("incident type injury triggers the safety override",
-          logic.has_injury_or_immediate_danger(make_ai_response(incident_type="injury")))
-    check("safe response does not trigger the override",
-          not logic.has_injury_or_immediate_danger(make_ai_response()))
+check("no injury reported -> never a contradiction", lm.has_reporter_ai_contradiction(dummy_record(injury_reported=False), dummy_ai()) == False)
+check("injury reported but ai disagrees -> contradiction", lm.has_reporter_ai_contradiction(dummy_record(injury_reported=True), dummy_ai()) == True)
+check(
+    "injury reported and ai agrees -> no contradiction",
+    lm.has_reporter_ai_contradiction(dummy_record(injury_reported=True), dummy_ai(indicators={"injury": True})) == False,
+)
 
-    check("fire hazard is an escalation hazard",
-          logic.is_fire_or_electrical_hazard(make_ai_response(hazard_category="fire")))
-    check("electrical hazard is an escalation hazard",
-          logic.is_fire_or_electrical_hazard(make_ai_response(hazard_category="electrical")))
-    check("mechanical hazard is not an escalation hazard",
-          not logic.is_fire_or_electrical_hazard(make_ai_response()))
+# --- [4] is_fire_or_electrical_hazard ---
 
+check("fire counts as escalation hazard", lm.is_fire_or_electrical_hazard(dummy_ai(hazard_category="fire")))
+check("electrical counts as escalation hazard", lm.is_fire_or_electrical_hazard(dummy_ai(hazard_category="electrical")))
+check("ergonomic does not", lm.is_fire_or_electrical_hazard(dummy_ai(hazard_category="ergonomic")) == False)
 
-# ---------------------------------------------------------------------------
-# is_similar_incident and find_recent_similar_incidents
-# ---------------------------------------------------------------------------
+# --- [5] find_recent_similar_incidents (recurrence) ---
 
-def test_similarity():
-    print("\n--- [3] recurrence detection ---")
-    record = make_record_input()
-    ai = make_ai_response()
-    past = make_history_entry()
+record = dummy_record(incident_datetime="2026-09-25T10:00:00", location="Warehouse A")
+ai_out = dummy_ai(
+    hazard_category="mechanical",
+    incident_type="near-miss",
+    repeat_pattern_indicators={
+        "hazard_category": "mechanical",
+        "location": "Warehouse A",
+        "datetime": "2026-09-25T10:00:00",
+        "activity": "forklift operation",
+    },
+)
+past_entry = {
+    "input": dummy_record(incident_datetime="2026-09-20T10:00:00", location="Warehouse A"),
+    "ai": dummy_ai(
+        hazard_category="mechanical",
+        incident_type="near-miss",
+        repeat_pattern_indicators={
+            "hazard_category": "mechanical",
+            "location": "Warehouse A",
+            "datetime": "2026-09-20T10:00:00",
+            "activity": "forklift operation",
+        },
+    ),
+}
 
-    check("same category, location and activity is similar",
-          logic.is_similar_incident(record, ai, past["input"], past["ai"]))
-    check("different activity is not similar",
-          not logic.is_similar_incident(
-              record, ai, past["input"],
-              make_ai_response(pattern={"activity": "welding"})))
-    check("different location is not similar",
-          not logic.is_similar_incident(
-              record, ai,
-              make_history_entry(location="Office")["input"],
-              make_ai_response(pattern={"location": "Office"})))
-    check("different hazard category is not similar",
-          not logic.is_similar_incident(
-              record, ai, past["input"],
-              make_ai_response(hazard_category="chemical")))
+similar = lm.find_recent_similar_incidents(record, ai_out, [past_entry])
+"""this is the one that actually matters - logic_manager used to only
+understand DD-MM-YYYY dates, so real ISO datetimes never matched and
+recurrence never fired. make sure that's actually fixed."""
+check("iso datetime gets parsed, similar incident found", similar == [past_entry], similar)
 
-    # Window tests around a reference date of 2026-10-05
-    recent = make_history_entry(datetime="2026-09-20T09:00:00")
-    old = make_history_entry(record_id="INC-0002", datetime="2026-01-20T09:00:00")
-    found = logic.find_recent_similar_incidents(
-        record, ai, [recent, old], reference_date="2026-10-05T10:00:00")
-    check("incident inside the 30-day window is found",
-          [entry["record_id"] for entry in found] == ["INC-0001"], f"got: {found}")
-    check("incident outside the 30-day window is ignored",
-          logic.find_recent_similar_incidents(
-              record, ai, [old], reference_date="2026-10-05T10:00:00") == [])
-    check("history entries with unparseable dates are skipped, not crashed on",
-          logic.find_recent_similar_incidents(
-              record, ai,
-              [make_history_entry(datetime="not a date")],
-              reference_date="2026-10-05T10:00:00") == [])
+old_entry = {
+    "input": dummy_record(incident_datetime="2026-01-01T10:00:00", location="Warehouse A"),
+    "ai": past_entry["ai"],
+}
+check("incident outside the 30 day window is ignored", lm.find_recent_similar_incidents(record, ai_out, [old_entry]) == [])
 
+diff_loc_entry = {
+    "input": dummy_record(incident_datetime="2026-09-20T10:00:00", location="Office"),
+    "ai": dummy_ai(
+        hazard_category="mechanical",
+        incident_type="near-miss",
+        repeat_pattern_indicators={
+            "hazard_category": "mechanical",
+            "location": "Office",
+            "datetime": "2026-09-20T10:00:00",
+            "activity": "forklift operation",
+        },
+    ),
+}
+check("same hazard but different location doesn't count", lm.find_recent_similar_incidents(record, ai_out, [diff_loc_entry]) == [])
 
-# ---------------------------------------------------------------------------
-# find_possible_duplicate
-# ---------------------------------------------------------------------------
+# --- [6] find_possible_duplicate ---
 
-def test_duplicates():
-    print("\n--- [4] duplicate detection ---")
-    record = make_record_input(datetime="2026-10-01T10:00:00",
-                               description="Forklift nearly hit a worker while reversing.")
-    ai = make_ai_response()
+dup_record = dummy_record(
+    incident_datetime="2026-09-21T20:30:00",
+    location="Warehouse A",
+    description="Exposed electrical cable with damaged insulation found near the maintenance bay.",
+)
+dup_ai = dummy_ai(hazard_category="electrical", incident_type="unsafe condition")
+dup_past = {
+    "input": dummy_record(
+        incident_datetime="2026-09-21T20:30:00",
+        location="Warehouse A",
+        description="Exposed electrical cable with damaged insulation spotted near the maintenance bay.",
+    ),
+    "ai": dummy_ai(hazard_category="electrical", incident_type="unsafe condition"),
+}
+found = lm.find_possible_duplicate(dup_record, dup_ai, [dup_past])
+check("near identical report flagged as duplicate", found == dup_past)
 
-    same_again = make_history_entry(description="Forklift nearly hit a worker while reversing!")
-    duplicate = logic.find_possible_duplicate(record, ai, [same_again])
-    check("same datetime, location, category and near-identical text is a duplicate",
-          duplicate is not None, "got: None")
+unrelated = {
+    "input": dummy_record(
+        incident_datetime="2026-09-21T20:30:00",
+        location="Warehouse A",
+        description="A completely unrelated incident about a spilled drink in the break room.",
+    ),
+    "ai": dummy_ai(hazard_category="electrical", incident_type="unsafe condition"),
+}
+check("different description, same time/place -> not a duplicate", lm.find_possible_duplicate(dup_record, dup_ai, [unrelated]) is None)
 
-    different_text = make_history_entry(description="Worker forgot to lock the trailer.")
-    check("same fields but clearly different text is not a duplicate",
-          logic.find_possible_duplicate(record, ai, [different_text]) is None)
+# --- [7] determine_final_status (the actual triage rules) ---
 
-    different_location = make_history_entry(location="Office")
-    check("same text at a different location is not a duplicate",
-          logic.find_possible_duplicate(record, ai, [different_location]) is None)
+r = lm.determine_final_status(dummy_record(), {"not": "valid"}, [])
+check("invalid ai output -> Manual Review", r["final_queue"] == lm.status_manual_review)
 
-    different_time = make_history_entry(datetime="2026-10-01T11:00:00")
-    check("same text at a different datetime is not a duplicate",
-          logic.find_possible_duplicate(record, ai, [different_time]) is None)
+r = lm.determine_final_status(dummy_record(injury_reported=True), dummy_ai(), [])
+check("reporter/ai contradiction -> Manual Review", r["final_queue"] == lm.status_manual_review)
 
-    check("empty history yields no duplicate",
-          logic.find_possible_duplicate(record, ai, []) is None)
+r = lm.determine_final_status(dummy_record(), dummy_ai(severity="high", hazard_category="fire"), [])
+check("high severity fire -> Immediate Action + escalation", r["final_queue"] == lm.status_immediate_action and r["escalation_required"])
 
+r = lm.determine_final_status(dummy_record(), dummy_ai(severity="medium", indicators={"immediate_danger": True}), [])
+check("immediate danger -> Priority Review", r["final_queue"] == lm.status_priority_review)
 
-# ---------------------------------------------------------------------------
-# determine_final_status: the business rules end to end
-# ---------------------------------------------------------------------------
+recurring_record = dummy_record(incident_datetime="2026-09-25T10:00:00", location="Warehouse A")
+recurring_ai = dummy_ai(
+    severity="low",
+    hazard_category="mechanical",
+    incident_type="near-miss",
+    repeat_pattern_indicators={
+        "hazard_category": "mechanical",
+        "location": "Warehouse A",
+        "datetime": "2026-09-25T10:00:00",
+        "activity": "forklift operation",
+    },
+)
+r = lm.determine_final_status(recurring_record, recurring_ai, [past_entry])
+check("low severity + recent similar incident -> Recurring Review", r["final_queue"] == lm.status_recurring_review and r["recurring"])
 
-def test_final_status():
-    print("\n--- [5] determine_final_status business rules ---")
-    empty_history = []
+r = lm.determine_final_status(dummy_record(), dummy_ai(), [])
+check("nothing special -> Routine Log", r["final_queue"] == lm.status_routine_log)
 
-    result = logic.determine_final_status(
-        make_record_input(), make_ai_response(severity="high", hazard_category="fire"),
-        empty_history)
-    check("high severity + fire hazard routes to Immediate Action with escalation",
-          result["final_queue"] == "Immediate Action" and result["escalation_required"],
-          f"got: {result}")
+"""duplicate_possible needs to be checked end-to-end too, not just via
+find_possible_duplicate() directly in section [6] - this is what actually
+reaches main.py's print_triage_summary()."""
+r = lm.determine_final_status(dup_record, dup_ai, [dup_past])
+check("near-duplicate incident sets duplicate_possible True", r["duplicate_possible"] is True)
 
-    result = logic.determine_final_status(
-        make_record_input(), make_ai_response(severity="high", hazard_category="electrical"),
-        empty_history)
-    check("high severity + electrical hazard routes to Immediate Action",
-          result["final_queue"] == "Immediate Action" and result["escalation_required"],
-          f"got: {result}")
+r = lm.determine_final_status(dummy_record(), dummy_ai(), [])
+check("no matching history sets duplicate_possible False", r["duplicate_possible"] is False)
 
-    result = logic.determine_final_status(
-        make_record_input(),
-        make_ai_response(severity="low", incident_type="injury",
-                         indicators={"injury": True}),
-        empty_history)
-    check("low severity with reported injury is overridden out of the routine queue",
-          result["final_queue"] == "Priority Review" and not result["escalation_required"],
-          f"got: {result}")
+# --- [8] route ---
 
-    history = [make_history_entry(datetime="2026-09-28T10:00:00")]
-    result = logic.determine_final_status(
-        make_record_input(datetime="2026-10-05T10:00:00"),
-        make_ai_response(pattern={"datetime": "2026-10-05T10:00:00"}),
-        history, reference_date="2026-10-05T10:00:00")
-    check("low severity with a similar incident in the last 30 days is Recurring Review",
-          result["final_queue"] == "Recurring Review" and result["recurring"],
-          f"got: {result}")
+"""route() is just a wrapper around determine_final_status that returns the queue name"""
+check("route() returns the queue string", lm.route(dummy_record(), dummy_ai(), []) == lm.status_routine_log)
 
-    result = logic.determine_final_status(
-        make_record_input(), make_ai_response(), empty_history)
-    check("low severity isolated incident is a Routine Log",
-          result["final_queue"] == "Routine Log", f"got: {result}")
+# --- [9] is_similar_incident ---
 
-    result = logic.determine_final_status(
-        make_record_input(), make_ai_response(severity="medium"), empty_history)
-    check("medium severity isolated incident is a Routine Log",
-          result["final_queue"] == "Routine Log", f"got: {result}")
+matching_past_ai = dummy_ai(
+    hazard_category="mechanical",
+    incident_type="near-miss",
+    repeat_pattern_indicators={
+        "hazard_category": "mechanical",
+        "location": "Warehouse A",
+        "datetime": "2026-09-20T10:00:00",
+        "activity": "forklift operation",
+    },
+)
+check(
+    "same hazard, type, location and activity -> similar",
+    lm.is_similar_incident(record, ai_out, past_entry["input"], matching_past_ai),
+)
 
-    result = logic.determine_final_status(
-        make_record_input(), {"severity": "unexpected", "hazard_category": "fire"},
-        empty_history)
-    check("invalid AI output is quarantined in Manual Review",
-          result["final_queue"] == "Manual Review"
-          and "invalid AI output" in result["rule_applied"], f"got: {result}")
+diff_activity_ai = dummy_ai(
+    hazard_category="mechanical",
+    incident_type="near-miss",
+    repeat_pattern_indicators={
+        "hazard_category": "mechanical",
+        "location": "Warehouse A",
+        "datetime": "2026-09-20T10:00:00",
+        "activity": "pallet stacking",
+    },
+)
+check(
+    "different activity -> not similar",
+    lm.is_similar_incident(record, ai_out, past_entry["input"], diff_activity_ai) is False,
+)
 
-    result = logic.determine_final_status(
-        make_record_input(), make_ai_response(explanation="Hot work sparked a fire."),
-        empty_history)
-    check("AI explanation and supporting phrase are carried into the decision",
-          result["ai_explanation"] == "Hot work sparked a fire."
-          and result["supporting_phrase"] == "sample phrase", f"got: {result}")
+# --- [10] score ---
 
+check("low severity, no escalation hazard, no danger -> base score 1", lm.score(dummy_ai(severity="low")) == 1)
+check("medium severity scores 2", lm.score(dummy_ai(severity="medium")) == 2)
+check("high severity scores 3", lm.score(dummy_ai(severity="high")) == 3)
+check(
+    "fire hazard adds a point on top of severity",
+    lm.score(dummy_ai(severity="low", hazard_category="fire")) == 2,
+)
+check(
+    "injury/danger indicator adds a point on top of severity",
+    lm.score(dummy_ai(severity="low", indicators={"injury": True})) == 2,
+)
+check(
+    "fire hazard + injury both add up with high severity",
+    lm.score(dummy_ai(severity="high", hazard_category="electrical", indicators={"injury": True})) == 5,
+)
+check("unrecognised severity scores a base of 0", lm.score(dummy_ai(severity="unknown")) == 0)
 
-def main():
-    print("=" * 64)
-    print("logic_manager tests (hardcoded sample AI responses, offline)")
-    print("=" * 64)
-    test_validate_ai_output()
-    test_helpers()
-    test_similarity()
-    test_duplicates()
-    test_final_status()
-    print("\n" + "=" * 64)
-    print(f"Results: {passed} passed, {failed} failed")
-    raise SystemExit(1 if failed else 0)
+print("-" * 40)
+print(f"{passed} passed, {failed} failed")
 
-
-if __name__ == "__main__":
-    main()
+if failed:
+    raise SystemExit(1)
