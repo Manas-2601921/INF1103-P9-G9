@@ -1,22 +1,22 @@
 import json
 from datetime import datetime
 
-import data_manager #temporary data manager file import to test workability with data manager
+import data_manager
 
+# {
+#   "record_id": "",
+#   "input": {
+#     "description": "Forklift nearly hit a worker while reversing.",
+#     "location": "Warehouse",
+#     "reporter_role": "Employee",
+#     "incident_date": "2026-09-21",
+#     "injury_reported": false,
+#     "immediate_action": "Supervisor stopped the forklift"
+#   }                                                                           record template
 
 # Input incident information methods
 
-def prompt_description(): 
-    """
-    Prompts the user to enter a description of the incident.
-
-    Repeatedly asks for input until a description is provided or the
-    user chooses to quit.
-
-    Returns:
-        str: The incident description entered by the user, or "quit"
-        if the user chooses to exit.
-    """
+def prompt_description():
     
     while True:
         newIncidentDescription = input("Enter the description of the incident (or type 'quit' to exit): ")
@@ -29,16 +29,6 @@ def prompt_description():
     return
 
 def prompt_location():
-    """
-    Prompts the user to enter the location where the incident occurred.
-
-    Provides examples of possible incident locations and repeats the
-    prompt until a location is entered or the user chooses to quit.
-
-    Returns:
-        str: The incident location entered by the user, or "quit"
-        if the user chooses to exit.
-    """
     while True:
         newIncidentLocation = input(f"Enter the location of the incident (or type 'quit' to exit): " + "\nFor example: Warehouse, Office, Factory, etc.")
 
@@ -59,17 +49,6 @@ ROLE_OPTIONS = {
 }
 
 def prompt_reporter_role():
-    """
-    Prompts the user to select their role in the company.
-
-    Accepts either the corresponding number or the role name.
-    Valid roles are Employee, Supervisor, Manager, and Client.
-    Repeats the prompt if an invalid role is entered.
-
-    Returns:
-        str: The selected role in title case, or "quit" if the user
-        chooses to exit.
-    """
 
     print("\nSelect your role in the company:")
     print("  1. Employee")
@@ -91,17 +70,6 @@ def prompt_reporter_role():
     
 
 def prompt_incident_date_time():
-    """
-    Prompts the user to enter the date and time of the incident.
-
-    Validates the input against the DD-MM-YYYY HH:MM format using
-    datetime.strptime(). Repeats the prompt if the input format or
-    date and time is invalid.
-
-    Returns:
-        datetime: A datetime object representing the incident date and time,
-        or "quit" if the user chooses to exit.
-    """
     while True:
         newIncidentDateTime = input("Enter the date and time of the incident (DD-MM-YYYY HH:MM) (or type 'quit' to exit):")
         if newIncidentDateTime.lower() == 'quit':
@@ -269,12 +237,6 @@ def generate_incident_review(incident_id):
     print("-"*20)
     # ">" is used as the marker instead of "▶" because "▶" cannot be printed on a default Windows console (UnicodeEncodeError)
     print(f"> {incident_record['ai']['recommended_immediate_action']}")
- 
-    # section 5: when the report was created and how long it took to process
-    print("\nProcessing Information")
-    print("-"*20)
-    print(f"Report Created: {report_create_date}, {report_create_time}")
-    print(f"Processed In: {processing_seconds} seconds")
 
 #function to ask the user how they want to search incidents (title, category or date/time), validate what they type, run the search and return the matching records
 def handle_search_options():
@@ -387,7 +349,7 @@ def handle_search_options():
                     # find records whose incident_datetime is between the start and end datetimes (inclusive)
                     # ("or ''" treats a missing incident_datetime as an empty string, which sorts before any start value,
                     # so a record with no datetime is skipped instead of crashing the whole search)
-                    search_results = data_manager.query(lambda record: valid_start_datetime <= record.get("input", {}).get("incident_datetime") <= valid_end_datetime)
+                    search_results = data_manager.query(lambda record: valid_start_datetime <= (record.get("input", {}).get("incident_datetime") or "") <= valid_end_datetime)
                     # build a readable description of the search to display with the results
                     search_string = f"incidents between {search_start_datetime_input} and {search_end_datetime_input}"
                     return search_results, search_string
