@@ -237,12 +237,6 @@ def generate_incident_review(incident_id):
     print("-"*20)
     # ">" is used as the marker instead of "▶" because "▶" cannot be printed on a default Windows console (UnicodeEncodeError)
     print(f"> {incident_record['ai']['recommended_immediate_action']}")
- 
-    # section 5: when the report was created and how long it took to process
-    print("\nProcessing Information")
-    print("-"*20)
-    print(f"Report Created: {report_create_date}, {report_create_time}")
-    print(f"Processed In: {processing_seconds} seconds")
 
 #function to ask the user how they want to search incidents (title, category or date/time), validate what they type, run the search and return the matching records
 def handle_search_options():
