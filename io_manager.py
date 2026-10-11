@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-import datamanager #temporary data manager file import to test workability with data manager
+import data_manager
 
 # {
 #   "record_id": "",
@@ -172,7 +172,7 @@ def generate_incident_review(incident_id):
         print("Error: Incident id is missing")
         return False
     # search all records and keep every one whose record_id matches the incident id (the list is empty if none match)
-    matching_records = datamanager.query(lambda record: record.get("record_id", {}) == incident_id)
+    matching_records = data_manager.query(lambda record: record.get("record_id", {}) == incident_id)
     # stop early if nothing matched, before trying to take the first item (taking [0] of an empty list would crash)
     if len(matching_records) == 0:
         print("Error: No such record exists in our records.")
@@ -242,7 +242,7 @@ def generate_incident_review(incident_id):
 def handle_search_options():
     """
     variables in the function:
-    search_results - the records returned by datamanager.query() for the chosen search
+    search_results - the records returned by data_manager.query() for the chosen search
     user_search_option - the raw text the user typed for the main menu (1 = Title, 2 = Category, 3 = Date)
     int_search_option - user_search_option converted to an integer
     title_search_value - the incident name the user wants to search for
@@ -294,7 +294,7 @@ def handle_search_options():
                 else:
                     # find records whose incident_name matches the user's text, ignoring capitalisation and surrounding spaces
                     # ("or ''" treats a missing incident_name as an empty string)
-                    search_results = datamanager.query(lambda record: (record.get("input", {}).get("incident_name") or "").strip().lower() == title_search_value.strip().lower())
+                    search_results = data_manager.query(lambda record: (record.get("input", {}).get("incident_name") or "").strip().lower() == title_search_value.strip().lower())
                     # return the matching records along with the text that was searched for
                     return search_results,title_search_value
  
@@ -308,7 +308,7 @@ def handle_search_options():
                         return False
                     else:
                         # find records whose hazard_category matches the user's text, ignoring capitalisation and surrounding spaces
-                        search_results = datamanager.query(lambda record: (record.get("ai", {}).get("hazard_category") or "").strip().lower() == category_search_value.strip().lower())
+                        search_results = data_manager.query(lambda record: (record.get("ai", {}).get("hazard_category") or "").strip().lower() == category_search_value.strip().lower())
                         #method to search for the incident by category
                         # return the matching records along with the text that was searched for
                         return search_results,category_search_value
@@ -349,7 +349,7 @@ def handle_search_options():
                     # find records whose incident_datetime is between the start and end datetimes (inclusive)
                     # ("or ''" treats a missing incident_datetime as an empty string, which sorts before any start value,
                     # so a record with no datetime is skipped instead of crashing the whole search)
-                    search_results = datamanager.query(lambda record: valid_start_datetime <= (record.get("input", {}).get("incident_datetime") or "") <= valid_end_datetime)
+                    search_results = data_manager.query(lambda record: valid_start_datetime <= (record.get("input", {}).get("incident_datetime") or "") <= valid_end_datetime)
                     # build a readable description of the search to display with the results
                     search_string = f"incidents between {search_start_datetime_input} and {search_end_datetime_input}"
                     return search_results, search_string
@@ -364,7 +364,7 @@ def handle_search_options():
                         return False
  
                     # find records whose incident_datetime is exactly equal to the datetime entered
-                    search_results = datamanager.query(lambda record: record.get("input", {}).get("incident_datetime") == valid_search_datetime)
+                    search_results = data_manager.query(lambda record: record.get("input", {}).get("incident_datetime") == valid_search_datetime)
                     # return the matching records along with the datetime text that was searched for
                     return search_results,search_datetime_input
                 # the number entered on the date sub-menu is neither 1 nor 2
@@ -380,7 +380,7 @@ def handle_search_options():
                 # except ValueError:
                 #     print("Invalid date format. Please enter the date in the format (YYYY-MM-DD).")
                 # #method to search for the incident by date
-                # search_results = datamanager.query(lambda record: record.get("input", {}).get("incident_datetime") == date_search_value)
+                # search_results = data_manager.query(lambda record: record.get("input", {}).get("incident_datetime") == date_search_value)
                 # return search_results,date_search_value
             
 #function to display a numbered list of search results, ask the user to pick one, and then show that incident's full review report
