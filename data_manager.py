@@ -85,6 +85,8 @@ def save(record):
     # Create the folder "data" if it doesn't exist
     incidents_file.parent.mkdir(parents=True, exist_ok=True)
     
+    # Rewrite the whole file: appending would concatenate a second JSON
+    # array after the first and corrupt the database
     with open(incidents_file, "w", encoding="utf-8") as f:
         f.write(content)
         f.write("\n")
@@ -125,7 +127,7 @@ def query_stored_incident_summaries():  # This function is to load every stored 
         summaries.append({
             "record_id": record.get("record_id", "Unknown"),
 
-            "incident_date": user_input.get("incident_date", "Unknown"),
+            "incident_date": user_input.get("incident_datetime", "Unknown"),
             "location": user_input.get("location", "Unknown"),
             "description": user_input.get("description", "No description provided."),
 
@@ -174,17 +176,17 @@ def query_reporter_role(reporter_role):
     incidents = query(lambda record: record.get("input", {}).get("reporter_role") == reporter_role)
     return incidents
 
-def query_incident_date(incident_date):
-    """Return incidents whose input date exactly matches the stored value.
+def query_incident_datetime(incident_datetime):
+    """Return incidents whose input datetime exactly matches the stored value.
 
     Args:
-        incident_date (str): Date in the same format as the stored input date.
-            No date parsing or normalization is performed.
+        incident_datetime (str): Datetime in the same format as the stored
+            input datetime. No date parsing or normalization is performed.
 
     Returns:
         list: Matching incident records, or an empty list if none are found.
     """
-    incidents = query(lambda record: record.get("input", {}).get("incident_date") == incident_date)
+    incidents = query(lambda record: record.get("input", {}).get("incident_datetime") == incident_datetime)
     return incidents
     
 def query_injury_reported(injury_reported):
@@ -199,6 +201,25 @@ def query_injury_reported(injury_reported):
     """
     incidents = query(lambda record: record.get("input", {}).get("injury_reported") == injury_reported)
     return incidents
+
+def numeric_severity(record):
+    """Return a record's numeric severity, or None when it has none.
+
+    Current records keep the 0-1 score in severity_score alongside a banded
+    severity ("high"/"medium"/"low"); older records store the number in
+    severity directly.
+    """
+    ai = record.get("ai", {})
+    for key in ("severity_score", "severity"):
+        value = ai.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value)
+            except ValueError:
+                continue
+    return None
 
 def query_severity(severity, comparison_operator):
     """Filter incidents by comparing their numeric AI severity to a threshold.
@@ -216,12 +237,13 @@ def query_severity(severity, comparison_operator):
             ordering comparison uses an incompatible threshold type.
         ValueError: A stored severity string is not a valid number.
     """
+    # records without a usable numeric severity are skipped, not crashed on
     if comparison_operator == "==":
-        incidents = query(lambda record: float(record.get("ai", {}).get("severity")) == severity)
+        incidents = query(lambda record: (s := numeric_severity(record)) is not None and s == severity)
     elif comparison_operator == ">":
-        incidents = query(lambda record: float(record.get("ai", {}).get("severity")) > severity)
+        incidents = query(lambda record: (s := numeric_severity(record)) is not None and s > severity)
     elif comparison_operator == "<":
-        incidents = query(lambda record: float(record.get("ai", {}).get("severity")) < severity)
+        incidents = query(lambda record: (s := numeric_severity(record)) is not None and s < severity)
     else:
         print("Invalid comparison operator. Use '==', '>', or '<'.")
         return [] # or raise an exception

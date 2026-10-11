@@ -35,7 +35,7 @@ def print_menu() -> None:
     print("=" * 60)
     print("1. Report a new incident")
     print("2. View all stored incidents")
-    print("3. Search incidents by location")
+    print("3. Search for incidents by different categories")
     print("4. Exit")
 
 
@@ -72,6 +72,9 @@ def collect_incident_input() -> dict | None:
         user cancelled by typing 'quit' or interrupting the prompts.
     """
     try:
+        incident_name = io.prompt_incident_name()
+        if incident_name == "quit":
+            return None
         description = io.prompt_description()
         if description == "quit":
             return None
@@ -97,6 +100,7 @@ def collect_incident_input() -> dict | None:
     # prompt_incident_date_time returns a datetime object; the shared record
     # stores an ISO string so the logic rules and the data file agree.
     return {
+        "incident_name": incident_name,
         "description": description,
         "location": location,
         "reporter_role": reporter_role,
@@ -204,19 +208,23 @@ def view_stored_incidents() -> None:
     print_stored_incident_summaries(summaries)
 
 
-def search_by_location() -> None:
-    """Show the incident summaries for one location."""
-    location = input("Enter the location to search for: ").strip()
-    if location == "":
-        print("Location cannot be empty.")
-        return
-    summaries = [
-        summary
-        for summary in data_manager.query_stored_incident_summaries()
-        if str(summary.get("location", "")).lower() == location.lower()
-    ]
-    print(f"\n{len(summaries)} incident(s) found for location '{location}'.")
-    print_stored_incident_summaries(summaries)
+def search_by_category() -> None:
+    """Show the incident summaries based on different categories"""
+    # location = input("Enter the location to search for: ").strip()
+    # if location == "":
+    #     print("Location cannot be empty.")
+    #     return
+    # summaries = [
+    #     summary
+    #     for summary in data_manager.query_stored_incident_summaries()
+    #     if str(summary.get("location", "")).lower() == location.lower()
+    # ]
+    # print(f"\n{len(summaries)} incident(s) found for location '{location}'.")
+    # print_stored_incident_summaries(summaries)
+
+    search_options = io.handle_search_options()
+    if(search_options != False):
+        io.display_search_results(search_options[0],search_options[1])
 
 
 def run_action(action) -> None:
@@ -252,7 +260,7 @@ def main() -> None:
         elif choice == "2":
             run_action(view_stored_incidents)
         elif choice == "3":
-            run_action(search_by_location)
+            run_action(search_by_category)
         elif choice == "4":
             print("Goodbye!")
             return

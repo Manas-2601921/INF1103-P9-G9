@@ -128,7 +128,10 @@ def is_fire_or_electrical_hazard(ai_output):
 def _parse_date(date_str):
     """Parse a date string into a ``datetime`` using the supported formats.
 
-    Tries ``"%d-%m-%Y %H:%M"`` first, then falls back to ``"%d-%m-%Y"``.
+    Tries ISO 8601 first (the format stored by ``main.py`` via
+    ``datetime.isoformat()``, e.g. ``"2026-01-21T10:00:00"`` or the
+    date-only ``"2026-01-21"``), then falls back to ``"%d-%m-%Y %H:%M"``
+    and ``"%d-%m-%Y"`` for backward compatibility with any older records.
 
     Args:
         date_str: The date string to parse, or any non-string value.
@@ -139,6 +142,10 @@ def _parse_date(date_str):
     """
     if not isinstance(date_str, str):
         return None
+    try:
+        return datetime.fromisoformat(date_str)
+    except ValueError:
+        pass
     try:
         return datetime.strptime(date_str, "%d-%m-%Y %H:%M")
     except ValueError:
@@ -334,8 +341,10 @@ def evaluate(record, ai_output, history, reference_date=None):
     Returns:
         dict: A result dict with keys ``final_queue`` (the routing queue
         name), ``recurring`` (bool), ``duplicate_possible`` (bool),
-        ``escalation_required`` (bool), and ``rule_applied`` (a
-        human-readable explanation of which rule determined the outcome).
+        ``escalation_required`` (bool), ``rule_applied`` (a human-readable
+        explanation of which rule determined the outcome), ``ai_explanation``
+        (the AI's severity explanation) and ``supporting_phrase`` (the
+        AI-quoted excerpt backing that explanation).
     """
     is_valid, problems = validate_ai_output(ai_output)
     if not is_valid:
@@ -345,6 +354,8 @@ def evaluate(record, ai_output, history, reference_date=None):
             "duplicate_possible": False,
             "escalation_required": False,
             "rule_applied": f"invalid AI output: {'; '.join(problems)}",
+            "ai_explanation": ai_output.get("severity_explanation") if isinstance(ai_output, dict) else None,
+            "supporting_phrase": ai_output.get("supporting_phrase") if isinstance(ai_output, dict) else None,
         }
 
     if has_reporter_ai_contradiction(record, ai_output):
@@ -354,6 +365,8 @@ def evaluate(record, ai_output, history, reference_date=None):
             "duplicate_possible": False,
             "escalation_required": False,
             "rule_applied": "reporter flagged an injury but AI output did not reflect it: contradictory AI output",
+            "ai_explanation": ai_output.get("severity_explanation"),
+            "supporting_phrase": ai_output.get("supporting_phrase"),
         }
 
     duplicate = find_possible_duplicate(record, ai_output, history)
