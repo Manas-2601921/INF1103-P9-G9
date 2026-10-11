@@ -4,12 +4,12 @@ from difflib import SequenceMatcher
 severity_levels = {"low", "medium", "high"}
 
 hazard_categories = {
-    "electrical", "fire", "chemical", "slip trip fall",
-    "mechanical", "other",
+    "electrical", "fire", "chemical", "ergonomic", "slip/trip/fall",
+    "mechanical", "biological", "psychosocial", "other",
 }
 
 incident_types = {
-    "injury", "property damage", "complaint",
+    "near-miss", "injury", "unsafe condition", "property damage", "complaint",
 }
 
 escalation_hazards = {"fire", "electrical"}
@@ -329,8 +329,10 @@ def evaluate(record, ai_output, history, reference_date=None):
     Returns:
         dict: A result dict with keys ``final_queue`` (the routing queue
         name), ``recurring`` (bool), ``duplicate_possible`` (bool),
-        ``escalation_required`` (bool), and ``rule_applied`` (a
-        human-readable explanation of which rule determined the outcome).
+        ``escalation_required`` (bool), ``rule_applied`` (a human-readable
+        explanation of which rule determined the outcome), ``ai_explanation``
+        (the AI's severity explanation) and ``supporting_phrase`` (the
+        AI-quoted excerpt backing that explanation).
     """
     is_valid, problems = validate_ai_output(ai_output)
     if not is_valid:
@@ -340,6 +342,8 @@ def evaluate(record, ai_output, history, reference_date=None):
             "duplicate_possible": False,
             "escalation_required": False,
             "rule_applied": f"invalid AI output: {'; '.join(problems)}",
+            "ai_explanation": ai_output.get("severity_explanation") if isinstance(ai_output, dict) else None,
+            "supporting_phrase": ai_output.get("supporting_phrase") if isinstance(ai_output, dict) else None,
         }
 
     if has_reporter_ai_contradiction(record, ai_output):
@@ -349,6 +353,8 @@ def evaluate(record, ai_output, history, reference_date=None):
             "duplicate_possible": False,
             "escalation_required": False,
             "rule_applied": "reporter flagged an injury but AI output did not reflect it: contradictory AI output",
+            "ai_explanation": ai_output.get("severity_explanation"),
+            "supporting_phrase": ai_output.get("supporting_phrase"),
         }
 
     duplicate = find_possible_duplicate(record, ai_output, history)
@@ -376,6 +382,8 @@ def evaluate(record, ai_output, history, reference_date=None):
         "duplicate_possible": duplicate is not None,
         "escalation_required": high_severity_escalation,
         "rule_applied": rule_applied,
+        "ai_explanation": ai_output.get("severity_explanation"),
+        "supporting_phrase": ai_output.get("supporting_phrase"),
     }
 
 

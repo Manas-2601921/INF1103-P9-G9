@@ -125,7 +125,7 @@ def query_stored_incident_summaries():  # This function is to load every stored 
         summaries.append({
             "record_id": record.get("record_id", "Unknown"),
 
-            "incident_date": user_input.get("incident_date", "Unknown"),
+            "incident_date": user_input.get("incident_datetime", "Unknown"),
             "location": user_input.get("location", "Unknown"),
             "description": user_input.get("description", "No description provided."),
 
@@ -174,17 +174,17 @@ def query_reporter_role(reporter_role):
     incidents = query(lambda record: record.get("input", {}).get("reporter_role") == reporter_role)
     return incidents
 
-def query_incident_date(incident_date):
-    """Return incidents whose input date exactly matches the stored value.
+def query_incident_datetime(incident_datetime):
+    """Return incidents whose input datetime exactly matches the stored value.
 
     Args:
-        incident_date (str): Date in the same format as the stored input date.
-            No date parsing or normalization is performed.
+        incident_datetime (str): Datetime in the same format as the stored
+            input datetime. No date parsing or normalization is performed.
 
     Returns:
         list: Matching incident records, or an empty list if none are found.
     """
-    incidents = query(lambda record: record.get("input", {}).get("incident_date") == incident_date)
+    incidents = query(lambda record: record.get("input", {}).get("incident_datetime") == incident_datetime)
     return incidents
     
 def query_injury_reported(injury_reported):
