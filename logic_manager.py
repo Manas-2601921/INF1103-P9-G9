@@ -128,7 +128,10 @@ def is_fire_or_electrical_hazard(ai_output):
 def _parse_date(date_str):
     """Parse a date string into a ``datetime`` using the supported formats.
 
-    Tries ``"%d-%m-%Y %H:%M"`` first, then falls back to ``"%d-%m-%Y"``.
+    Tries ISO 8601 first (the format stored by ``main.py`` via
+    ``datetime.isoformat()``, e.g. ``"2026-01-21T10:00:00"`` or the
+    date-only ``"2026-01-21"``), then falls back to ``"%d-%m-%Y %H:%M"``
+    and ``"%d-%m-%Y"`` for backward compatibility with any older records.
 
     Args:
         date_str: The date string to parse, or any non-string value.
@@ -139,6 +142,10 @@ def _parse_date(date_str):
     """
     if not isinstance(date_str, str):
         return None
+    try:
+        return datetime.fromisoformat(date_str)
+    except ValueError:
+        pass
     try:
         return datetime.strptime(date_str, "%d-%m-%Y %H:%M")
     except ValueError:
