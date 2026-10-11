@@ -71,7 +71,6 @@ def prompt_reporter_role():
 
 def prompt_incident_date_time():
     while True:
-        print("prompt_incident_date_time called")
         newIncidentDateTime = input("Enter the date and time of the incident (DD-MM-YYYY HH:MM) (or type 'quit' to exit):")
         if newIncidentDateTime.lower() == 'quit':
             return "quit"
@@ -87,7 +86,6 @@ def prompt_incident_date_time():
                 continue
 
 def prompt_injury_reported():
-    print("prompt_injury_reported called")
     while True:
         newIncidentInjuryReported = input("Was there any injury reported Y/N (or type 'quit' to exit): ")
         if newIncidentInjuryReported.lower() == 'quit':
@@ -104,7 +102,6 @@ def prompt_injury_reported():
     return
 
 def prompt_immediate_action():
-    print("prompt_immediate_action called")
     while True:
         immediateAction = input("Was there any immediate action taken Y/N (or type 'quit' to exit): ")
         if immediateAction.lower() == 'quit':
@@ -118,6 +115,17 @@ def prompt_immediate_action():
         else:
             print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
             continue
+
+def prompt_incident_name():
+    while True:
+        newIncidentName = input("Enter the name of the incident (or type 'quit' to exit): ")
+        if newIncidentName.lower() == 'quit':
+            return "quit"
+        elif newIncidentName is None:
+            print("Invalid input. Please enter a valid incident description.")
+            continue
+        return newIncidentName
+    return
 
 #Output Incident Information methods 
 def load_file(file_path, file_permission):
