@@ -1,6 +1,6 @@
 [
   {
-    "record_id": "INC-2026-0001",
+    "record_id": "INC-0001",
     "input": {
       "incident_name": "Forklift Near Miss with Pedestrian",
       "description": "Forklift nearly hit a worker while reversing.",
@@ -45,7 +45,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0002",
+    "record_id": "INC-0002",
     "input": {
       "incident_name": "Damaged Electrical Cable in Maintenance Bay",
       "description": "Exposed electrical cable with damaged insulation found near the maintenance bay.",
@@ -90,7 +90,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0003",
+    "record_id": "INC-0003",
     "input": {
       "incident_name": "Slip on Wet Cafeteria Floor",
       "description": "Wet floor near the cafeteria entrance with no warning sign. Employee slipped and bruised their knee.",
@@ -135,7 +135,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0004",
+    "record_id": "INC-0004",
     "input": {
       "incident_name": "Chemical Leak in Storage Room",
       "description": "Chemical container leaking a strong-smelling liquid in the storage room. Two workers reported dizziness.",
@@ -180,7 +180,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0005",
+    "record_id": "INC-0005",
     "input": {
       "incident_name": "Repeat Falling Pallet in Aisle 7",
       "description": "Another pallet fell from the top rack in aisle 7 during unloading. No one was underneath.",
@@ -225,7 +225,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0006",
+    "record_id": "INC-0006",
     "input": {
       "incident_name": "Box Cutter Hand Laceration",
       "description": "Worker suffered a deep cut to the hand while using a box cutter without gloves.",
@@ -270,7 +270,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0007",
+    "record_id": "INC-0007",
     "input": {
       "incident_name": "Duplicate Report: Exposed Cable in Maintenance Bay",
       "description": "Exposed electrical cable with damaged insulation spotted in the maintenance bay.",
@@ -307,7 +307,7 @@
       "recurring": false,
       "duplicate_possible": true,
       "escalation_required": true,
-      "rule_applied": "Possible duplicate of INC-2026-0002; hazard still treated as immediate danger"
+      "rule_applied": "Possible duplicate of INC-0002; hazard still treated as immediate danger"
     },
     "metadata": {
       "created_at": "2026-09-21T21:05:00",
@@ -315,7 +315,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0008",
+    "record_id": "INC-0008",
     "input": {
       "incident_name": "Blocked Emergency Exit in East Corridor",
       "description": "Emergency exit door in the east corridor is blocked by stacked boxes.",
@@ -360,7 +360,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0009",
+    "record_id": "INC-0009",
     "input": {
       "incident_name": "Unprotected Work at Height on Dock Roof",
       "description": "Contractor working at height on the loading dock roof without a harness.",
@@ -405,7 +405,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0010",
+    "record_id": "INC-0010",
     "input": {
       "incident_name": "Unstable Office Chair Wheel",
       "description": "Office chair has a wobbly wheel and feels unstable when sitting.",
@@ -450,7 +450,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0011",
+    "record_id": "INC-0011",
     "input": {
       "incident_name": "Empty Fire Extinguisher in Paint Shop",
       "description": "Fire extinguisher in the paint shop was found empty during a routine check.",
@@ -495,7 +495,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0012",
+    "record_id": "INC-0012",
     "input": {
       "incident_name": "Noise Exposure at Stamping Press",
       "description": "Worker reported ringing in their ears after a full shift near the stamping press without hearing protection.",
@@ -540,7 +540,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0013",
+    "record_id": "INC-0013",
     "input": {
       "incident_name": "Unpermitted Confined Space Entry",
       "description": "Confined space entry into a storage tank was started without a permit or gas monitor.",
@@ -585,7 +585,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0014",
+    "record_id": "INC-0014",
     "input": {
       "incident_name": "Missing Mezzanine Guard Rail",
       "description": "Guard rail missing on the second-floor mezzanine near the parts bin.",
@@ -630,7 +630,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0015",
+    "record_id": "INC-0015",
     "input": {
       "incident_name": "Aggressive Dog Encounter on Delivery Route",
       "description": "Delivery driver reported feeling threatened by a dog at a residential drop-off address.",
@@ -675,7 +675,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0016",
+    "record_id": "INC-0016",
     "input": {
       "incident_name": "Second Falling Pallet Event in Aisle 7",
       "description": "Second report this month of a pallet falling from the top rack in aisle 7.",
@@ -712,7 +712,7 @@
       "recurring": true,
       "duplicate_possible": true,
       "escalation_required": true,
-      "rule_applied": "Confirmed recurring hazard linked to INC-2026-0005"
+      "rule_applied": "Confirmed recurring hazard linked to INC-0005"
     },
     "metadata": {
       "created_at": "2026-09-26T10:00:00",
@@ -720,7 +720,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0017",
+    "record_id": "INC-0017",
     "input": {
       "incident_name": "Heat Exhaustion at Construction Site",
       "description": "Employee experienced heat exhaustion symptoms while working outdoors during a heatwave with no shade breaks scheduled.",
@@ -765,7 +765,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0018",
+    "record_id": "INC-0018",
     "input": {
       "incident_name": "Coolant Spill at CNC Station 4",
       "description": "Spilled coolant on the machine shop floor near CNC station 4, no signage placed yet.",
@@ -810,7 +810,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0019",
+    "record_id": "INC-0019",
     "input": {
       "incident_name": "Overhead Crane Grinding Noise",
       "description": "Overhead crane made an unusual grinding noise during a lift and was taken out of service.",
@@ -855,7 +855,7 @@
     }
   },
   {
-    "record_id": "INC-2026-0020",
+    "record_id": "INC-0020",
     "input": {
       "incident_name": "Loose Break Room Fridge Hinge",
       "description": "Break room refrigerator door hinge is loose and squeaks when opened.",
