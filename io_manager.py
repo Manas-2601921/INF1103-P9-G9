@@ -17,16 +17,15 @@ import data_manager
 # Input incident information methods
 
 def prompt_description():
-    
+
     while True:
         newIncidentDescription = input("Enter the description of the incident (or type 'quit' to exit): ")
         if newIncidentDescription.lower() == 'quit':
             return "quit"
-        elif newIncidentDescription is None:
-            print("Invalid input. Please enter a valid incident description.")
+        if not newIncidentDescription.strip():
+            print("Description cannot be empty. Please describe what happened.")
             continue
         return newIncidentDescription
-    return
 
 def prompt_location():
     while True:
@@ -34,11 +33,10 @@ def prompt_location():
 
         if newIncidentLocation.lower() == 'quit':
             return "quit"
-        elif newIncidentLocation is None:
-            print("Invalid input. Please enter a valid incident location.")
+        if not newIncidentLocation.strip():
+            print("Location cannot be empty. Please enter where the incident happened.")
             continue
         return newIncidentLocation
-    return
 
 # Accepted answers for the role prompt: option number or role name (any case)
 ROLE_OPTIONS = {
@@ -107,8 +105,11 @@ def prompt_immediate_action():
         if immediateAction.lower() == 'quit':
             return "quit"
         elif immediateAction.upper() == 'Y' or immediateAction.upper() == 'YES':
-            newImmediateAction = input("Please describe the immediate action taken: ")
-            return newImmediateAction
+            while True:
+                newImmediateAction = input("Please describe the immediate action taken: ")
+                if newImmediateAction.strip():
+                    return newImmediateAction
+                print("Description cannot be empty. Please describe the action taken.")
         elif immediateAction.upper() == 'N' or immediateAction.upper() == 'NO':
             immediateAction = "No immediate action was taken"
             return immediateAction
@@ -121,11 +122,10 @@ def prompt_incident_name():
         newIncidentName = input("Enter the name of the incident (or type 'quit' to exit): ")
         if newIncidentName.lower() == 'quit':
             return "quit"
-        elif newIncidentName is None:
-            print("Invalid input. Please enter a valid incident description.")
+        if not newIncidentName.strip():
+            print("Incident name cannot be empty. Please give the incident a short title.")
             continue
         return newIncidentName
-    return
 
 #Output Incident Information methods 
 def load_file(file_path, file_permission):
