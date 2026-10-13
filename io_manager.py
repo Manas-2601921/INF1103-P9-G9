@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 import data_manager
@@ -127,27 +126,7 @@ def prompt_incident_name():
             continue
         return newIncidentName
 
-#Output Incident Information methods 
-def load_file(file_path, file_permission):
-    '''
-    This is a method to load files with error handling in place. 
-
-    Refer to the method fields below to understand what the method requires to execute successfully:
-    filePath = the path leading to the file storing data
-    filePermission = r/w/r+ : how the user wants the file to be loaded.
-    
-    '''
-    try:
-        with open(file_path,file_permission, encoding="utf-8")as filehandler:
-                    records = json.load(filehandler)
-    except FileNotFoundError:
-        # print("Data file is not found")
-        return "Error: File is not found"
-    except json.JSONDecodeError:
-        # print("invalid json error")
-        return "Error: Invalid JSON error"
-    else:
-        return records
+#Output Incident Information methods
 
 #function to look up one incident record by its id and print a formatted incident review report to the console
 def generate_incident_review(incident_id):
@@ -216,7 +195,7 @@ def generate_incident_review(incident_id):
     print(f"{'Immediate Action:':<{LABEL_WIDTH}}{incident_record['input']['immediate_action']}")
  
     # section 2: what the AI concluded about the incident, plus which review queue it ended up in
-    print("\nOur Assesment")
+    print("\nOur Assessment")
     print("-"*20)
     print(f"{'Severity':<{LABEL_WIDTH}}{incident_record['ai']['severity']}")
     print(f"{'Incident Type':<{LABEL_WIDTH}}{incident_record['ai']['incident_type']}")
@@ -384,17 +363,6 @@ def handle_search_options():
                 else:
                     print("Invalid option number entered.")
                     return False
- 
-                # earlier version of the date search, kept here as commented-out code (searched by a single date in the format YYYY-MM-DD)
-                # #convert string to datetime object
-                # #handle the case where the user enters an invalid date format
-                # try:
-                #     date_search_value = datetime.strptime(date_search_value, "%Y-%m-%d")
-                # except ValueError:
-                #     print("Invalid date format. Please enter the date in the format (YYYY-MM-DD).")
-                # #method to search for the incident by date
-                # search_results = data_manager.query(lambda record: record.get("input", {}).get("incident_datetime") == date_search_value)
-                # return search_results,date_search_value
             
 #function to display a numbered list of search results, ask the user to pick one, and then show that incident's full review report
 def display_search_results(search_results_data, user_search_query):
@@ -463,17 +431,8 @@ def display_search_results(search_results_data, user_search_query):
  
         # the number is valid, so subtract 1 (the user's numbers start at 1 but the list starts at 0) to get the chosen record, then read its record_id
         view_incident_data_id = search_results_data[view_incident_number-1]['record_id']
- 
+
         print("\n")
         # print the full incident report for the chosen record
         generate_incident_review(view_incident_data_id)
- 
-#print(generate_incident_review("INC-2026-0001"))
-if __name__ == "__main__":
-    # importing this module (e.g. from main.py) must not start the
-    # interactive search session
-    #searchOptions = handle_search_options()
-    generate_incident_review("INF")
-    # if(searchOptions != False):
-    #     display_search_results(searchOptions[0],searchOptions[1])
     
