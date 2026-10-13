@@ -304,15 +304,25 @@ def handle_search_options():
  
             # option 2: search by incident category
             elif int_search_option == 2 :
-                    category_search_value = input("Enter the category of the incident you want to search for: ")
+                    # show the categories that actually exist in the incident log
+                    # so the user knows what can be searched for
+                    stored_categories = sorted({
+                        (record.get("ai", {}).get("hazard_category") or "").strip()
+                        for record in data_manager.query(lambda record: True)
+                    } - {""})
+                    if stored_categories:
+                        print("\nCategories currently in the incident log:")
+                        for stored_category in stored_categories:
+                            print(f"  - {stored_category}")
+                    category_search_value = input("\nEnter the category of the incident you want to search for: ")
                     # an entry with only spaces counts as empty
                     if not category_search_value.strip():
                         print("Category of Incident is empty. No category to search by.")
                         return False
                     else:
-                        # find records whose hazard_category matches the user's text, ignoring capitalisation and surrounding spaces
-                        search_results = data_manager.query(lambda record: (record.get("ai", {}).get("hazard_category") or "").strip().lower() == category_search_value.strip().lower())
-                        #method to search for the incident by category
+                        # match when the typed text appears anywhere in the stored category
+                        # (case-insensitive), so 'fire' also finds 'fire/emergency egress'
+                        search_results = data_manager.query(lambda record: category_search_value.strip().lower() in (record.get("ai", {}).get("hazard_category") or "").strip().lower())
                         # return the matching records along with the text that was searched for
                         return search_results,category_search_value
  
