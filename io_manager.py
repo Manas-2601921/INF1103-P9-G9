@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 import data_manager
@@ -17,16 +16,15 @@ import data_manager
 # Input incident information methods
 
 def prompt_description():
-    
+
     while True:
         newIncidentDescription = input("Enter the description of the incident (or type 'quit' to exit): ")
         if newIncidentDescription.lower() == 'quit':
             return "quit"
-        elif newIncidentDescription is None:
-            print("Invalid input. Please enter a valid incident description.")
+        if not newIncidentDescription.strip():
+            print("Description cannot be empty. Please describe what happened.")
             continue
         return newIncidentDescription
-    return
 
 def prompt_location():
     while True:
@@ -34,11 +32,10 @@ def prompt_location():
 
         if newIncidentLocation.lower() == 'quit':
             return "quit"
-        elif newIncidentLocation is None:
-            print("Invalid input. Please enter a valid incident location.")
+        if not newIncidentLocation.strip():
+            print("Location cannot be empty. Please enter where the incident happened.")
             continue
         return newIncidentLocation
-    return
 
 # Accepted answers for the role prompt: option number or role name (any case)
 ROLE_OPTIONS = {
@@ -107,8 +104,11 @@ def prompt_immediate_action():
         if immediateAction.lower() == 'quit':
             return "quit"
         elif immediateAction.upper() == 'Y' or immediateAction.upper() == 'YES':
-            newImmediateAction = input("Please describe the immediate action taken: ")
-            return newImmediateAction
+            while True:
+                newImmediateAction = input("Please describe the immediate action taken: ")
+                if newImmediateAction.strip():
+                    return newImmediateAction
+                print("Description cannot be empty. Please describe the action taken.")
         elif immediateAction.upper() == 'N' or immediateAction.upper() == 'NO':
             immediateAction = "No immediate action was taken"
             return immediateAction
@@ -121,33 +121,12 @@ def prompt_incident_name():
         newIncidentName = input("Enter the name of the incident (or type 'quit' to exit): ")
         if newIncidentName.lower() == 'quit':
             return "quit"
-        elif newIncidentName is None:
-            print("Invalid input. Please enter a valid incident description.")
+        if not newIncidentName.strip():
+            print("Incident name cannot be empty. Please give the incident a short title.")
             continue
         return newIncidentName
-    return
 
-#Output Incident Information methods 
-def load_file(file_path, file_permission):
-    '''
-    This is a method to load files with error handling in place. 
-
-    Refer to the method fields below to understand what the method requires to execute successfully:
-    filePath = the path leading to the file storing data
-    filePermission = r/w/r+ : how the user wants the file to be loaded.
-    
-    '''
-    try:
-        with open(file_path,file_permission, encoding="utf-8")as filehandler:
-                    records = json.load(filehandler)
-    except FileNotFoundError:
-        # print("Data file is not found")
-        return "Error: File is not found"
-    except json.JSONDecodeError:
-        # print("invalid json error")
-        return "Error: Invalid JSON error"
-    else:
-        return records
+#Output Incident Information methods
 
 #function to look up one incident record by its id and print a formatted incident review report to the console
 def generate_incident_review(incident_id):
@@ -216,7 +195,7 @@ def generate_incident_review(incident_id):
     print(f"{'Immediate Action:':<{LABEL_WIDTH}}{incident_record['input']['immediate_action']}")
  
     # section 2: what the AI concluded about the incident, plus which review queue it ended up in
-    print("\nOur Assesment")
+    print("\nOur Assessment")
     print("-"*20)
     print(f"{'Severity':<{LABEL_WIDTH}}{incident_record['ai']['severity']}")
     print(f"{'Incident Type':<{LABEL_WIDTH}}{incident_record['ai']['incident_type']}")
@@ -304,15 +283,25 @@ def handle_search_options():
  
             # option 2: search by incident category
             elif int_search_option == 2 :
-                    category_search_value = input("Enter the category of the incident you want to search for: ")
+                    # show the categories that actually exist in the incident log
+                    # so the user knows what can be searched for
+                    stored_categories = sorted({
+                        (record.get("ai", {}).get("hazard_category") or "").strip()
+                        for record in data_manager.query(lambda record: True)
+                    } - {""})
+                    if stored_categories:
+                        print("\nCategories currently in the incident log:")
+                        for stored_category in stored_categories:
+                            print(f"  - {stored_category}")
+                    category_search_value = input("\nEnter the category of the incident you want to search for: ")
                     # an entry with only spaces counts as empty
                     if not category_search_value.strip():
                         print("Category of Incident is empty. No category to search by.")
                         return False
                     else:
-                        # find records whose hazard_category matches the user's text, ignoring capitalisation and surrounding spaces
-                        search_results = data_manager.query(lambda record: (record.get("ai", {}).get("hazard_category") or "").strip().lower() == category_search_value.strip().lower())
-                        #method to search for the incident by category
+                        # match when the typed text appears anywhere in the stored category
+                        # (case-insensitive), so 'fire' also finds 'fire/emergency egress'
+                        search_results = data_manager.query(lambda record: category_search_value.strip().lower() in (record.get("ai", {}).get("hazard_category") or "").strip().lower())
                         # return the matching records along with the text that was searched for
                         return search_results,category_search_value
  
@@ -374,17 +363,6 @@ def handle_search_options():
                 else:
                     print("Invalid option number entered.")
                     return False
- 
-                # earlier version of the date search, kept here as commented-out code (searched by a single date in the format YYYY-MM-DD)
-                # #convert string to datetime object
-                # #handle the case where the user enters an invalid date format
-                # try:
-                #     date_search_value = datetime.strptime(date_search_value, "%Y-%m-%d")
-                # except ValueError:
-                #     print("Invalid date format. Please enter the date in the format (YYYY-MM-DD).")
-                # #method to search for the incident by date
-                # search_results = data_manager.query(lambda record: record.get("input", {}).get("incident_datetime") == date_search_value)
-                # return search_results,date_search_value
             
 #function to display a numbered list of search results, ask the user to pick one, and then show that incident's full review report
 def display_search_results(search_results_data, user_search_query):
@@ -453,17 +431,8 @@ def display_search_results(search_results_data, user_search_query):
  
         # the number is valid, so subtract 1 (the user's numbers start at 1 but the list starts at 0) to get the chosen record, then read its record_id
         view_incident_data_id = search_results_data[view_incident_number-1]['record_id']
- 
+
         print("\n")
         # print the full incident report for the chosen record
         generate_incident_review(view_incident_data_id)
- 
-#print(generate_incident_review("INC-2026-0001"))
-if __name__ == "__main__":
-    # importing this module (e.g. from main.py) must not start the
-    # interactive search session
-    #searchOptions = handle_search_options()
-    generate_incident_review("INF")
-    # if(searchOptions != False):
-    #     display_search_results(searchOptions[0],searchOptions[1])
     
