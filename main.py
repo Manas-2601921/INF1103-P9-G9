@@ -210,18 +210,6 @@ def view_stored_incidents() -> None:
 
 def search_by_category() -> None:
     """Show the incident summaries based on different categories"""
-    # location = input("Enter the location to search for: ").strip()
-    # if location == "":
-    #     print("Location cannot be empty.")
-    #     return
-    # summaries = [
-    #     summary
-    #     for summary in data_manager.query_stored_incident_summaries()
-    #     if str(summary.get("location", "")).lower() == location.lower()
-    # ]
-    # print(f"\n{len(summaries)} incident(s) found for location '{location}'.")
-    # print_stored_incident_summaries(summaries)
-
     search_options = io.handle_search_options()
     if(search_options != False):
         io.display_search_results(search_options[0],search_options[1])
