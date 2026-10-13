@@ -192,6 +192,8 @@ def generate_incident_review(incident_id):
     report_create_date = report_created_at.strftime("%d %B %Y")
     # format the same timestamp as just the hour and minute, e.g. "14:30"
     report_create_time = report_created_at.strftime("%H:%M")
+
+    formatted_datetime = datetime.fromisoformat(incident_record['input']['incident_datetime']).strftime("%d %B %Y, %H:%M")
  
     # width that every label is padded to in the sections below
     LABEL_WIDTH = 24
@@ -207,6 +209,7 @@ def generate_incident_review(incident_id):
     print("-"*20)
     print(f"{'Incident Name:':<{LABEL_WIDTH}}{incident_record['input']['incident_name']}")
     print(f"{'Incident Description:':<{LABEL_WIDTH}}{incident_record['input']['description']}")
+    print(f"{'Incident DateTime:':<{LABEL_WIDTH}}{formatted_datetime}")
     print(f"{'Incident Location:':<{LABEL_WIDTH}}{incident_record['input']['location']}")
     # converts the True/False value into "Yes"/"No" for readability
     print(f"{'Injury Reported:':<{LABEL_WIDTH}}{'Yes' if incident_record['input']['injury_reported'] else 'No'}")
