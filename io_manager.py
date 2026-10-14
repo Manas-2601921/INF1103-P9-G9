@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 import data_manager
@@ -17,16 +16,15 @@ import data_manager
 # Input incident information methods
 
 def prompt_description():
-    
+
     while True:
         newIncidentDescription = input("Enter the description of the incident (or type 'quit' to exit): ")
         if newIncidentDescription.lower() == 'quit':
             return "quit"
-        elif newIncidentDescription is None:
-            print("Invalid input. Please enter a valid incident description.")
+        if not newIncidentDescription.strip():
+            print("Description cannot be empty. Please describe what happened.")
             continue
         return newIncidentDescription
-    return
 
 def prompt_location():
     while True:
@@ -34,11 +32,10 @@ def prompt_location():
 
         if newIncidentLocation.lower() == 'quit':
             return "quit"
-        elif newIncidentLocation is None:
-            print("Invalid input. Please enter a valid incident location.")
+        if not newIncidentLocation.strip():
+            print("Location cannot be empty. Please enter where the incident happened.")
             continue
         return newIncidentLocation
-    return
 
 # Accepted answers for the role prompt: option number or role name (any case)
 ROLE_OPTIONS = {
@@ -107,8 +104,11 @@ def prompt_immediate_action():
         if immediateAction.lower() == 'quit':
             return "quit"
         elif immediateAction.upper() == 'Y' or immediateAction.upper() == 'YES':
-            newImmediateAction = input("Please describe the immediate action taken: ")
-            return newImmediateAction
+            while True:
+                newImmediateAction = input("Please describe the immediate action taken: ")
+                if newImmediateAction.strip():
+                    return newImmediateAction
+                print("Description cannot be empty. Please describe the action taken.")
         elif immediateAction.upper() == 'N' or immediateAction.upper() == 'NO':
             immediateAction = "No immediate action was taken"
             return immediateAction
@@ -121,33 +121,12 @@ def prompt_incident_name():
         newIncidentName = input("Enter the name of the incident (or type 'quit' to exit): ")
         if newIncidentName.lower() == 'quit':
             return "quit"
-        elif newIncidentName is None:
-            print("Invalid input. Please enter a valid incident description.")
+        if not newIncidentName.strip():
+            print("Incident name cannot be empty. Please give the incident a short title.")
             continue
         return newIncidentName
-    return
 
-#Output Incident Information methods 
-def load_file(file_path, file_permission):
-    '''
-    This is a method to load files with error handling in place. 
-
-    Refer to the method fields below to understand what the method requires to execute successfully:
-    filePath = the path leading to the file storing data
-    filePermission = r/w/r+ : how the user wants the file to be loaded.
-    
-    '''
-    try:
-        with open(file_path,file_permission, encoding="utf-8")as filehandler:
-                    records = json.load(filehandler)
-    except FileNotFoundError:
-        # print("Data file is not found")
-        return "Error: File is not found"
-    except json.JSONDecodeError:
-        # print("invalid json error")
-        return "Error: Invalid JSON error"
-    else:
-        return records
+#Output Incident Information methods
 
 #function to look up one incident record by its id and print a formatted incident review report to the console
 def generate_incident_review(incident_id):
@@ -216,7 +195,7 @@ def generate_incident_review(incident_id):
     print(f"{'Immediate Action:':<{LABEL_WIDTH}}{incident_record['input']['immediate_action']}")
  
     # section 2: what the AI concluded about the incident, plus which review queue it ended up in
-    print("\nOur Assesment")
+    print("\nOur Assessment")
     print("-"*20)
     print(f"{'Severity':<{LABEL_WIDTH}}{incident_record['ai']['severity']}")
     print(f"{'Incident Type':<{LABEL_WIDTH}}{incident_record['ai']['incident_type']}")
@@ -242,228 +221,208 @@ def generate_incident_review(incident_id):
     print(f"> {incident_record['ai']['recommended_immediate_action']}")
 
 #function to ask the user how they want to search incidents (title, category or date/time), validate what they type, run the search and return the matching records
+QUIT_MESSAGE = "Search cancelled. Returning to the previous menu."
+DATETIME_PROMPT_HINT = "(e.g. DD-MM-YYYY HH:MM, 25-10-2023 14:30)"
+
+
+def ask_choice(prompt, valid_options):
+    """Re-asks until the user enters one of valid_options. Returns the choice, or None if the user typed 'quit'."""
+    while True:
+        answer = input(prompt).strip()
+        if answer.lower() == "quit":
+            return None
+        if answer in valid_options:
+            return answer
+        print(f"Invalid option. Please enter one of: {', '.join(valid_options)} (or type 'quit' to exit).")
+
+
+def ask_text(prompt, error_message):
+    """Re-asks until the user enters non-empty text. Returns the text, or None if the user typed 'quit'."""
+    while True:
+        user_text_input = input(prompt).strip()
+        if user_text_input.lower() == "quit":
+            return None
+        if user_text_input:
+            return user_text_input
+        print(error_message)
+
+
+def ask_datetime(prompt):
+    """
+    Re-asks until the user enters a datetime as DD-MM-YYYY HH:MM.
+    Returns (iso_string, typed_text), or None if the user typed 'quit'.
+    """
+    while True:
+        user_datetime_input = input(prompt).strip()
+        if user_datetime_input.lower() == "quit":
+            return None
+        try:
+            iso_value = datetime.strptime(user_datetime_input, "%d-%m-%Y %H:%M").isoformat(timespec="seconds")
+            return iso_value, user_datetime_input
+        except ValueError:
+            print("Invalid format. Please follow the format: DD-MM-YYYY HH:MM (e.g., 25-10-2023 14:30)")
+
+
 def handle_search_options():
     """
-    variables in the function:
-    search_results - the records returned by data_manager.query() for the chosen search
-    user_search_option - the raw text the user typed for the main menu (1 = Title, 2 = Category, 3 = Date)
-    int_search_option - user_search_option converted to an integer
-    title_search_value - the incident name the user wants to search for
-    category_search_value - the incident category the user wants to search for
-    datetime_search_type - the raw text the user typed for the date sub-menu (1 = range, 2 = specific datetime)
-    datetime_search_type_int - datetime_search_type converted to an integer
-    search_start_datetime_input - the start datetime exactly as the user typed it, e.g. "2023-10-25 14:30"
-    valid_start_datetime - the start datetime converted to an ISO string, e.g. "2023-10-25T14:30:00"
-    search_end_datetime_input - the end datetime exactly as the user typed it
-    valid_end_datetime - the end datetime converted to an ISO string
-    search_string - a readable description of the date range search, returned for display with the results
-    search_datetime_input - the single datetime exactly as the user typed it
-    valid_search_datetime - the single datetime converted to an ISO string
- 
-    this method returns a tuple of (search_results, description of what was searched for) when a search runs
+    Asks the user how they want to search incidents (title, category or date/time), re-prompting
+    until every answer is valid, runs the search and returns the matching records.
+
+    Returns a tuple of (search_results, description of what was searched for) when a search runs
     (search_results is an empty list if nothing matched).
-    It returns False (after printing an error message) if the menu choice or date sub-menu choice is invalid,
-    a search value is empty, a datetime format is wrong, or the start datetime is later than the end datetime
+    If the user types 'quit' at any prompt, prints a message and returns False.
     """
-    # placeholder for the search results, replaced once a search is run
-    search_results = {}
-    # show the main menu and read the user's choice as text
-    user_search_option = input("What would you like to search by:\n1. Title \n2. Category\n3. Date \n\nEnter your option number here: ")
-    # check that the choice is made up of digits only
-    if user_search_option.isdigit() == False :
-        print("Invalid input. Please enter a valid number based on the options above.")
+    # main menu
+    search_option = ask_choice(
+        "What would you like to search by:\n1. Title \n2. Category\n3. Date \n\n"
+        "Enter your option number here (or type 'quit' to exit): ",
+        ("1", "2", "3"),
+    )
+    if search_option is None:
+        print(QUIT_MESSAGE)
         return False
-    else:
-        # convert the choice to an integer; the except catches any digit-like character that int() cannot convert
-        try:
-            int_search_option = int(user_search_option)
-        except ValueError:
-            print("Invalid option. Please enter a valid option number.")
+
+    # option 1: search by incident title
+    if search_option == "1":
+        title_search_value = ask_text(
+            "\nEnter the name of the incident you want to search for (or type 'quit' to exit): ",
+            "Name of the incident is empty. Please enter a name.",
+        )
+        if title_search_value is None:
+            print(QUIT_MESSAGE)
             return False
-        # check that the number is one of the three menu options (1, 2 or 3)
-        if int_search_option != 1 and int_search_option != 2 and int_search_option != 3:
-            print("Invalid option. Please enter a valid option number.")
-            return False
+        search_results = data_manager.query(
+            lambda record: (record.get("input", {}).get("incident_name") or "").strip().lower() == title_search_value.lower()
+        )
+        return search_results, title_search_value
+
+    # option 2: search by incident category
+    if search_option == "2":
+        incident_categories = sorted({
+            (record.get("ai", {}).get("hazard_category") or "").strip()
+            for record in data_manager.query(lambda record: True)
+            if (record.get("ai", {}).get("hazard_category") or "").strip()
+        })
+
+        if incident_categories:
+            print("\nCategories related to all your incidents:")
+            for incident_category in incident_categories:
+                print(f"  - {incident_category}")
         else:
-            #search option is valid, now we can proceed to search for the incident
-            # option 1: search by incident title
-            if int_search_option == 1 :
-                title_search_value = input("\nEnter the name of the incident you want to search for: ")
-                #method to search for the incident by title
-                # .strip() removes surrounding spaces, so an entry with only spaces counts as empty
-                if not title_search_value.strip():
-                    print("Name of the incident is empty.")
-                    return False
-                else:
-                    # find records whose incident_name matches the user's text, ignoring capitalisation and surrounding spaces
-                    # ("or ''" treats a missing incident_name as an empty string)
-                    search_results = data_manager.query(lambda record: (record.get("input", {}).get("incident_name") or "").strip().lower() == title_search_value.strip().lower())
-                    # return the matching records along with the text that was searched for
-                    return search_results,title_search_value
- 
- 
-            # option 2: search by incident category
-            elif int_search_option == 2 :
-                    category_search_value = input("Enter the category of the incident you want to search for: ")
-                    # an entry with only spaces counts as empty
-                    if not category_search_value.strip():
-                        print("Category of Incident is empty. No category to search by.")
-                        return False
-                    else:
-                        # find records whose hazard_category matches the user's text, ignoring capitalisation and surrounding spaces
-                        search_results = data_manager.query(lambda record: (record.get("ai", {}).get("hazard_category") or "").strip().lower() == category_search_value.strip().lower())
-                        #method to search for the incident by category
-                        # return the matching records along with the text that was searched for
-                        return search_results,category_search_value
- 
-            # option 3: search by date and time, which opens a second menu
-            elif int_search_option == 3 :
-                # show the date sub-menu and read the user's choice as text
-                datetime_search_type = input("\nSearch incident datetime by \n1. Date and Time Range\n2. Specific Datetime\nEnter your option number here: ")
-                # convert the sub-menu choice to an integer; if it isn't a number, show an error and stop
-                # (without the return, the code below would use datetime_search_type_int before it was ever set and crash)
-                try:
-                    datetime_search_type_int = int(datetime_search_type)
-                except ValueError:
-                    print("Invalid option entered. Enter the option number only.")
-                    return False
-                # sub-option 1: search between a start and an end datetime
-                if datetime_search_type_int == 1 :
-                    #user wants to search by date and time
-                    search_start_datetime_input = input("\nEnter the start datetime you want to search by (e.g. YYYY-MM-DD HH:MM, 2023-10-25 14:30): ")
-                    try:
-                        # convert the typed text into a datetime using the format YYYY-MM-DD HH:MM, then into an ISO string to match how records store their datetimes
-                        # (a wrong format raises a ValueError, which is caught below)
-                        valid_start_datetime = datetime.strptime(search_start_datetime_input, "%Y-%m-%d %H:%M").isoformat(timespec="seconds")
-                    except ValueError:
-                        print("Invalid format. Please follow the format: YYYY-MM-DD HH:MM (e.g., 2023-10-25 14:30)")
-                        return False
-                    try:
-                        search_end_datetime_input = input("Enter the end datetime you want to search by (e.g. YYYY-MM-DD HH:MM, 2023-10-25 14:30): ")
-                        # convert the end datetime to an ISO string in the same way as the start datetime
-                        valid_end_datetime = datetime.strptime(search_end_datetime_input, "%Y-%m-%d %H:%M").isoformat(timespec="seconds")
-                    except ValueError:
-                        print("Invalid format. Please follow the format: YYYY-MM-DD HH:MM (e.g., 2023-10-25 14:30)")
-                        return False
-                    # make sure the start is not later than the end (ISO strings sort in time order, so they can be compared directly)
-                    if valid_start_datetime > valid_end_datetime :
-                        print("start value cannot be greater than end value")
-                        return False
-                    # find records whose incident_datetime is between the start and end datetimes (inclusive)
-                    # ("or ''" treats a missing incident_datetime as an empty string, which sorts before any start value,
-                    # so a record with no datetime is skipped instead of crashing the whole search)
-                    search_results = data_manager.query(lambda record: valid_start_datetime <= (record.get("input", {}).get("incident_datetime") or "") <= valid_end_datetime)
-                    # build a readable description of the search to display with the results
-                    search_string = f"incidents between {search_start_datetime_input} and {search_end_datetime_input}"
-                    return search_results, search_string
-                # sub-option 2: search for one exact datetime
-                elif datetime_search_type_int == 2 :
-                    search_datetime_input =  input("Enter the datetime you want to search by (e.g. YYYY-MM-DD HH:MM, 2023-10-25 14:30): ")
-                    try:
-                         # convert the typed text into an ISO string, same as in the range search
-                         valid_search_datetime = datetime.strptime(search_datetime_input, "%Y-%m-%d %H:%M").isoformat(timespec="seconds")
-                    except ValueError:
-                        print("Invalid format. Please follow the format: YYYY-MM-DD HH:MM (e.g., 2023-10-25 14:30)")
-                        return False
- 
-                    # find records whose incident_datetime is exactly equal to the datetime entered
-                    search_results = data_manager.query(lambda record: record.get("input", {}).get("incident_datetime") == valid_search_datetime)
-                    # return the matching records along with the datetime text that was searched for
-                    return search_results,search_datetime_input
-                # the number entered on the date sub-menu is neither 1 nor 2
-                else:
-                    print("Invalid option number entered.")
-                    return False
- 
-                # earlier version of the date search, kept here as commented-out code (searched by a single date in the format YYYY-MM-DD)
-                # #convert string to datetime object
-                # #handle the case where the user enters an invalid date format
-                # try:
-                #     date_search_value = datetime.strptime(date_search_value, "%Y-%m-%d")
-                # except ValueError:
-                #     print("Invalid date format. Please enter the date in the format (YYYY-MM-DD).")
-                # #method to search for the incident by date
-                # search_results = data_manager.query(lambda record: record.get("input", {}).get("incident_datetime") == date_search_value)
-                # return search_results,date_search_value
+            print("No categories found.")
+            return False
+        while True:
+            category_search_value = ask_text(
+                "\nEnter the category of the incident you want to search for (or type 'quit' to exit): ",
+                "Category of the incident is empty. Please enter a category.",
+            )
+            if category_search_value is None:
+                print(QUIT_MESSAGE)
+                return False
+            search_results = data_manager.query(
+                lambda record: (record.get("ai", {}).get("hazard_category") or "").strip().lower() == category_search_value.lower()
+            )
+            if len(search_results) == 0:
+                print(f"Error: Invalid category input. Please re-enter a valid category.")
+                continue
+            else:
+                break
+        return search_results, category_search_value
+
+    # option 3: search by date and time, which opens a second menu
+    datetime_search_type = ask_choice(
+        "\nSearch incident datetime by \n1. Date and Time Range\n2. Specific Datetime\n"
+        "Enter your option number here (or type 'quit' to exit): ",
+        ("1", "2"),
+    )
+    if datetime_search_type is None:
+        print(QUIT_MESSAGE)
+        return False
+
+    # sub-option 1: search between a start and an end datetime
+    if datetime_search_type == "1":
+        start = ask_datetime(f"\nEnter the start datetime you want to search by {DATETIME_PROMPT_HINT} (or type 'quit' to exit): ")
+        if start is None:
+            print(QUIT_MESSAGE)
+            return False
+        valid_start_datetime, search_start_datetime_input = start
+
+        # re-ask for the end datetime until it is valid AND not earlier than the start
+        while True:
+            end = ask_datetime(f"Enter the end datetime you want to search by {DATETIME_PROMPT_HINT} (or type 'quit' to exit): ")
+            if end is None:
+                print(QUIT_MESSAGE)
+                return False
+            valid_end_datetime, search_end_datetime_input = end
+            # ISO strings sort in time order, so they can be compared directly
+            if valid_start_datetime > valid_end_datetime:
+                print("End datetime cannot be earlier than the start datetime. Please try again.")
+                continue
+            break
+
+        # "or ''" treats a missing incident_datetime as an empty string, so that record is skipped instead of crashing
+        search_results = data_manager.query(
+            lambda record: valid_start_datetime <= (record.get("input", {}).get("incident_datetime") or "") <= valid_end_datetime
+        )
+        search_string = f"incidents between {search_start_datetime_input} and {search_end_datetime_input}"
+        return search_results, search_string
+
+    # sub-option 2: search for one exact datetime
+    exact = ask_datetime(f"\nEnter the datetime you want to search by {DATETIME_PROMPT_HINT} (or type 'quit' to exit): ")
+    if exact is None:
+        print(QUIT_MESSAGE)
+        return False
+    valid_search_datetime, search_datetime_input = exact
+    search_results = data_manager.query(
+        lambda record: record.get("input", {}).get("incident_datetime") == valid_search_datetime
+    )
+    return search_results, search_datetime_input
             
 #function to display a numbered list of search results, ask the user to pick one, and then show that incident's full review report
 def display_search_results(search_results_data, user_search_query):
-    #SEARCH RESULTS DATA MUST RETURN INCIDENTID
-    # (every record in search_results_data must contain a "record_id", because it is used below to open the full report)
     """
-    variables in the function:
-    search_results_data - the list of matching records returned by the search (each record is a nested dictionary with "input" and "record_id")
-    user_search_query - the text describing what was searched for, shown in the heading
-    num_of_search_results - how many records were found
-    i - the position of the current result in the list, starting from 1 (shown to the user as [1], [2], ...)
-    data - one record at a time while looping through the results
-    formatted_datetime - the incident's date and time formatted like "16 September 2026, 14:30"
-    view_incident_number - the result number the user typed in to view in detail
-    view_incident_data_id - the record_id of the incident the user chose
- 
-    this method prints the results and, if the user picks a valid result number, prints the full incident review.
-    It returns False (after printing a message) if there are no results or the user's choice is invalid,
-    and returns nothing after showing a report
- 
-    intended layout of the output (as originally written):
-    3 incident(s) found for ''
- 
-    Incident Name   :   Falling of ladder
-    Incident Date and Time: 16 September 2026
-    Location    :   Clarke Quay
-    -----------------------------------------------
+    Prints a numbered list of search results, asks the user to pick one, and shows that incident's
+    full review report. Every record in search_results_data must contain a "record_id".
+
+    Returns False if there are no results or the user types 'quit'. Returns nothing after showing a report.
     """
-    # count how many records were found
     num_of_search_results = len(search_results_data)
-    # if nothing matched, tell the user and stop the method
-    if(num_of_search_results == 0):
+    if num_of_search_results == 0:
         print(f"No Search Results for '{user_search_query}'")
         return False
-    else:
-        # heading showing how many incidents were found and what was searched for
-        print(f"\n{num_of_search_results} incident(s) for '{user_search_query}':\n")
-        # loop through the results; enumerate(..., start=1) numbers them from 1 instead of 0
-        for i,data in enumerate(search_results_data, start=1):
-            # convert the stored ISO datetime string into a readable format, e.g. "16 September 2026, 14:30"
-            formatted_datetime = datetime.fromisoformat(data['input']['incident_datetime']).strftime("%d %B %Y, %H:%M")
- 
-            # print one result: its number and name, then its date/time and location
-            # ('<22' pads each label to 22 characters so the colons line up)
-            print(f"[{i}] {data['input']['incident_name']}")
-            print(f"{'Incident Date and Time':<22}: {formatted_datetime}")
-            print(f"{'Location':<22}: {data['input']['location']}")
-            # a divider line between results ("\n" adds a blank line after it)
-            print("-" * 47, "\n")
- 
-        # ask which result the user wants to view and convert their typed text to a whole number
+
+    print(f"\n{num_of_search_results} incident(s) for '{user_search_query}':\n")
+    for i, data in enumerate(search_results_data, start=1):
+        formatted_datetime = datetime.fromisoformat(data['input']['incident_datetime']).strftime("%d %B %Y, %H:%M")
+        print(f"[{i}] {data['input']['incident_name']}")
+        print(f"{'Incident Date and Time':<22}: {formatted_datetime}")
+        print(f"{'Location':<22}: {data['input']['location']}")
+        print("-" * 47, "\n")
+
+    # keep asking until the user enters a valid result number, or types 'quit'
+    while True:
+        search_result_input = input(
+            "Enter the search result number to view incident details (or type 'quit' to exit): "
+        ).strip()
+
+        if search_result_input.lower() == "quit":
+            print("Search cancelled. Returning to the previous menu.")
+            return False
+
         try:
-            view_incident_number = int(input("Enter the search result number to view incident details: "))
- 
+            view_incident_number = int(search_result_input)
         except ValueError:
-            # the user typed something that isn't a whole number, so show an error and stop
-            print("Error: invalid search result number")
-            return False
- 
-        # reject a number below 1 or above the number of results, then show an error and stop
-        # (this check must come BEFORE the list lookup below: otherwise a number that is too big crashes with an IndexError,
-        # and 0 or a negative number would silently pick a record from the end of the list)
+            print("Error: invalid search result number. Please enter a whole number (or type 'quit' to exit).")
+            continue
+
         if view_incident_number < 1 or view_incident_number > num_of_search_results:
-            print("Error: option entered is not a valid number from the search results")
-            return False
- 
-        # the number is valid, so subtract 1 (the user's numbers start at 1 but the list starts at 0) to get the chosen record, then read its record_id
-        view_incident_data_id = search_results_data[view_incident_number-1]['record_id']
- 
-        print("\n")
-        # print the full incident report for the chosen record
-        generate_incident_review(view_incident_data_id)
- 
-#print(generate_incident_review("INC-2026-0001"))
-if __name__ == "__main__":
-    # importing this module (e.g. from main.py) must not start the
-    # interactive search session
-    #searchOptions = handle_search_options()
-    generate_incident_review("INF")
-    # if(searchOptions != False):
-    #     display_search_results(searchOptions[0],searchOptions[1])
+            print(f"Error: please enter a number number thats shown in the search results (or type 'quit' to exit).")
+            continue
+
+        break
+
+    # view_incident_data_id = search_results_data[view_incident_number - 1]['record_id']
+
+    # print("\n")
+    # generate_incident_review(view_incident_data_id)
     
