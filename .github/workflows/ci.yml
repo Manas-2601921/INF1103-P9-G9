@@ -1,6 +1,6 @@
 name: CI
 
-# Runs the two offline test suites (no API key needed), builds the Docker
+# Runs the three offline test suites (no API key needed), builds the Docker
 # image, then re-runs the same suites inside the built image.
 on:
   push:
@@ -28,10 +28,14 @@ jobs:
       - name: Run ai_manager tests (stubbed API connector)
         run: python test_ai_manager.py
 
+      - name: Run end-to-end tests (fake AI responses)
+        run: python test_end_to_end.py
+
       - name: Build the Docker image
         run: docker build . --file Dockerfile --tag incident-triage:${{ github.sha }}
 
-      - name: Re-run both test suites inside the Docker image
+      - name: Re-run all three test suites inside the Docker image
         run: |
           docker run --rm incident-triage:${{ github.sha }} python test_logic_manager.py
           docker run --rm incident-triage:${{ github.sha }} python test_ai_manager.py
+          docker run --rm incident-triage:${{ github.sha }} python test_end_to_end.py
