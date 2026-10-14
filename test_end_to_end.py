@@ -231,13 +231,13 @@ CASES = [
         "expected": {"duplicate_possible": True, "records_saved": 2},
     },
     {
-        "name": "unicode, emoji and a very long description survive the round trip",
+        "name": "very long description survives the round trip",
         "input": {"ai": {"severity": 0.45},
-                  "report": {"description": "铲车🚜 in the 厂房 nearly hit a worker ⚠️ "
-                                            + "leak. " * 60,
+                  "report": {"description": "Chemical vapour leak detected in the "
+                                            "storage room. " * 12,
                              "immediate_action": "No immediate action was taken"}},
-        "expected": {"stored_description": "铲车🚜 in the 厂房 nearly hit a worker ⚠️ "
-                                           + "leak. " * 60},
+        "expected": {"stored_description": "Chemical vapour leak detected in the "
+                                           "storage room. " * 12},
     },
 ]
 

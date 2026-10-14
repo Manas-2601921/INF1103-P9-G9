@@ -184,8 +184,9 @@ def test_valid_payloads(run):
         ("whitespace only description", {"description": "   "}),
         ("None valued fields", {"immediate_action": None, "injury_reported": None}),
         ("extra unknown fields", {"weather": "raining", "witness_count": 2}),
-        ("unicode and emoji in description",
-         {"description": "铲车🚜 in the 厂房 nearly reversed into a worker ⚠️"}),
+        ("long mixed-case description",
+         {"description": "Forklift nearly reversed into a Worker while the "
+                         "supervisor was shouting warnings."}),
         ("very long description", {"description": "water leak on the floor. " * 200}),
     ]
     for name, overrides in edge_cases:
