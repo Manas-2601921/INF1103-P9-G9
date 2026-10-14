@@ -421,8 +421,8 @@ def display_search_results(search_results_data, user_search_query):
 
         break
 
-    # view_incident_data_id = search_results_data[view_incident_number - 1]['record_id']
+    view_incident_data_id = search_results_data[view_incident_number - 1]['record_id']
 
     # print("\n")
-    # generate_incident_review(view_incident_data_id)
+    generate_incident_review(view_incident_data_id)
     
