@@ -1,9 +1,10 @@
 """End-to-end test script: full pipeline without the AI manager.
 
-Drives main_app.report_new_incident() through the real io->logic->data chain
-with the terminal prompts and the AI manager stubbed: fake AI sample
-responses feed the logic manager, and every incident is persisted to a
-temporary database so the real data/incidents.json is never touched.
+Drives main_no_ai.report_new_incident() (a copy of main.py's flow with
+the AI manager removed) through the real logic -> data chain: fake AI
+sample responses are injected as the AI result, and every incident is
+persisted to a temporary database so the real data/incidents.json is
+never touched.
 
 Every case is one literal dictionary in the CASES list:
 
@@ -35,10 +36,9 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 
 import data_manager as dm
-import main as main_app  # aliased: this file defines its own main()
+import main_no_ai
 
 passed = 0
 failed = 0
@@ -282,49 +282,18 @@ def build_history_entry(overrides):
 # ---------------------------------------------------------------------------
 
 def run_pipeline(ai_reply, report):
-    """Run one report_new_incident with the AI manager and the terminal
-    prompts replaced by fakes, and the app's own printing silenced so the
-    per-case results stay readable. Everything is restored afterwards."""
-    answers = dict(DEFAULT_REPORT, **report)
+    """Run one report_new_incident with the app's printing silenced so the
+    per-case results stay readable. The terminal prompts are not involved:
+    the report dictionary is injected directly."""
+    record_input = dict(DEFAULT_REPORT, **report,
+                        incident_datetime=INCIDENT_AT.isoformat(timespec="seconds"))
 
-    def fake_ai_manager(record):
-        return (True, ai_reply) if not isinstance(ai_reply, tuple) else ai_reply
-
-    # remember the real functions...
-    saved = (main_app.ai_manager.ai_manager,
-             main_app.io.prompt_incident_name,
-             main_app.io.prompt_description,
-             main_app.io.prompt_location,
-             main_app.io.prompt_reporter_role,
-             main_app.io.prompt_incident_date_time,
-             main_app.io.prompt_injury_reported,
-             main_app.io.prompt_immediate_action,
-             sys.stdout)
-
-    # ...swap in the fakes...
-    main_app.ai_manager.ai_manager = fake_ai_manager
-    main_app.io.prompt_incident_name = lambda: answers["incident_name"]
-    main_app.io.prompt_description = lambda: answers["description"]
-    main_app.io.prompt_location = lambda: answers["location"]
-    main_app.io.prompt_reporter_role = lambda: answers["reporter_role"]
-    main_app.io.prompt_incident_date_time = lambda: INCIDENT_AT
-    main_app.io.prompt_injury_reported = lambda: answers["injury_reported"]
-    main_app.io.prompt_immediate_action = lambda: answers["immediate_action"]
+    saved_stdout = sys.stdout
     sys.stdout = io.StringIO()
-
     try:
-        main_app.report_new_incident()
+        main_no_ai.report_new_incident(record_input, ai_reply)
     finally:
-        # ...and put the real ones back, however the run ended
-        (main_app.ai_manager.ai_manager,
-         main_app.io.prompt_incident_name,
-         main_app.io.prompt_description,
-         main_app.io.prompt_location,
-         main_app.io.prompt_reporter_role,
-         main_app.io.prompt_incident_date_time,
-         main_app.io.prompt_injury_reported,
-         main_app.io.prompt_immediate_action,
-         sys.stdout) = saved
+        sys.stdout = saved_stdout
 
 
 def actual_of(records):
