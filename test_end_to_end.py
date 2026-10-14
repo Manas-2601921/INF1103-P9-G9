@@ -5,11 +5,11 @@ with the terminal prompts and the AI manager stubbed: fake AI sample
 responses feed the logic manager, and every incident is persisted to a
 temporary database so the real data/incidents.json is never touched.
 
-Covers three groups:
-  [1] actual cases  - realistic incidents routed to the right queues
-  [2] deny cases    - AI failures and contradictions land in Manual Review
-  [3] edge cases    - band boundaries, the 30-day window boundary,
-                      duplicates, unicode, unparseable history, first run
+Every case is one row in the CASES table: the input (fake AI response,
+optional report overrides, optional seeded history) and the expected
+output (queue, flags, stored fields). The runner prints the input, the
+expected output and the actual output for every case, so each row reads
+as input -> expected -> got.
 
 Fully offline (no API key, no network):
 
@@ -20,7 +20,7 @@ import contextlib
 import io as io_stream
 import json
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -30,50 +30,8 @@ import main as main_app  # aliased: this file defines its own main()
 passed = 0
 failed = 0
 
-
-def check(name, ok, detail=""):
-    global passed, failed
-    if ok:
-        passed += 1
-        print(f"[PASS] {name}")
-    else:
-        failed += 1
-        print(f"[FAIL] {name}\n       {detail}")
-
-
-# ---------------------------------------------------------------------------
-# Fake AI sample responses (the shape ai_manager returns on success)
-# ---------------------------------------------------------------------------
-
-def make_ai_response(severity=0.5, hazard_category="mechanical",
-                     incident_type="near-miss", indicators=None, pattern=None,
-                     explanation="Sample explanation.",
-                     supporting_phrase="sample phrase"):
-    """Build one fake validated AI analysis with selected fields overridden."""
-    return {
-        "severity": severity,
-        "confidence": 0.8,
-        "severity_explanation": explanation,
-        "hazard_category": hazard_category,
-        "incident_type": incident_type,
-        "indicators": dict({
-            "injury": False,
-            "immediate_danger": False,
-            "exposure": True,
-            "equipment_involvement": False,
-            "work_stoppage": False,
-            "uncontrolled_hazard": False,
-        }, **(indicators or {})),
-        "repeat_pattern_indicators": dict({
-            "hazard_category": hazard_category,
-            "location": "Warehouse",
-            "datetime": "2026-10-11T09:00:00",
-            "activity": "forklift reversing",
-        }, **(pattern or {})),
-        "recommended_immediate_action": "Secure the area.",
-        "supporting_phrase": supporting_phrase,
-    }
-
+INCIDENT_AT = datetime(2026, 10, 11, 9, 0)   # fixed incident time for every case
+AI_REFUSED = "AI output failed schema validation after 3 attempts"
 
 REPORT = {
     "incident_name": "Forklift near-miss",
@@ -85,259 +43,255 @@ REPORT = {
 }
 
 
-def run_report(ai_response, report_overrides=None, history_entries=None):
-    """Run one full report_new_incident with stubs; return (records, printed).
+# ---------------------------------------------------------------------------
+# input builders
+# ---------------------------------------------------------------------------
 
-    ai_response: the fake AI analysis dict, or (False, reason) to simulate
-        the AI manager giving up after its 3 attempts.
-    history_entries: stored-record dicts written to the temp database first.
-    """
-    report = dict(REPORT, **(report_overrides or {}))
-    tmp_dir = tempfile.mkdtemp()
-    dm.incidents_file = Path(tmp_dir) / "incidents.json"
-
-    for entry in history_entries or []:
-        with open(dm.incidents_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps([entry], ensure_ascii=False))
-
-    def fake_ai_manager(record):
-        return (True, ai_response) if not isinstance(ai_response, tuple) else ai_response
-
-    printed = io_stream.StringIO()
-    with contextlib.redirect_stdout(printed), \
-            patch.object(main_app.ai_manager, "ai_manager", fake_ai_manager), \
-            patch.object(main_app.io, "prompt_incident_name",
-                         lambda: report["incident_name"]), \
-            patch.object(main_app.io, "prompt_description",
-                         lambda: report["description"]), \
-            patch.object(main_app.io, "prompt_location", lambda: report["location"]), \
-            patch.object(main_app.io, "prompt_reporter_role",
-                         lambda: report["reporter_role"]), \
-            patch.object(main_app.io, "prompt_incident_date_time",
-                         lambda: datetime(2026, 10, 11, 9, 0)), \
-            patch.object(main_app.io, "prompt_injury_reported",
-                         lambda: report["injury_reported"]), \
-            patch.object(main_app.io, "prompt_immediate_action",
-                         lambda: report["immediate_action"]):
-        main_app.report_new_incident()
-
-    records = []
-    if dm.incidents_file.exists():
-        records = json.loads(dm.incidents_file.read_text(encoding="utf-8"))
-    return records, printed.getvalue()
+def make_ai_response(severity=0.5, hazard_category="mechanical",
+                     incident_type="near-miss", indicators=None,
+                     datetime_str="2026-10-11T09:00:00",
+                     activity="forklift reversing", drop=(),
+                     explanation="Sample explanation.",
+                     supporting_phrase="sample phrase"):
+    """Build one fake validated AI analysis with selected fields overridden."""
+    reply = {
+        "severity": severity,
+        "confidence": 0.8,
+        "severity_explanation": explanation,
+        "hazard_category": hazard_category,
+        "incident_type": incident_type,
+        "indicators": dict({
+            "injury": False, "immediate_danger": False, "exposure": True,
+            "equipment_involvement": False, "work_stoppage": False,
+            "uncontrolled_hazard": False,
+        }, **(indicators or {})),
+        "repeat_pattern_indicators": {
+            "hazard_category": hazard_category,
+            "location": REPORT["location"],
+            "datetime": datetime_str,
+            "activity": activity,
+        },
+        "recommended_immediate_action": "Secure the area.",
+        "supporting_phrase": supporting_phrase,
+    }
+    for field in drop:
+        reply.pop(field, None)
+    return reply
 
 
 def history_entry(description="Forklift nearly hit a worker while reversing.",
-                  location="Warehouse", incident_datetime="2026-09-28T09:00:00",
-                  hazard_category="mechanical", activity="forklift reversing",
-                  incident_type="near-miss", record_id="INC-9001"):
+                  incident_datetime="2026-09-28T09:00:00",
+                  activity="forklift reversing", record_id="INC-9001"):
     """Build one stored history record for seeding the temp database."""
     return {
         "record_id": record_id,
-        "input": {"description": description, "location": location,
+        "input": {"description": description, "location": REPORT["location"],
                   "incident_datetime": incident_datetime},
-        "ai": make_ai_response(pattern={
-            "hazard_category": hazard_category, "location": location,
-            "datetime": incident_datetime, "activity": activity},
-            incident_type=incident_type),
+        "ai": make_ai_response(activity=activity, datetime_str=incident_datetime),
         "logic": {}, "metadata": {},
     }
 
 
-def last_decision(records):
-    """Return the logic section of the most recently stored record."""
-    return records[-1]["logic"]
+def case(name, ai=None, ai_fails_with=None, report=None, history=(), **expect):
+    """Declare one case: inputs on the left, expected outputs in **expect."""
+    return {"name": name, "ai": ai, "ai_error": ai_fails_with,
+            "report": report or {}, "history": list(history), "expect": expect}
 
 
 # ---------------------------------------------------------------------------
-# [1] actual cases
+# the case table: input -> expected output
 # ---------------------------------------------------------------------------
 
-def test_actual_cases():
-    print("\n--- [1] actual cases ---")
+CASES = [
+    # ---- [1] actual cases: realistic incidents, correct queues ----
+    case("low severity isolated incident",
+         ai=dict(severity=0.2),
+         queue="Routine Log", escalation=False, band="low", score=0.2,
+         record_id="INC-0001"),
+    case("medium severity isolated incident",
+         ai=dict(severity=0.55),
+         queue="Routine Log", escalation=False, band="medium", score=0.55),
+    case("high severity + fire hazard",
+         ai=dict(severity=0.9, hazard_category="fire"),
+         queue="Immediate Action", escalation=True, band="high", score=0.9),
+    case("high severity + electrical hazard",
+         ai=dict(severity=0.85, hazard_category="electrical"),
+         queue="Immediate Action", escalation=True, band="high", score=0.85),
+    case("low severity but injury reported by the AI",
+         ai=dict(severity=0.3, incident_type="injury",
+                 indicators={"injury": True}),
+         queue="Priority Review", escalation=False),
+    case("low severity, similar incident 13 days ago",
+         ai=dict(severity=0.2),
+         history=[dict(incident_datetime="2026-09-28T09:00:00")],
+         queue="Recurring Review", recurring=True),
+    case("AI explanation and evidence carried into the saved decision",
+         ai=dict(severity=0.75, explanation="Live wire exposed.",
+                 supporting_phrase="exposed electrical cable"),
+         band="high", score=0.75,
+         ai_explanation="Live wire exposed.",
+         supporting_phrase="exposed electrical cable"),
 
-    records, printed = run_report(make_ai_response(severity=0.2))
-    d = last_decision(records)
-    check("low severity isolated incident is a Routine Log",
-          d["final_queue"] == "Routine Log" and not d["escalation_required"],
-          f"got: {d}")
+    # ---- [2] deny cases: failures are quarantined, never dropped ----
+    case("AI gave up after 3 validation attempts",
+         ai_fails_with=AI_REFUSED + ": severity out of range",
+         queue="Manual Review", ai_error=AI_REFUSED, saved_records=1),
+    case("reporter reports an injury the AI missed (contradiction)",
+         ai=dict(severity=0.2),
+         report={"injury_reported": True},
+         queue="Manual Review"),
+    case("AI analysis missing required fields",
+         ai=dict(severity=0.4, drop=("severity", "hazard_category",
+                                     "indicators", "supporting_phrase")),
+         queue="Manual Review"),
+    case("AI analysis with unknown categories",
+         ai=dict(hazard_category="volcano", incident_type="collision"),
+         queue="Manual Review"),
 
-    records, printed = run_report(make_ai_response(severity=0.55))
-    d = last_decision(records)
-    check("medium severity isolated incident is a Routine Log",
-          d["final_queue"] == "Routine Log", f"got: {d}")
+    # ---- [3] edge cases: boundaries and awkward data ----
+    case("banding boundary 0.39 -> low",    ai=dict(severity=0.39), band="low",    score=0.39),
+    case("banding boundary 0.40 -> medium", ai=dict(severity=0.40), band="medium", score=0.40),
+    case("banding boundary 0.70 -> medium", ai=dict(severity=0.70), band="medium", score=0.70),
+    case("banding boundary 0.71 -> high",   ai=dict(severity=0.71), band="high",   score=0.71),
+    case("banding boundary integer 1 -> high", ai=dict(severity=1), band="high",   score=1),
+    case("banding boundary 0.0 -> low",     ai=dict(severity=0.0), band="low",     score=0.0),
+    case("similar incident exactly 30 days earlier is still recurring",
+         ai=dict(severity=0.2),
+         history=[dict(incident_datetime="2026-09-11T09:00:00")],
+         queue="Recurring Review", recurring=True),
+    case("similar incident 31 days earlier is not recurring",
+         ai=dict(severity=0.2),
+         history=[dict(incident_datetime="2026-09-10T09:00:00")],
+         queue="Routine Log", recurring=False),
+    case("same location and category but different activity is not recurring",
+         ai=dict(severity=0.2),
+         history=[dict(activity="welding")],
+         queue="Routine Log", recurring=False),
+    case("history with an unparseable date is skipped, not crashed on",
+         ai=dict(severity=0.2),
+         history=[dict(incident_datetime="not a date")],
+         queue="Routine Log", recurring=False),
+    case("near-identical resubmission flagged as possible duplicate, still saved",
+         ai=dict(severity=0.2),
+         history=[dict(incident_datetime="2026-10-11T09:00:00",
+                       description=REPORT["description"] + "!")],
+         duplicate=True, saved_records=2),
+    case("unicode, emoji and a very long description survive the round trip",
+         ai=dict(severity=0.45),
+         report={"description": "铲车🚜 in the 厂房 nearly hit a worker ⚠️ " + "leak. " * 60,
+                 "immediate_action": "No immediate action was taken"},
+         description="铲车🚜 in the 厂房 nearly hit a worker ⚠️ " + "leak. " * 60),
+]
 
-    for hazard in ("fire", "electrical"):
-        records, printed = run_report(make_ai_response(severity=0.9,
-                                                       hazard_category=hazard))
-        d = last_decision(records)
-        check(f"high severity + {hazard} hazard routes to Immediate Action with escalation",
-              d["final_queue"] == "Immediate Action" and d["escalation_required"],
-              f"got: {d}")
 
-    records, printed = run_report(make_ai_response(
-        severity=0.3, incident_type="injury", indicators={"injury": True}))
-    d = last_decision(records)
-    check("low severity with reported injury is overridden to Priority Review",
-          d["final_queue"] == "Priority Review" and not d["escalation_required"],
-          f"got: {d}")
+# ---------------------------------------------------------------------------
+# runner
+# ---------------------------------------------------------------------------
 
-    records, printed = run_report(
-        make_ai_response(severity=0.2),
-        history_entries=[history_entry()])
-    d = last_decision(records)
-    check("low severity with a similar incident in the last 30 days is Recurring Review",
-          d["final_queue"] == "Recurring Review" and d["recurring"],
-          f"got: {d}")
+def run_pipeline(ai_reply, report):
+    """Run one report_new_incident with stubs against dm.incidents_file."""
+    answers = dict(REPORT, **report)
 
+    def fake_ai_manager(record):
+        return (True, ai_reply) if not isinstance(ai_reply, tuple) else ai_reply
+
+    with contextlib.redirect_stdout(io_stream.StringIO()), \
+            patch.object(main_app.ai_manager, "ai_manager", fake_ai_manager), \
+            patch.multiple(main_app.io,
+                           prompt_incident_name=lambda: answers["incident_name"],
+                           prompt_description=lambda: answers["description"],
+                           prompt_location=lambda: answers["location"],
+                           prompt_reporter_role=lambda: answers["reporter_role"],
+                           prompt_incident_date_time=lambda: INCIDENT_AT,
+                           prompt_injury_reported=lambda: answers["injury_reported"],
+                           prompt_immediate_action=lambda: answers["immediate_action"]):
+        main_app.report_new_incident()
+
+
+def actual_of(records):
+    """Flatten the newest stored record into the keys a case can expect."""
     record = records[-1]
-    check("stored record carries the full lineage (input, ai, logic, metadata)",
-          all(k in record for k in ("record_id", "input", "ai", "logic", "metadata"))
-          and record["input"]["incident_datetime"] == "2026-10-11T09:00:00",
-          f"got: {sorted(record)}")
-
-    records2, _ = run_report(make_ai_response(severity=0.2))
-    check("record ids increment across saves in one database",
-          records2[0]["record_id"].endswith("0001")
-          and int(records2[-1]["record_id"].split("-")[1])
-          == int(records2[0]["record_id"].split("-")[1]) + len(records2) - 1,
-          f"got: {[r['record_id'] for r in records2]}")
-
-
-# ---------------------------------------------------------------------------
-# [2] deny cases
-# ---------------------------------------------------------------------------
-
-def test_deny_cases():
-    print("\n--- [2] deny cases ---")
-
-    reason = ("AI output failed schema validation after 3 attempts: "
-              "['severity must be between 0.0 and 1.0, got 9.5 instead']")
-    records, printed = run_report((False, reason))
-    record, d = records[-1], last_decision(records)
-    check("AI giving up after 3 attempts stores the report in Manual Review with the reason",
-          d["final_queue"] == "Manual Review"
-          and record["ai"].get("ai_error") == reason
-          and "queued for manual review" in printed,
-          f"got: {d}, ai_error={record['ai'].get('ai_error')}")
-
-    check("the failed-AI record keeps the reporter input intact",
-          record["input"]["description"] == REPORT["description"]
-          and record["input"]["location"] == REPORT["location"],
-          f"got: {record['input']}")
-
-    records, printed = run_report(
-        make_ai_response(severity=0.2),
-        report_overrides={"injury_reported": True})
-    d = last_decision(records)
-    check("reporter reports an injury the AI missed -> Manual Review (contradiction)",
-          d["final_queue"] == "Manual Review"
-          and "contradictory" in d["rule_applied"].lower(),
-          f"got: {d}")
-
-    broken = make_ai_response()
-    for field in ("severity", "hazard_category", "indicators", "supporting_phrase"):
-        broken.pop(field, None)
-    records, printed = run_report(broken)
-    d = last_decision(records)
-    check("AI analysis missing required fields is quarantined in Manual Review",
-          d["final_queue"] == "Manual Review"
-          and "invalid AI output" in d["rule_applied"],
-          f"got: {d}")
-
-    records, printed = run_report(
-        make_ai_response(hazard_category="volcano", incident_type="collision"))
-    d = last_decision(records)
-    check("AI analysis with unknown categories is quarantined in Manual Review",
-          d["final_queue"] == "Manual Review"
-          and "invalid hazard_category" in d["rule_applied"],
-          f"got: {d}")
+    logic, ai, inp = record["logic"], record["ai"], record["input"]
+    return {
+        "queue": logic.get("final_queue"),
+        "escalation": logic.get("escalation_required"),
+        "recurring": logic.get("recurring"),
+        "duplicate": logic.get("duplicate_possible"),
+        "band": ai.get("severity"),
+        "score": ai.get("severity_score"),
+        "ai_error": ai.get("ai_error"),
+        "ai_explanation": logic.get("ai_explanation"),
+        "supporting_phrase": logic.get("supporting_phrase"),
+        "record_id": record.get("record_id"),
+        "description": inp.get("description"),
+        "saved_records": len(records),
+    }
 
 
-# ---------------------------------------------------------------------------
-# [3] edge cases
-# ---------------------------------------------------------------------------
+def describe_input(one_case):
+    """One readable line summarising what the case feeds the pipeline."""
+    parts = []
+    if one_case["ai"] is not None:
+        parts.append("ai(" + ", ".join(f"{k}={v!r}" for k, v in one_case["ai"].items()) + ")")
+    if one_case["ai_error"]:
+        parts.append(f"ai_manager -> (False, {one_case['ai_error']!r})")
+    if one_case["report"]:
+        parts.append("report(" + ", ".join(one_case["report"]) + " changed)")
+    if one_case["history"]:
+        parts.append("history=[" + ", ".join(
+            h.get("incident_datetime", h.get("activity", "default")) for h in one_case["history"]) + "]")
+    return "; ".join(parts) if parts else "defaults only"
 
-def test_edge_cases():
-    print("\n--- [3] edge cases ---")
 
-    bands = {"0.39 -> low": (0.39, "low"), "0.40 -> medium": (0.40, "medium"),
-             "0.70 -> medium": (0.70, "medium"), "0.71 -> high": (0.71, "high"),
-             "integer 1 -> high": (1, "high"), "0.0 -> low": (0.0, "low")}
-    for name, (score, expected) in bands.items():
-        records, _ = run_report(make_ai_response(severity=score))
-        record = records[-1]
-        check(f"severity banding boundary {name}",
-              record["ai"]["severity"] == expected
-              and record["ai"]["severity_score"] == score,
-              f"got: {record['ai'].get('severity')} / {record['ai'].get('severity_score')}")
+def short(value):
+    return value if not isinstance(value, str) or len(value) <= 48 else value[:45] + "..."
 
-    records, _ = run_report(
-        make_ai_response(severity=0.2),
-        history_entries=[history_entry(incident_datetime="2026-09-11T09:00:00")])
-    check("similar incident exactly 30 days earlier is still inside the window",
-          last_decision(records)["final_queue"] == "Recurring Review",
-          f"got: {last_decision(records)}")
 
-    records, _ = run_report(
-        make_ai_response(severity=0.2),
-        history_entries=[history_entry(incident_datetime="2026-09-10T09:00:00")])
-    check("similar incident 31 days earlier is outside the window (Routine Log)",
-          last_decision(records)["final_queue"] == "Routine Log",
-          f"got: {last_decision(records)}")
+def run_case(one_case):
+    """Run one case; print input, expected vs actual; return True on match."""
+    global passed, failed
+    expect = one_case["expect"]
 
-    records, _ = run_report(
-        make_ai_response(severity=0.2),
-        history_entries=[history_entry(activity="welding")])
-    check("same category and location but different activity is not recurring",
-          last_decision(records)["final_queue"] == "Routine Log",
-          f"got: {last_decision(records)}")
+    # fresh temp database per case, optionally seeded with history
+    db = Path(tempfile.mkdtemp()) / "incidents.json"
+    dm.incidents_file = db
+    if one_case["history"]:
+        db.write_text(json.dumps([history_entry(**h) for h in one_case["history"]],
+                                 ensure_ascii=False), "utf-8")
 
-    records, _ = run_report(
-        make_ai_response(severity=0.2),
-        history_entries=[history_entry(incident_datetime="not a date")])
-    check("history with an unparseable date is skipped without crashing",
-          last_decision(records)["final_queue"] == "Routine Log",
-          f"got: {last_decision(records)}")
+    ai_reply = ((False, one_case["ai_error"]) if one_case["ai_error"]
+                else make_ai_response(**(one_case["ai"] or {})))
+    run_pipeline(ai_reply, one_case["report"])
 
-    dup = history_entry(incident_datetime="2026-10-11T09:00:00",
-                        description=REPORT["description"] + "!")
-    records, _ = run_report(make_ai_response(severity=0.2,
-                                             pattern={"datetime": "2026-10-11T09:00:00"}),
-                            history_entries=[dup])
-    d = last_decision(records)
-    check("near-identical resubmission is flagged as a possible duplicate but still saved",
-          d["duplicate_possible"] and len(records) == 2,
-          f"got: {d}, stored {len(records)} records")
+    records = json.loads(db.read_text(encoding="utf-8")) if db.exists() else []
+    actual = actual_of(records) if records else {}
 
-    weird = "铲车🚜 in the 厂房 nearly reversed into a worker ⚠️ " + "leak. " * 60
-    records, _ = run_report(make_ai_response(severity=0.45),
-                            report_overrides={"description": weird,
-                                              "immediate_action": "No immediate action was taken"})
-    record = records[-1]
-    check("unicode, emoji and a very long description survive the round trip",
-          record["input"]["description"] == weird
-          and record["input"]["immediate_action"] == "No immediate action was taken",
-          f"got: {record['input']['description'][:40]}...")
+    mismatches = [
+        (key, want, actual.get(key))
+        for key, want in expect.items()
+        if not ((want in actual.get(key)) if key == "ai_error" and isinstance(actual.get(key), str)
+                else actual.get(key) == want)
+    ]
 
-    records, _ = run_report(make_ai_response(severity=0.75,
-                                             explanation="Live wire exposed.",
-                                             supporting_phrase="exposed electrical cable"))
-    record = records[-1]
-    check("AI explanation and supporting phrase are carried into the saved decision",
-          record["logic"]["ai_explanation"] == "Live wire exposed."
-          and record["logic"]["supporting_phrase"] == "exposed electrical cable",
-          f"got: {record['logic']}")
+    if mismatches:
+        failed += 1
+        print(f"[FAIL] {one_case['name']}")
+    else:
+        passed += 1
+        print(f"[PASS] {one_case['name']}")
+    print(f"      in : {short(describe_input(one_case))}")
+    print(f"      exp: " + str({k: short(v) for k, v in expect.items()}))
+    print(f"      got: " + str({k: short(actual.get(k)) for k in expect}))
+    return not mismatches
 
 
 def main():
-    print("=" * 64)
+    print("=" * 72)
     print("end-to-end tests (fake AI responses, offline)")
-    print("=" * 64)
-    test_actual_cases()
-    test_deny_cases()
-    test_edge_cases()
-    print("\n" + "=" * 64)
+    print("=" * 72)
+    for one_case in CASES:
+        run_case(one_case)
+    print("\n" + "=" * 72)
     print(f"Results: {passed} passed, {failed} failed")
     raise SystemExit(1 if failed else 0)
 
