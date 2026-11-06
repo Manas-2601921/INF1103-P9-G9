@@ -1,6 +1,6 @@
 from datetime import datetime
 
-import data_manager
+import managers
 
 # {
 #   "record_id": "",
@@ -151,7 +151,7 @@ def generate_incident_review(incident_id):
         print("Error: Incident id is missing")
         return False
     # search all records and keep every one whose record_id matches the incident id (the list is empty if none match)
-    matching_records = data_manager.query(lambda record: record.get("record_id", {}) == incident_id)
+    matching_records = managers.data_manager.query(lambda record: record.get("record_id", {}) == incident_id)
     # stop early if nothing matched, before trying to take the first item (taking [0] of an empty list would crash)
     if len(matching_records) == 0:
         print("Error: No such record exists in our records.")
@@ -291,7 +291,7 @@ def handle_search_options():
         if title_search_value is None:
             print(QUIT_MESSAGE)
             return False
-        search_results = data_manager.query(
+        search_results = managers.data_manager.query(
             lambda record: (record.get("input", {}).get("incident_name") or "").strip().lower() == title_search_value.lower()
         )
         return search_results, title_search_value
@@ -300,7 +300,7 @@ def handle_search_options():
     if search_option == "2":
         incident_categories = sorted({
             (record.get("ai", {}).get("hazard_category") or "").strip()
-            for record in data_manager.query(lambda record: True)
+            for record in managers.data_manager.query(lambda record: True)
             if (record.get("ai", {}).get("hazard_category") or "").strip()
         })
 
@@ -319,7 +319,7 @@ def handle_search_options():
             if category_search_value is None:
                 print(QUIT_MESSAGE)
                 return False
-            search_results = data_manager.query(
+            search_results = managers.data_manager.query(
                 lambda record: (record.get("ai", {}).get("hazard_category") or "").strip().lower() == category_search_value.lower()
             )
             if len(search_results) == 0:
@@ -361,7 +361,7 @@ def handle_search_options():
             break
 
         # "or ''" treats a missing incident_datetime as an empty string, so that record is skipped instead of crashing
-        search_results = data_manager.query(
+        search_results = managers.data_manager.query(
             lambda record: valid_start_datetime <= (record.get("input", {}).get("incident_datetime") or "") <= valid_end_datetime
         )
         search_string = f"incidents between {search_start_datetime_input} and {search_end_datetime_input}"
@@ -373,7 +373,7 @@ def handle_search_options():
         print(QUIT_MESSAGE)
         return False
     valid_search_datetime, search_datetime_input = exact
-    search_results = data_manager.query(
+    search_results = managers.data_manager.query(
         lambda record: record.get("input", {}).get("incident_datetime") == valid_search_datetime
     )
     return search_results, search_datetime_input
