@@ -3,6 +3,8 @@
 from pathlib import Path
 from datetime import datetime
 import json
+import os
+import tempfile
 
 
 class DataManager:
@@ -22,91 +24,154 @@ class DataManager:
         return self._incidents_file
 
     def load(self):
-        """Load incident records from the JSON database.
+        """Read stored incident dictionaries without producing console output.
 
         Returns:
-            list: Stored records, or an empty list if the file is missing, cannot
-            be read, contains invalid JSON, or has a non-list top-level value.
-            A diagnostic message is printed when records cannot be loaded.
+            list[dict]: Stored records. A missing file (including a missing
+            parent directory) or a valid empty JSON array returns an empty list.
+
+        Raises:
+            InvalidIncidentDataError: The file is empty, contains invalid JSON
+                or UTF-8, or is not a list containing only JSON objects.
+            DataLoadError: The file cannot be accessed or read, for example
+                because of permissions, an invalid path, or an I/O failure.
+
+        Only the record container is validated here, not individual incident
+        fields. Original read/parse exceptions are preserved as __cause__.
+        Unexpected programming errors propagate rather than appearing to be
+        an empty database. This method never creates or changes the file.
         """
-        if self._incidents_file.exists():
-            try:
-                with open(self._incidents_file, "r", encoding="utf-8") as f:
-                    incidents_data = json.load(f)
-                    if isinstance(incidents_data, list):
-                        return incidents_data
-                    else:
-                        print("\n" + "-"*60 + "\n")
-                        print("[Error]   : Fail to load data.")
-                        print("[Reason]  : JSON returns a top-level type that is not a list. Please contact the support team.")
-                        print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
-                        print("\n" + "-"*60 + "\n")
-                        return []
+        try:
+            # Open directly: an exists() check can hide access errors and the
+            # file could disappear between checking and opening it.
+            with self._incidents_file.open("r", encoding="utf-8") as file:
+                incidents_data = json.load(file)
 
-            except json.JSONDecodeError:    # if file exists but empty, this error is also raised
-                print("\n" + "-"*60 + "\n")
-                print("[Error]   : Fail to load data.")
-                print("[Reason]  : Invalid JSON format in the database file. Please contact the support team.")
-                print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
-                print("\n" + "-"*60 + "\n")
-                return []
+        except FileNotFoundError:
+            return []
+        
+        except UnicodeDecodeError as exc:
+            raise InvalidIncidentDataError(
+                f"Incident database '{self._incidents_file}' is not valid UTF-8."
+            ) from exc
+        
+        except json.JSONDecodeError as exc:
+            raise InvalidIncidentDataError(
+                f"Incident database '{self._incidents_file}' contains invalid JSON "
+                f"at line {exc.lineno}, column {exc.colno}: {exc.msg}."
+            ) from exc
+        
+        except (OSError, ValueError) as exc:
+            # OSError covers permission errors, directories used as files,
+            # invalid path components, and device/read failures. ValueError
+            # covers paths containing an embedded null character.
+            raise DataLoadError(
+                f"Cannot read incident database '{self._incidents_file}': {exc}"
+            ) from exc
 
-            except Exception as e:
-                print("\n" + "-"*60 + "\n")
-                print("[Error]   : Fail to load data.")
-                print("[Reason]  : An unexpected error occurred while reading the database file. Please contact the support team.")
-                print(f"[Details] : {str(e)}")
-                print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
-                print("\n" + "-"*60 + "\n")
-                return []
-
-        else:
-            print("\n" + "-"*60 + "\n")
-            print("Database file not found. The application must be running for the first time.\nA new database file will be created upon adding the first incident.")
-            print("\nIf you are sure that you have recently saved data, please contact the Support Team.")
-            print("\n" + "-"*60 + "\n")
-        return []
+        if not isinstance(incidents_data, list):
+            raise InvalidIncidentDataError(
+                f"Incident database '{self._incidents_file}' must contain a JSON list."
+            )
+        
+        for index, record in enumerate(incidents_data):
+            if not isinstance(record, dict):
+                raise InvalidIncidentDataError(
+                    f"Incident database '{self._incidents_file}' contains a non-object "
+                    f"record at index {index}."
+                )
+            
+        return incidents_data
 
     def save(self, record):
-        """Assign an incident ID and rewrite the updated record list as JSON.
+        """Persist an incident and return its stored dictionary without printing.
 
-        Args:
-            record (dict): Incident containing ``input``, ``ai``, and ``logic``.
-                The ``ai.repeat_pattern_indicators.datetime`` value supplies
-                the creation timestamp; the processing timestamp is set now.
+        The input must contain dictionary-valued input, ai, and logic sections,
+        and a non-empty string at ai.repeat_pattern_indicators.datetime.
+        Domain validation remains the responsibility of the other managers.
 
-        Returns:
-            None.
+        Raises:
+            DataLoadError: Existing data cannot be loaded or its IDs are invalid.
+            ValueError: The supplied record has an invalid structure or the
+                updated records cannot be serialized as UTF-8 JSON.
+            DataSaveError: Creating or replacing the database fails.
 
-        Notes:
-            The ID increments the last stored record's ID, starting at INC-0001.
-            Creates the parent directory if needed and prints a success message.
-            The entire updated list replaces the file, preserving a single JSON array.
+        Writes a temporary file beside the database, then replaces the database
+        only after writing succeeds. Existing data is preserved on write failure.
+        This JSON implementation assumes a single writer; it does not coordinate
+        concurrent requests. The caller's record is not modified.
         """
         records = self.load()
-        next_id = int(records[-1]["record_id"].split("-")[1]) + 1 if records else 1 # update last ID to next ID otherwise start with 0001
+
+        if not isinstance(record, dict) or any(
+            not isinstance(record.get(section), dict)
+            for section in ("input", "ai", "logic")
+        ):
+            raise ValueError("Incident must contain input, ai, and logic dictionaries.")
+        
+        indicators = record["ai"].get("repeat_pattern_indicators")
+        created_at = indicators.get("datetime") if isinstance(indicators, dict) else None
+
+        if not isinstance(created_at, str) or not created_at.strip():
+            raise ValueError("Incident ai.repeat_pattern_indicators.datetime must be a non-empty string.")
+
+        identifiers = set()
+
+        for existing in records:
+            identifier = existing.get("record_id")
+            suffix = identifier[4:] if isinstance(identifier, str) and identifier.startswith("INC-") else ""
+            if not suffix.isascii() or not suffix.isdigit() or int(suffix) < 1:
+                raise InvalidIncidentDataError("Stored incident has an invalid record_id.")
+            number = int(suffix)
+            if number in identifiers:
+                raise InvalidIncidentDataError("Stored incidents contain duplicate record IDs.")
+            identifiers.add(number)
+
+        next_id = max(identifiers, default=0) + 1
+
         stored_record = {
             "record_id": f"INC-{next_id:04d}",
             "input": record["input"],
             "ai": record["ai"],
             "logic": record["logic"],
             "metadata": {
-                "created_at": record["ai"]["repeat_pattern_indicators"]["datetime"],
+                "created_at": created_at,
                 "processed_at": datetime.now().isoformat(timespec="seconds"),
             },
         }
         records.append(stored_record)
-        content = json.dumps(records, indent=4, ensure_ascii=False)
+        try:
+            content = (json.dumps(records, indent=4, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
+        except (TypeError, ValueError, UnicodeEncodeError) as exc:
+            raise ValueError("Incident records cannot be serialized as UTF-8 JSON.") from exc
 
-        # Create the folder "data" if it doesn't exist
-        self._incidents_file.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = None
+        try:
+            self._incidents_file.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                mode="wb", dir=self._incidents_file.parent,
+                prefix=f".{self._incidents_file.name}.", suffix=".tmp", delete=False,
+            ) as file:
+                temporary_path = Path(file.name)
+                file.write(content)
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temporary_path, self._incidents_file)
 
-        # Rewrite the whole file: appending would concatenate a second JSON
-        # array after the first and corrupt the database
-        with open(self._incidents_file, "w", encoding="utf-8") as f:
-            f.write(content)
-            f.write("\n")
-            print(f"Saved record to {self._incidents_file}")
+        except (OSError, ValueError) as exc:
+            raise DataSaveError(
+                f"Cannot save incident database '{self._incidents_file}': {exc}"
+            ) from exc
+        
+        finally:
+            if temporary_path is not None:
+                try:
+                    temporary_path.unlink(missing_ok=True)
+                except OSError:
+                    # Cleanup must not hide the original storage failure.
+                    pass
+                
+        return stored_record
 
     def query(self, filter_fn):
         """Return stored records accepted by a predicate, in storage order.
@@ -275,3 +340,15 @@ class DataManager:
         """
         incidents = self.query(lambda record: record.get("ai", {}).get("hazard_category") == hazard_category)
         return incidents
+
+
+# Exceptions for data loading and validation
+class DataLoadError(Exception):
+    """Stored incidents could not be read; callers decide how to report this."""
+
+
+class InvalidIncidentDataError(DataLoadError):
+    """The database is not valid UTF-8 JSON containing a list of objects."""
+
+class DataSaveError(Exception):
+    """Incident records could not be written; callers decide how to report this."""
