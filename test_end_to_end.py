@@ -37,7 +37,10 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-import data_manager as dm
+from unittest.mock import patch
+
+from data_manager import DataManager
+import managers
 import main_no_ai
 
 passed = 0
@@ -835,17 +838,18 @@ def run_case(case):
     case_input, expected = case["input"], case["expected"]
 
     # fresh temp database per case, seeded with history when requested
-    db = Path(tempfile.mkdtemp()) / "incidents.json"
-    dm.incidents_file = db
-    if case_input.get("history"):
-        db.write_text(json.dumps([build_history_entry(h) for h in case_input["history"]],
-                                 ensure_ascii=False), "utf-8")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        db = Path(temp_dir) / "incidents.json"
+        if case_input.get("history"):
+            db.write_text(json.dumps([build_history_entry(h) for h in case_input["history"]],
+                                     ensure_ascii=False), "utf-8")
 
-    ai_reply = ((False, case_input["ai_refuses"]) if case_input.get("ai_refuses")
-                else case_input["ai"])
-    run_pipeline(ai_reply, case_input.get("report") or {})
+        ai_reply = ((False, case_input["ai_refuses"]) if case_input.get("ai_refuses")
+                    else case_input["ai"])
+        with patch.object(managers, "data_manager", DataManager(db)):
+            run_pipeline(ai_reply, case_input.get("report") or {})
 
-    records = json.loads(db.read_text(encoding="utf-8")) if db.exists() else []
+        records = json.loads(db.read_text(encoding="utf-8")) if db.exists() else []
     actual = actual_of(records) if records else {}
 
     mismatches = []
