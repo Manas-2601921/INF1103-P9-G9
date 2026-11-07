@@ -7,7 +7,9 @@ have to be able to run this inside Docker too.
 run with: python test_logic_manager.py
 """
 
-import logic_manager as lm
+from logic_manager import LogicManager
+
+lm = LogicManager()
 
 passed = 0
 failed = 0
