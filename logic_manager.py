@@ -222,6 +222,7 @@ class LogicManager:
                 "duplicate_possible": False,
                 "escalation_required": False,
                 "rule_applied": f"invalid AI output: {'; '.join(problems)}",
+                "risk_score": self.score(ai_output) if isinstance(ai_output, dict) else 0,
                 "ai_explanation": ai_output.get("severity_explanation") if isinstance(ai_output, dict) else None,
                 "supporting_phrase": ai_output.get("supporting_phrase") if isinstance(ai_output, dict) else None,
             }
@@ -233,6 +234,7 @@ class LogicManager:
                 "duplicate_possible": False,
                 "escalation_required": False,
                 "rule_applied": "reporter flagged an injury but AI output did not reflect it: contradictory AI output",
+                "risk_score": self.score(ai_output),
                 "ai_explanation": ai_output.get("severity_explanation"),
                 "supporting_phrase": ai_output.get("supporting_phrase"),
             }
@@ -262,6 +264,7 @@ class LogicManager:
             "duplicate_possible": duplicate is not None,
             "escalation_required": high_severity_escalation,
             "rule_applied": rule_applied,
+            "risk_score": self.score(ai_output),
             "ai_explanation": ai_output.get("severity_explanation"),
             "supporting_phrase": ai_output.get("supporting_phrase"),
         }

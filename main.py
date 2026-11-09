@@ -12,8 +12,7 @@ file, unexpected error) prints a friendly message and returns to the menu
 instead of crashing the application.
 """
 
-import data_manager
-import logic_manager
+import managers
 import io_manager as io
 
 # The AI stack needs the `openai` package. The menu still works without it
@@ -194,17 +193,17 @@ def report_new_incident() -> None:
 
     record = {"record_id": "", "input": record_input}
     ai_output = analyse_incident(record)
-    history = data_manager.load()
-    logic_result = logic_manager.determine_final_status(
+    history = managers.data_manager.load()
+    logic_result = managers.logic_manager.determine_final_status(
         record_input, ai_output, history
     )
-    data_manager.save({"input": record_input, "ai": ai_output, "logic": logic_result})
+    managers.data_manager.save({"input": record_input, "ai": ai_output, "logic": logic_result})
     print_triage_summary(logic_result)
 
 
 def view_stored_incidents() -> None:
     """Show a summary of every stored incident."""
-    summaries = data_manager.query_stored_incident_summaries()
+    summaries = managers.data_manager.query_stored_incident_summaries()
     print_stored_incident_summaries(summaries)
 
 

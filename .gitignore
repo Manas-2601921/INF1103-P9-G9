@@ -5,6 +5,9 @@ __pycache__/
 test/
 TeamProjectSpecification.docx
 TeamProjectSpecification.pdf
+
+# Local backup of pre-refactor files, not for sharing/committing
+backup_09112026/
 # Python bytecode
 __pycache__/
 *.py[cod]

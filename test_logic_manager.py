@@ -1,28 +1,15 @@
-"""Test script for logic_manager.
+"""Tests for logic_manager.
 
 Uses hardcoded AI output dicts instead of calling ai_manager / the real
 API, so this runs fine with no API key and no network - needed since we
 have to be able to run this inside Docker too.
 
-run with: python test_logic_manager.py
+Run with: python test_logic_manager.py
 """
 
+import unittest
+
 from logic_manager import LogicManager
-
-lm = LogicManager()
-
-passed = 0
-failed = 0
-
-
-def check(name, ok, detail=""):
-    global passed, failed
-    if ok:
-        passed += 1
-        print(f"[PASS] {name}")
-    else:
-        failed += 1
-        print(f"[FAIL] {name} - {detail}")
 
 
 def dummy_ai(**kw):
@@ -70,233 +57,318 @@ def dummy_record(**kw):
     return rec
 
 
-print("logic_manager tests")
-print("-" * 40)
+class LogicManagerValidationTests(unittest.TestCase):
+    """validate_ai_output: schema checks on the AI's reply."""
 
-# --- [1] validate_ai_output ---
+    def setUp(self):
+        self.lm = LogicManager()
 
-ok, problems = lm.validate_ai_output(dummy_ai())
-check("valid ai output -> no problems", ok and problems == [])
+    def test_valid_ai_output_has_no_problems(self):
+        ok, problems = self.lm.validate_ai_output(dummy_ai())
+        self.assertTrue(ok)
+        self.assertEqual(problems, [])
 
-ok, problems = lm.validate_ai_output("not a dict")
-check("non-dict ai_output rejected", not ok)
+    def test_non_dict_ai_output_is_rejected(self):
+        ok, problems = self.lm.validate_ai_output("not a dict")
+        self.assertFalse(ok)
 
-bad = dummy_ai()
-del bad["hazard_category"]
-ok, problems = lm.validate_ai_output(bad)
-check("missing field caught", not ok and any("hazard_category" in p for p in problems), problems)
+    def test_missing_field_is_caught(self):
+        bad = dummy_ai()
+        del bad["hazard_category"]
+        ok, problems = self.lm.validate_ai_output(bad)
+        self.assertFalse(ok)
+        self.assertTrue(any("hazard_category" in p for p in problems), problems)
 
-ok, problems = lm.validate_ai_output(dummy_ai(severity="extremely bad"))
-check("bad severity value caught", not ok, problems)
+    def test_bad_severity_value_is_caught(self):
+        ok, problems = self.lm.validate_ai_output(dummy_ai(severity="extremely bad"))
+        self.assertFalse(ok, problems)
 
-ok, problems = lm.validate_ai_output(dummy_ai(indicators="nope"))
-check("indicators not a dict caught", not ok, problems)
+    def test_indicators_not_a_dict_is_caught(self):
+        ok, problems = self.lm.validate_ai_output(dummy_ai(indicators="nope"))
+        self.assertFalse(ok, problems)
 
-# --- [2] has_injury_or_immediate_danger ---
 
-check("injury flag detected", lm.has_injury_or_immediate_danger(dummy_ai(indicators={"injury": True})))
-check("immediate_danger flag detected", lm.has_injury_or_immediate_danger(dummy_ai(indicators={"immediate_danger": True})))
-check("uncontrolled_hazard flag detected", lm.has_injury_or_immediate_danger(dummy_ai(indicators={"uncontrolled_hazard": True})))
-check("incident_type injury also counts", lm.has_injury_or_immediate_danger(dummy_ai(incident_type="injury")))
-check("nothing flagged -> False", lm.has_injury_or_immediate_danger(dummy_ai()) == False)
+class LogicManagerIndicatorTests(unittest.TestCase):
+    """has_injury_or_immediate_danger and has_reporter_ai_contradiction."""
 
-# --- [3] has_reporter_ai_contradiction ---
+    def setUp(self):
+        self.lm = LogicManager()
 
-check("no injury reported -> never a contradiction", lm.has_reporter_ai_contradiction(dummy_record(injury_reported=False), dummy_ai()) == False)
-check("injury reported but ai disagrees -> contradiction", lm.has_reporter_ai_contradiction(dummy_record(injury_reported=True), dummy_ai()) == True)
-check(
-    "injury reported and ai agrees -> no contradiction",
-    lm.has_reporter_ai_contradiction(dummy_record(injury_reported=True), dummy_ai(indicators={"injury": True})) == False,
-)
+    def test_injury_flag_is_detected(self):
+        self.assertTrue(self.lm.has_injury_or_immediate_danger(dummy_ai(indicators={"injury": True})))
 
-# --- [4] is_fire_or_electrical_hazard ---
+    def test_immediate_danger_flag_is_detected(self):
+        self.assertTrue(self.lm.has_injury_or_immediate_danger(dummy_ai(indicators={"immediate_danger": True})))
 
-check("fire counts as escalation hazard", lm.is_fire_or_electrical_hazard(dummy_ai(hazard_category="fire")))
-check("electrical counts as escalation hazard", lm.is_fire_or_electrical_hazard(dummy_ai(hazard_category="electrical")))
-check("ergonomic does not", lm.is_fire_or_electrical_hazard(dummy_ai(hazard_category="ergonomic")) == False)
+    def test_uncontrolled_hazard_flag_is_detected(self):
+        self.assertTrue(self.lm.has_injury_or_immediate_danger(dummy_ai(indicators={"uncontrolled_hazard": True})))
 
-# --- [5] find_recent_similar_incidents (recurrence) ---
+    def test_incident_type_injury_also_counts(self):
+        self.assertTrue(self.lm.has_injury_or_immediate_danger(dummy_ai(incident_type="injury")))
 
-record = dummy_record(incident_datetime="2026-09-25T10:00:00", location="Warehouse A")
-ai_out = dummy_ai(
-    hazard_category="mechanical",
-    incident_type="near-miss",
-    repeat_pattern_indicators={
-        "hazard_category": "mechanical",
-        "location": "Warehouse A",
-        "datetime": "2026-09-25T10:00:00",
-        "activity": "forklift operation",
-    },
-)
-past_entry = {
-    "input": dummy_record(incident_datetime="2026-09-20T10:00:00", location="Warehouse A"),
-    "ai": dummy_ai(
-        hazard_category="mechanical",
-        incident_type="near-miss",
-        repeat_pattern_indicators={
-            "hazard_category": "mechanical",
-            "location": "Warehouse A",
-            "datetime": "2026-09-20T10:00:00",
-            "activity": "forklift operation",
-        },
-    ),
-}
+    def test_nothing_flagged_is_false(self):
+        self.assertFalse(self.lm.has_injury_or_immediate_danger(dummy_ai()))
 
-similar = lm.find_recent_similar_incidents(record, ai_out, [past_entry])
-"""this is the one that actually matters - logic_manager used to only
-understand DD-MM-YYYY dates, so real ISO datetimes never matched and
-recurrence never fired. make sure that's actually fixed."""
-check("iso datetime gets parsed, similar incident found", similar == [past_entry], similar)
+    def test_no_injury_reported_is_never_a_contradiction(self):
+        self.assertFalse(self.lm.has_reporter_ai_contradiction(dummy_record(injury_reported=False), dummy_ai()))
 
-old_entry = {
-    "input": dummy_record(incident_datetime="2026-01-01T10:00:00", location="Warehouse A"),
-    "ai": past_entry["ai"],
-}
-check("incident outside the 30 day window is ignored", lm.find_recent_similar_incidents(record, ai_out, [old_entry]) == [])
+    def test_injury_reported_but_ai_disagrees_is_a_contradiction(self):
+        self.assertTrue(self.lm.has_reporter_ai_contradiction(dummy_record(injury_reported=True), dummy_ai()))
 
-diff_loc_entry = {
-    "input": dummy_record(incident_datetime="2026-09-20T10:00:00", location="Office"),
-    "ai": dummy_ai(
-        hazard_category="mechanical",
-        incident_type="near-miss",
-        repeat_pattern_indicators={
-            "hazard_category": "mechanical",
-            "location": "Office",
-            "datetime": "2026-09-20T10:00:00",
-            "activity": "forklift operation",
-        },
-    ),
-}
-check("same hazard but different location doesn't count", lm.find_recent_similar_incidents(record, ai_out, [diff_loc_entry]) == [])
+    def test_injury_reported_and_ai_agrees_is_not_a_contradiction(self):
+        self.assertFalse(self.lm.has_reporter_ai_contradiction(
+            dummy_record(injury_reported=True), dummy_ai(indicators={"injury": True})
+        ))
 
-# --- [6] find_possible_duplicate ---
 
-dup_record = dummy_record(
-    incident_datetime="2026-09-21T20:30:00",
-    location="Warehouse A",
-    description="Exposed electrical cable with damaged insulation found near the maintenance bay.",
-)
-dup_ai = dummy_ai(hazard_category="electrical", incident_type="unsafe condition")
-dup_past = {
-    "input": dummy_record(
-        incident_datetime="2026-09-21T20:30:00",
-        location="Warehouse A",
-        description="Exposed electrical cable with damaged insulation spotted near the maintenance bay.",
-    ),
-    "ai": dummy_ai(hazard_category="electrical", incident_type="unsafe condition"),
-}
-found = lm.find_possible_duplicate(dup_record, dup_ai, [dup_past])
-check("near identical report flagged as duplicate", found == dup_past)
+class LogicManagerHazardTests(unittest.TestCase):
+    """is_fire_or_electrical_hazard."""
 
-unrelated = {
-    "input": dummy_record(
-        incident_datetime="2026-09-21T20:30:00",
-        location="Warehouse A",
-        description="A completely unrelated incident about a spilled drink in the break room.",
-    ),
-    "ai": dummy_ai(hazard_category="electrical", incident_type="unsafe condition"),
-}
-check("different description, same time/place -> not a duplicate", lm.find_possible_duplicate(dup_record, dup_ai, [unrelated]) is None)
+    def setUp(self):
+        self.lm = LogicManager()
 
-# --- [7] determine_final_status (the actual triage rules) ---
+    def test_fire_counts_as_escalation_hazard(self):
+        self.assertTrue(self.lm.is_fire_or_electrical_hazard(dummy_ai(hazard_category="fire")))
 
-r = lm.determine_final_status(dummy_record(), {"not": "valid"}, [])
-check("invalid ai output -> Manual Review", r["final_queue"] == lm.status_manual_review)
+    def test_electrical_counts_as_escalation_hazard(self):
+        self.assertTrue(self.lm.is_fire_or_electrical_hazard(dummy_ai(hazard_category="electrical")))
 
-r = lm.determine_final_status(dummy_record(injury_reported=True), dummy_ai(), [])
-check("reporter/ai contradiction -> Manual Review", r["final_queue"] == lm.status_manual_review)
+    def test_ergonomic_does_not_count_as_escalation_hazard(self):
+        self.assertFalse(self.lm.is_fire_or_electrical_hazard(dummy_ai(hazard_category="ergonomic")))
 
-r = lm.determine_final_status(dummy_record(), dummy_ai(severity="high", hazard_category="fire"), [])
-check("high severity fire -> Immediate Action + escalation", r["final_queue"] == lm.status_immediate_action and r["escalation_required"])
 
-r = lm.determine_final_status(dummy_record(), dummy_ai(severity="medium", indicators={"immediate_danger": True}), [])
-check("immediate danger -> Priority Review", r["final_queue"] == lm.status_priority_review)
+class LogicManagerRecurrenceTests(unittest.TestCase):
+    """find_recent_similar_incidents and is_similar_incident."""
 
-recurring_record = dummy_record(incident_datetime="2026-09-25T10:00:00", location="Warehouse A")
-recurring_ai = dummy_ai(
-    severity="low",
-    hazard_category="mechanical",
-    incident_type="near-miss",
-    repeat_pattern_indicators={
-        "hazard_category": "mechanical",
-        "location": "Warehouse A",
-        "datetime": "2026-09-25T10:00:00",
-        "activity": "forklift operation",
-    },
-)
-r = lm.determine_final_status(recurring_record, recurring_ai, [past_entry])
-check("low severity + recent similar incident -> Recurring Review", r["final_queue"] == lm.status_recurring_review and r["recurring"])
+    def setUp(self):
+        self.lm = LogicManager()
+        self.record = dummy_record(incident_datetime="2026-09-25T10:00:00", location="Warehouse A")
+        self.ai_out = dummy_ai(
+            hazard_category="mechanical",
+            incident_type="near-miss",
+            repeat_pattern_indicators={
+                "hazard_category": "mechanical",
+                "location": "Warehouse A",
+                "datetime": "2026-09-25T10:00:00",
+                "activity": "forklift operation",
+            },
+        )
+        self.past_entry = {
+            "input": dummy_record(incident_datetime="2026-09-20T10:00:00", location="Warehouse A"),
+            "ai": dummy_ai(
+                hazard_category="mechanical",
+                incident_type="near-miss",
+                repeat_pattern_indicators={
+                    "hazard_category": "mechanical",
+                    "location": "Warehouse A",
+                    "datetime": "2026-09-20T10:00:00",
+                    "activity": "forklift operation",
+                },
+            ),
+        }
 
-r = lm.determine_final_status(dummy_record(), dummy_ai(), [])
-check("nothing special -> Routine Log", r["final_queue"] == lm.status_routine_log)
+    def test_iso_datetime_gets_parsed_and_similar_incident_found(self):
+        """logic_manager used to only understand DD-MM-YYYY dates, so real
+        ISO datetimes never matched and recurrence never fired. Make sure
+        that's actually fixed."""
+        similar = self.lm.find_recent_similar_incidents(self.record, self.ai_out, [self.past_entry])
+        self.assertEqual(similar, [self.past_entry])
 
-"""duplicate_possible needs to be checked end-to-end too, not just via
-find_possible_duplicate() directly in section [6] - this is what actually
-reaches main.py's print_triage_summary()."""
-r = lm.determine_final_status(dup_record, dup_ai, [dup_past])
-check("near-duplicate incident sets duplicate_possible True", r["duplicate_possible"] is True)
+    def test_incident_outside_the_30_day_window_is_ignored(self):
+        old_entry = {
+            "input": dummy_record(incident_datetime="2026-01-01T10:00:00", location="Warehouse A"),
+            "ai": self.past_entry["ai"],
+        }
+        self.assertEqual(self.lm.find_recent_similar_incidents(self.record, self.ai_out, [old_entry]), [])
 
-r = lm.determine_final_status(dummy_record(), dummy_ai(), [])
-check("no matching history sets duplicate_possible False", r["duplicate_possible"] is False)
+    def test_same_hazard_but_different_location_does_not_count(self):
+        diff_loc_entry = {
+            "input": dummy_record(incident_datetime="2026-09-20T10:00:00", location="Office"),
+            "ai": dummy_ai(
+                hazard_category="mechanical",
+                incident_type="near-miss",
+                repeat_pattern_indicators={
+                    "hazard_category": "mechanical",
+                    "location": "Office",
+                    "datetime": "2026-09-20T10:00:00",
+                    "activity": "forklift operation",
+                },
+            ),
+        }
+        self.assertEqual(self.lm.find_recent_similar_incidents(self.record, self.ai_out, [diff_loc_entry]), [])
 
-# --- [8] route ---
+    def test_same_hazard_type_location_and_activity_is_similar(self):
+        matching_past_ai = dummy_ai(
+            hazard_category="mechanical",
+            incident_type="near-miss",
+            repeat_pattern_indicators={
+                "hazard_category": "mechanical",
+                "location": "Warehouse A",
+                "datetime": "2026-09-20T10:00:00",
+                "activity": "forklift operation",
+            },
+        )
+        self.assertTrue(
+            self.lm.is_similar_incident(self.record, self.ai_out, self.past_entry["input"], matching_past_ai)
+        )
 
-"""route() is just a wrapper around determine_final_status that returns the queue name"""
-check("route() returns the queue string", lm.route(dummy_record(), dummy_ai(), []) == lm.status_routine_log)
+    def test_different_activity_is_not_similar(self):
+        diff_activity_ai = dummy_ai(
+            hazard_category="mechanical",
+            incident_type="near-miss",
+            repeat_pattern_indicators={
+                "hazard_category": "mechanical",
+                "location": "Warehouse A",
+                "datetime": "2026-09-20T10:00:00",
+                "activity": "pallet stacking",
+            },
+        )
+        self.assertFalse(
+            self.lm.is_similar_incident(self.record, self.ai_out, self.past_entry["input"], diff_activity_ai)
+        )
 
-# --- [9] is_similar_incident ---
 
-matching_past_ai = dummy_ai(
-    hazard_category="mechanical",
-    incident_type="near-miss",
-    repeat_pattern_indicators={
-        "hazard_category": "mechanical",
-        "location": "Warehouse A",
-        "datetime": "2026-09-20T10:00:00",
-        "activity": "forklift operation",
-    },
-)
-check(
-    "same hazard, type, location and activity -> similar",
-    lm.is_similar_incident(record, ai_out, past_entry["input"], matching_past_ai),
-)
+class LogicManagerDuplicateTests(unittest.TestCase):
+    """find_possible_duplicate, and duplicate_possible via determine_final_status."""
 
-diff_activity_ai = dummy_ai(
-    hazard_category="mechanical",
-    incident_type="near-miss",
-    repeat_pattern_indicators={
-        "hazard_category": "mechanical",
-        "location": "Warehouse A",
-        "datetime": "2026-09-20T10:00:00",
-        "activity": "pallet stacking",
-    },
-)
-check(
-    "different activity -> not similar",
-    lm.is_similar_incident(record, ai_out, past_entry["input"], diff_activity_ai) is False,
-)
+    def setUp(self):
+        self.lm = LogicManager()
+        self.dup_record = dummy_record(
+            incident_datetime="2026-09-21T20:30:00",
+            location="Warehouse A",
+            description="Exposed electrical cable with damaged insulation found near the maintenance bay.",
+        )
+        self.dup_ai = dummy_ai(hazard_category="electrical", incident_type="unsafe condition")
+        self.dup_past = {
+            "input": dummy_record(
+                incident_datetime="2026-09-21T20:30:00",
+                location="Warehouse A",
+                description="Exposed electrical cable with damaged insulation spotted near the maintenance bay.",
+            ),
+            "ai": dummy_ai(hazard_category="electrical", incident_type="unsafe condition"),
+        }
 
-# --- [10] score ---
+    def test_near_identical_report_is_flagged_as_duplicate(self):
+        found = self.lm.find_possible_duplicate(self.dup_record, self.dup_ai, [self.dup_past])
+        self.assertEqual(found, self.dup_past)
 
-check("low severity, no escalation hazard, no danger -> base score 1", lm.score(dummy_ai(severity="low")) == 1)
-check("medium severity scores 2", lm.score(dummy_ai(severity="medium")) == 2)
-check("high severity scores 3", lm.score(dummy_ai(severity="high")) == 3)
-check(
-    "fire hazard adds a point on top of severity",
-    lm.score(dummy_ai(severity="low", hazard_category="fire")) == 2,
-)
-check(
-    "injury/danger indicator adds a point on top of severity",
-    lm.score(dummy_ai(severity="low", indicators={"injury": True})) == 2,
-)
-check(
-    "fire hazard + injury both add up with high severity",
-    lm.score(dummy_ai(severity="high", hazard_category="electrical", indicators={"injury": True})) == 5,
-)
-check("unrecognised severity scores a base of 0", lm.score(dummy_ai(severity="unknown")) == 0)
+    def test_different_description_same_time_and_place_is_not_a_duplicate(self):
+        unrelated = {
+            "input": dummy_record(
+                incident_datetime="2026-09-21T20:30:00",
+                location="Warehouse A",
+                description="A completely unrelated incident about a spilled drink in the break room.",
+            ),
+            "ai": dummy_ai(hazard_category="electrical", incident_type="unsafe condition"),
+        }
+        self.assertIsNone(self.lm.find_possible_duplicate(self.dup_record, self.dup_ai, [unrelated]))
 
-print("-" * 40)
-print(f"{passed} passed, {failed} failed")
+    def test_near_duplicate_incident_sets_duplicate_possible_true(self):
+        """duplicate_possible needs to be checked end-to-end too, not just
+        via find_possible_duplicate() directly - this is what actually
+        reaches main.py's print_triage_summary()."""
+        r = self.lm.determine_final_status(self.dup_record, self.dup_ai, [self.dup_past])
+        self.assertTrue(r["duplicate_possible"])
 
-if failed:
-    raise SystemExit(1)
+    def test_no_matching_history_sets_duplicate_possible_false(self):
+        r = self.lm.determine_final_status(dummy_record(), dummy_ai(), [])
+        self.assertFalse(r["duplicate_possible"])
+
+
+class LogicManagerTriageTests(unittest.TestCase):
+    """determine_final_status (the actual triage rules) and route()."""
+
+    def setUp(self):
+        self.lm = LogicManager()
+
+    def test_invalid_ai_output_goes_to_manual_review(self):
+        r = self.lm.determine_final_status(dummy_record(), {"not": "valid"}, [])
+        self.assertEqual(r["final_queue"], self.lm.status_manual_review)
+
+    def test_reporter_ai_contradiction_goes_to_manual_review(self):
+        r = self.lm.determine_final_status(dummy_record(injury_reported=True), dummy_ai(), [])
+        self.assertEqual(r["final_queue"], self.lm.status_manual_review)
+
+    def test_high_severity_fire_is_immediate_action_with_escalation(self):
+        r = self.lm.determine_final_status(dummy_record(), dummy_ai(severity="high", hazard_category="fire"), [])
+        self.assertEqual(r["final_queue"], self.lm.status_immediate_action)
+        self.assertTrue(r["escalation_required"])
+
+    def test_immediate_danger_is_priority_review(self):
+        r = self.lm.determine_final_status(
+            dummy_record(), dummy_ai(severity="medium", indicators={"immediate_danger": True}), []
+        )
+        self.assertEqual(r["final_queue"], self.lm.status_priority_review)
+
+    def test_low_severity_with_recent_similar_incident_is_recurring_review(self):
+        recurring_record = dummy_record(incident_datetime="2026-09-25T10:00:00", location="Warehouse A")
+        recurring_ai = dummy_ai(
+            severity="low",
+            hazard_category="mechanical",
+            incident_type="near-miss",
+            repeat_pattern_indicators={
+                "hazard_category": "mechanical",
+                "location": "Warehouse A",
+                "datetime": "2026-09-25T10:00:00",
+                "activity": "forklift operation",
+            },
+        )
+        past_entry = {
+            "input": dummy_record(incident_datetime="2026-09-20T10:00:00", location="Warehouse A"),
+            "ai": dummy_ai(
+                hazard_category="mechanical",
+                incident_type="near-miss",
+                repeat_pattern_indicators={
+                    "hazard_category": "mechanical",
+                    "location": "Warehouse A",
+                    "datetime": "2026-09-20T10:00:00",
+                    "activity": "forklift operation",
+                },
+            ),
+        }
+        r = self.lm.determine_final_status(recurring_record, recurring_ai, [past_entry])
+        self.assertEqual(r["final_queue"], self.lm.status_recurring_review)
+        self.assertTrue(r["recurring"])
+
+    def test_nothing_special_is_routine_log(self):
+        r = self.lm.determine_final_status(dummy_record(), dummy_ai(), [])
+        self.assertEqual(r["final_queue"], self.lm.status_routine_log)
+
+    def test_route_returns_the_queue_string(self):
+        """route() is just a wrapper around determine_final_status that
+        returns the queue name."""
+        self.assertEqual(self.lm.route(dummy_record(), dummy_ai(), []), self.lm.status_routine_log)
+
+
+class LogicManagerScoreTests(unittest.TestCase):
+    """score()."""
+
+    def setUp(self):
+        self.lm = LogicManager()
+
+    def test_low_severity_no_escalation_hazard_no_danger_scores_1(self):
+        self.assertEqual(self.lm.score(dummy_ai(severity="low")), 1)
+
+    def test_medium_severity_scores_2(self):
+        self.assertEqual(self.lm.score(dummy_ai(severity="medium")), 2)
+
+    def test_high_severity_scores_3(self):
+        self.assertEqual(self.lm.score(dummy_ai(severity="high")), 3)
+
+    def test_fire_hazard_adds_a_point_on_top_of_severity(self):
+        self.assertEqual(self.lm.score(dummy_ai(severity="low", hazard_category="fire")), 2)
+
+    def test_injury_or_danger_indicator_adds_a_point_on_top_of_severity(self):
+        self.assertEqual(self.lm.score(dummy_ai(severity="low", indicators={"injury": True})), 2)
+
+    def test_fire_hazard_and_injury_both_add_up_with_high_severity(self):
+        self.assertEqual(
+            self.lm.score(dummy_ai(severity="high", hazard_category="electrical", indicators={"injury": True})), 5
+        )
+
+    def test_unrecognised_severity_scores_a_base_of_0(self):
+        self.assertEqual(self.lm.score(dummy_ai(severity="unknown")), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

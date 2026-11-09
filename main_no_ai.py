@@ -14,11 +14,10 @@ Removed compared to main.py:
 
 Keep this file in sync with main.py: if main.py changes its flow
 (severity banding, the failure stub, the record handed to
-data_manager.save), update the matching function here.
+managers.data_manager.save), update the matching function here.
 """
 
-import data_manager
-import logic_manager
+import managers
 
 
 def to_severity_band(ai_output: dict) -> dict:
@@ -102,10 +101,10 @@ def report_new_incident(record_input: dict, ai_result) -> dict:
         The logic decision stored with the record.
     """
     ai_output = analyse_incident(record_input, ai_result)
-    history = data_manager.load()
-    logic_result = logic_manager.determine_final_status(
+    history = managers.data_manager.load()
+    logic_result = managers.logic_manager.determine_final_status(
         record_input, ai_output, history
     )
-    data_manager.save({"input": record_input, "ai": ai_output, "logic": logic_result})
+    managers.data_manager.save({"input": record_input, "ai": ai_output, "logic": logic_result})
     print_triage_summary(logic_result)
     return logic_result
