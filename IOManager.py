@@ -1,6 +1,14 @@
 from datetime import datetime
 import data_manager
 class IOManager:
+    # Constants for the different roles that can report an incident. The keys are the input values that the user can enter, and the values are the corresponding role names.
+    ROLE_OPTIONS = {
+        "1": "Employee", "employee": "Employee",
+        "2": "Supervisor", "supervisor": "Supervisor",
+        "3": "Manager", "manager": "Manager",
+        "4": "Client", "client": "Client"
+    }
+
     def __init__(self,incident_name:str, incident_description:str, incident_location:str, reporter_role:str, incident_datetime:datetime, injury_reported:bool, immediate_action:str):
         self.incident_name = incident_name
         self.incident_description = incident_description
