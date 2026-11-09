@@ -9,7 +9,7 @@ class IOManager:
         "4": "Client", "client": "Client"
     }
 
-    def __init__(self,incident_name:str, incident_description:str, incident_location:str, reporter_role:str, incident_datetime:datetime, injury_reported:bool, immediate_action:str):
+    def __init__(self, incident_name:str, incident_description:str, incident_datetime:datetime, incident_location:str, reporter_role:str, injury_reported:bool, immediate_action:str):
         self.incident_name = incident_name
         self.incident_description = incident_description
         self.incident_datetime = incident_datetime
@@ -17,6 +17,16 @@ class IOManager:
         self.reporter_role = reporter_role
         self.injury_reported = injury_reported
         self.immediate_action = immediate_action
+
+    def prompt_incident_name(self):
+        while True:
+            newIncidentName = input("Enter the name of the incident (or type 'quit' to exit): ")
+            if newIncidentName.lower() == 'quit':
+                return "quit"
+            if not newIncidentName.strip():
+                print("Incident name cannot be empty. Please give the incident a short title.")
+                continue
+            return newIncidentName
 
     @staticmethod
     def display_search_options():
