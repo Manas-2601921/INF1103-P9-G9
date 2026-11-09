@@ -18,6 +18,7 @@ managers.data_manager.save), update the matching function here.
 """
 
 import managers
+import logic_manager
 
 
 def to_severity_band(ai_output: dict) -> dict:
@@ -104,6 +105,7 @@ def report_new_incident(record_input: dict, ai_result) -> dict:
     ai_output = analyse_incident(record_input, ai_result)
     history = managers.data_manager.load()
     logic_result = managers.logic_manager.determine_final_status(
+    logic_result = logic_manager.determine_final_status(
         record_input, ai_output, history
     )
     managers.data_manager.save({"input": record_input, "ai": ai_output, "logic": logic_result})

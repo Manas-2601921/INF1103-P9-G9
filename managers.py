@@ -11,3 +11,6 @@ from logic_manager import LogicManager
 
 data_manager = DataManager()
 logic_manager = LogicManager()
+
+
+data_manager = DataManager()
