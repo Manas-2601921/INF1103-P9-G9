@@ -15,6 +15,7 @@ instead of crashing the application.
 import data_manager
 import logic_manager
 import io_manager as io
+from IOManager import IOManager
 
 # The AI stack needs the `openai` package. The menu still works without it
 # (viewing and searching stored incidents), so import failures are deferred
@@ -210,9 +211,20 @@ def view_stored_incidents() -> None:
 
 def search_by_category() -> None:
     """Show the incident summaries based on different categories"""
-    search_options = io.handle_search_options()
-    if(search_options != False):
-        io.display_search_results(search_options[0],search_options[1])
+    while True:
+        search_option = IOManager.display_search_options()
+        if search_option == "quit":
+            break
+        else:
+            search_result = IOManager.handle_search_option(search_option)
+            if search_result == "quit":
+                continue
+            IOManager.display_search_results(search_result[0], search_result[1])
+    
+
+    # search_options = io.handle_search_options()
+    # if(search_options != False):
+    #     io.display_search_results(search_options[0],search_options[1])
 
 
 def run_action(action) -> None:
