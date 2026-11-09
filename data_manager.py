@@ -194,9 +194,10 @@ class DataManager:
 
         Returns:
             list[dict]: Summaries containing the record ID, incident date, location,
-                description, hazard category, severity, final queue, and escalation
-                status. Missing fields use display defaults; a missing escalation
-                status is None. Returns an empty list if no records are loaded.
+                description, hazard category, severity, final queue, escalation
+                status, and risk score. Missing fields use display defaults; a
+                missing escalation status or risk score is None. Returns an empty
+                list if no records are loaded.
         """
         records = self.load()
         summaries = []
@@ -217,6 +218,7 @@ class DataManager:
 
                 "final_queue": logic.get("final_queue", "Unassigned"),
                 "escalation_required": logic.get("escalation_required"),
+                "risk_score": logic.get("risk_score"),
             })
 
         return summaries

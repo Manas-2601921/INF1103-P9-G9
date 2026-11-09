@@ -43,7 +43,8 @@ def print_stored_incident_summaries(summaries: list) -> None:
 
     Args:
         summaries: list of summary dicts, each with description, date,
-            location, hazard category, severity, final queue and escalation.
+            location, hazard category, severity, final queue, escalation
+            and risk score.
     """
     print("=" * 60)
     print("STORED INCIDENT SUMMARIES")
@@ -60,6 +61,7 @@ def print_stored_incident_summaries(summaries: list) -> None:
             print("Severity             : ", summary.get("severity"))
             print("Final Queue          : ", summary.get("final_queue"))
             print("Escalation Required  : ", summary.get("escalation_required"))
+            print("Risk Score           : ", summary.get("risk_score"))
             print("-" * 60)
 
 
@@ -179,6 +181,7 @@ def print_triage_summary(logic_result: dict) -> None:
     print("Escalation Required  : ", logic_result.get("escalation_required"))
     print("Recurring            : ", logic_result.get("recurring"))
     print("Possible Duplicate   : ", logic_result.get("duplicate_possible"))
+    print("Risk Score           : ", logic_result.get("risk_score"))
     print("Rule Applied         : ", logic_result.get("rule_applied"))
     print("AI Explanation       : ", logic_result.get("ai_explanation"))
     print("Supporting Phrase    : ", logic_result.get("supporting_phrase"))

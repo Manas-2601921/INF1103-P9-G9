@@ -96,7 +96,7 @@ CASES = [
         },
         "expected": {"final_queue": "Routine Log", "escalation_required": False,
                      "severity_band": "low", "severity_score": 0.2,
-                     "record_id": "INC-0001"},
+                     "record_id": "INC-0001", "risk_score": 1},
     },
     {
         "name": "medium severity isolated incident",
@@ -126,7 +126,7 @@ CASES = [
             },
         },
         "expected": {"final_queue": "Routine Log", "escalation_required": False,
-                     "severity_band": "medium", "severity_score": 0.55},
+                     "severity_band": "medium", "severity_score": 0.55, "risk_score": 2},
     },
     {
         "name": "high severity + fire hazard",
@@ -156,7 +156,7 @@ CASES = [
             },
         },
         "expected": {"final_queue": "Immediate Action", "escalation_required": True,
-                     "severity_band": "high", "severity_score": 0.9},
+                     "severity_band": "high", "severity_score": 0.9, "risk_score": 4},
     },
     {
         "name": "high severity + electrical hazard",
@@ -186,7 +186,7 @@ CASES = [
             },
         },
         "expected": {"final_queue": "Immediate Action", "escalation_required": True,
-                     "severity_band": "high", "severity_score": 0.85},
+                     "severity_band": "high", "severity_score": 0.85, "risk_score": 4},
     },
     {
         "name": "low severity but injury reported by the AI",
@@ -215,7 +215,7 @@ CASES = [
                 "supporting_phrase": "sample phrase",
             },
         },
-        "expected": {"final_queue": "Priority Review", "escalation_required": False},
+        "expected": {"final_queue": "Priority Review", "escalation_required": False, "risk_score": 2},
     },
     {
         "name": "low severity, similar incident 13 days ago",
@@ -247,7 +247,7 @@ CASES = [
                 "incident_datetime": "2026-09-28T09:00:00",
             }],
         },
-        "expected": {"final_queue": "Recurring Review", "recurring": True},
+        "expected": {"final_queue": "Recurring Review", "recurring": True, "risk_score": 1},
     },
     {
         "name": "AI explanation and evidence carried into the saved decision",
@@ -278,7 +278,7 @@ CASES = [
         },
         "expected": {"severity_band": "high", "severity_score": 0.75,
                      "ai_explanation": "Live wire exposed.",
-                     "supporting_phrase": "exposed electrical cable"},
+                     "supporting_phrase": "exposed electrical cable", "risk_score": 3},
     },
 
     # ---- [2] deny cases: failures are quarantined, never dropped ----
@@ -290,7 +290,7 @@ CASES = [
         },
         "expected": {"final_queue": "Manual Review",
                      "ai_error_contains": "AI output failed schema validation after 3 attempts",
-                     "records_saved": 1},
+                     "records_saved": 1, "risk_score": 0},
     },
     {
         "name": "reporter reports an injury the AI missed (contradiction)",
@@ -320,7 +320,7 @@ CASES = [
             },
             "report": {"injury_reported": True},
         },
-        "expected": {"final_queue": "Manual Review"},
+        "expected": {"final_queue": "Manual Review", "risk_score": 1},
     },
     {
         "name": "AI analysis missing required fields",
@@ -340,7 +340,7 @@ CASES = [
                 "recommended_immediate_action": "Secure the area.",
             },
         },
-        "expected": {"final_queue": "Manual Review"},
+        "expected": {"final_queue": "Manual Review", "risk_score": 0},
     },
     {
         "name": "AI analysis with unknown categories",
@@ -369,7 +369,7 @@ CASES = [
                 "supporting_phrase": "sample phrase",
             },
         },
-        "expected": {"final_queue": "Manual Review"},
+        "expected": {"final_queue": "Manual Review", "risk_score": 2},
     },
 
     # ---- [3] edge cases: boundaries and awkward data ----
@@ -400,7 +400,7 @@ CASES = [
                 "supporting_phrase": "sample phrase",
             },
         },
-        "expected": {"severity_band": "low", "severity_score": 0.39},
+        "expected": {"severity_band": "low", "severity_score": 0.39, "risk_score": 1},
     },
     {
         "name": "banding boundary 0.40 -> medium",
@@ -429,7 +429,7 @@ CASES = [
                 "supporting_phrase": "sample phrase",
             },
         },
-        "expected": {"severity_band": "medium", "severity_score": 0.40},
+        "expected": {"severity_band": "medium", "severity_score": 0.40, "risk_score": 2},
     },
     {
         "name": "banding boundary 0.70 -> medium",
@@ -458,7 +458,7 @@ CASES = [
                 "supporting_phrase": "sample phrase",
             },
         },
-        "expected": {"severity_band": "medium", "severity_score": 0.70},
+        "expected": {"severity_band": "medium", "severity_score": 0.70, "risk_score": 2},
     },
     {
         "name": "banding boundary 0.71 -> high",
@@ -487,7 +487,7 @@ CASES = [
                 "supporting_phrase": "sample phrase",
             },
         },
-        "expected": {"severity_band": "high", "severity_score": 0.71},
+        "expected": {"severity_band": "high", "severity_score": 0.71, "risk_score": 3},
     },
     {
         "name": "banding boundary integer 1 -> high",
@@ -516,7 +516,7 @@ CASES = [
                 "supporting_phrase": "sample phrase",
             },
         },
-        "expected": {"severity_band": "high", "severity_score": 1},
+        "expected": {"severity_band": "high", "severity_score": 1, "risk_score": 3},
     },
     {
         "name": "banding boundary 0.0 -> low",
@@ -545,7 +545,7 @@ CASES = [
                 "supporting_phrase": "sample phrase",
             },
         },
-        "expected": {"severity_band": "low", "severity_score": 0.0},
+        "expected": {"severity_band": "low", "severity_score": 0.0, "risk_score": 1},
     },
     {
         "name": "similar incident exactly 30 days earlier is still recurring",
@@ -577,7 +577,7 @@ CASES = [
                 "incident_datetime": "2026-09-11T09:00:00",
             }],
         },
-        "expected": {"final_queue": "Recurring Review", "recurring": True},
+        "expected": {"final_queue": "Recurring Review", "recurring": True, "risk_score": 1},
     },
     {
         "name": "similar incident 31 days earlier is not recurring",
@@ -609,7 +609,7 @@ CASES = [
                 "incident_datetime": "2026-09-10T09:00:00",
             }],
         },
-        "expected": {"final_queue": "Routine Log", "recurring": False},
+        "expected": {"final_queue": "Routine Log", "recurring": False, "risk_score": 1},
     },
     {
         "name": "same location and category but different activity is not recurring",
@@ -641,7 +641,7 @@ CASES = [
                 "activity": "welding",
             }],
         },
-        "expected": {"final_queue": "Routine Log", "recurring": False},
+        "expected": {"final_queue": "Routine Log", "recurring": False, "risk_score": 1},
     },
     {
         "name": "history with an unparseable date is skipped, not crashed on",
@@ -673,7 +673,7 @@ CASES = [
                 "incident_datetime": "not a date",
             }],
         },
-        "expected": {"final_queue": "Routine Log", "recurring": False},
+        "expected": {"final_queue": "Routine Log", "recurring": False, "risk_score": 1},
     },
     {
         "name": "near-identical resubmission flagged as possible duplicate, still saved",
@@ -706,7 +706,7 @@ CASES = [
                 "description": "Forklift nearly hit a worker while reversing.!",
             }],
         },
-        "expected": {"duplicate_possible": True, "records_saved": 2},
+        "expected": {"duplicate_possible": True, "records_saved": 2, "risk_score": 1},
     },
     {
         "name": "very long description survives the round trip",
@@ -739,7 +739,8 @@ CASES = [
                 "immediate_action": "No immediate action was taken",
             },
         },
-        "expected": {"stored_description": "Chemical vapour leak detected in the storage room. " * 12},
+        "expected": {"stored_description": "Chemical vapour leak detected in the storage room. " * 12,
+                     "risk_score": 2},
     },
 ]
 
@@ -817,6 +818,7 @@ def actual_of(records):
         "escalation_required": logic.get("escalation_required"),
         "recurring": logic.get("recurring"),
         "duplicate_possible": logic.get("duplicate_possible"),
+        "risk_score": logic.get("risk_score"),
         "severity_band": ai.get("severity"),
         "severity_score": ai.get("severity_score"),
         "ai_error_contains": ai.get("ai_error"),
