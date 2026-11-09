@@ -119,6 +119,7 @@ class IOManager:
                 print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
                 continue
 
+    # function to collect all the incident details from the user and store them in the class attributes. If the user types "quit" at any point, the function will return False to indicate that the process was aborted.
     def collect_incident_details(self):
         
         self.incident_name = self.prompt_incident_name()
@@ -150,6 +151,27 @@ class IOManager:
             return False
 
         return True
+
+    # To be added into main.py
+    # Create an IOManager object
+    # io_manager = IOManager()
+
+    # # Collect all incident information
+    # if io_manager.collect_incident_details():
+
+    #     print("\nIncident information collected successfully!")
+
+    #     print(io_manager.incident_name)
+    #     print(io_manager.incident_description)
+    #     print(io_manager.location)
+    #     print(io_manager.reporter_role)
+    #     print(io_manager.incident_datetime)
+    #     print(io_manager.injury_reported)
+    #     print(io_manager.immediate_action)
+
+    # else:
+    #     print("Incident reporting cancelled.")
+
     
     @staticmethod
     def display_search_options():
