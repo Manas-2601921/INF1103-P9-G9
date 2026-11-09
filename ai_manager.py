@@ -11,7 +11,7 @@ Its collaborators are composed in ``__init__``:
 - ``PromptBuilder``      renders the incident and builds the chat prompts
 - ``ResponseValidator``  checks every reply against the JSON schema
 - ``LLMClient``          the transport (Z.ai API wrapped in retries, or an
-                         injected stub for offline runs)
+                         injected test client for offline runs)
 """
 
 from ai_modules.llm_client import LLMClient, RetryableLLMClient, ZaiLLMClient
@@ -36,7 +36,7 @@ class AIManager:
 
     The manager owns its prompt builder and response validator (created in
     ``__init__``), while the LLM client is supplied from outside so tests
-    can inject a ``StubLLMClient`` and alternative backends can be added
+    can inject a ``TestLLMClient`` and alternative backends can be added
     without touching this class. Whatever client is passed, it is wrapped
     in a ``RetryableLLMClient`` so transient API failures are retried.
     """

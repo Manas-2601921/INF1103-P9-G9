@@ -5,11 +5,11 @@ the concrete subclasses supply the transport:
 
 - ``ZaiLLMClient``      talks to the Z.ai OpenAI-compatible endpoint.
 - ``RetryableLLMClient`` wraps any other client and retries transient failures.
-- ``StubLLMClient``     replays scripted replies so tests run fully offline.
+- ``TestLLMClient``     replays scripted replies so tests run fully offline.
 
 ``AIManager`` only ever calls the abstract ``complete`` method, so the real
-API, the retry wrapper and the offline stub are interchangeable without any
-type-specific branching in the calling code.
+API, the retry wrapper and the offline test client are interchangeable
+without any type-specific branching in the calling code.
 """
 
 import os
@@ -56,7 +56,7 @@ class LLMClient(ABC):
 
     Every backend receives a chat-completions ``messages`` payload and
     returns the raw reply text. Concrete subclasses implement ``complete``
-    against a real API, or a scripted stub for offline tests.
+    against a real API, or a scripted test client for offline runs.
     """
 
     @abstractmethod
@@ -188,7 +188,7 @@ class RetryableLLMClient(LLMClient):
         time.sleep(self._backoff_seconds * attempt_counter + 1)
 
 
-class StubLLMClient(LLMClient):
+class TestLLMClient(LLMClient):
     """Scripted offline client used by the test suite.
 
     Replays queued replies and counts the calls, so tests can assert how
@@ -196,7 +196,7 @@ class StubLLMClient(LLMClient):
     without any network or API key.
     """
 
-    DEFAULT_REPLY = "STUB ERROR: no canned AI reply was queued for this test case"
+    DEFAULT_REPLY = "TEST CLIENT ERROR: no scripted AI reply was queued for this test case"
 
     def __init__(self, replies: list | None = None):
         self._replies = list(replies or [])

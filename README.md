@@ -65,17 +65,17 @@ AIManager  (composes PromptBuilder + ResponseValidator, uses one LLMClient)
   +-- LLMClient  (abstract base class, the transport contract)
         |-- ZaiLLMClient           real Z.ai OpenAI-compatible endpoint
         |-- RetryableLLMClient     wraps ANY client, retries transient failures
-        +-- StubLLMClient          scripted replies for offline tests
+        +-- TestLLMClient          scripted replies for offline tests
 ```
 
 Design notes:
 
 - `LLMClient` is an abstract base class (interface): `AIManager` and the
   retry wrapper only call its `complete` method, so the real API and the
-  offline test stub are interchangeable (polymorphism / LSP).
+  offline test client are interchangeable (polymorphism / LSP).
 - The prompt builder and response validator are created inside `AIManager`
   (composition); the LLM client is supplied from outside (aggregation), so
-  tests inject a `StubLLMClient` and future backends can be added without
+  tests inject a `TestLLMClient` and future backends can be added without
   modifying the manager (OCP).
 - `RetryableLLMClient` is itself an `LLMClient`, so retry behaviour is added
   to any backend by wrapping it (inheritance + decorator pattern).
@@ -84,4 +84,4 @@ Design notes:
   (encapsulation).
 
 The test suite (`test_ai_manager.py`) runs fully offline by injecting the
-stub client; `--live` switches to the real API.
+test client; `--live` switches to the real API.

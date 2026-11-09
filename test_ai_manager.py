@@ -1,7 +1,7 @@
 """Test script for ai_manager: AI JSON validation and reprompting verified
 with valid, invalid and edge payloads.
 
-By default the AI manager is driven with an injected StubLLMClient, so the
+By default the AI manager is driven with an injected TestLLMClient, so the
 script is fully offline (no API key, no network). Add --live to run the
 payload cases against the real Z.ai API instead (requires ZAI_KEY in .env);
 the reprompt section is skipped live because the AI's replies cannot be
@@ -17,7 +17,7 @@ import os
 import sys
 
 from ai_manager import AIManager
-from ai_modules.llm_client import StubLLMClient
+from ai_modules.llm_client import TestLLMClient
 from ai_modules.response_validator import ResponseValidator
 
 LIVE = "--live" in sys.argv
@@ -106,25 +106,25 @@ def make_record(input_overrides=None):
 
 
 # ---------------------------------------------------------------------------
-# Offline collaborators: a scripted stub client replaces the Z.ai client
+# Offline collaborators: a scripted test client replaces the Z.ai client
 # (scripted replies, counted calls, last prompt kept)
 # ---------------------------------------------------------------------------
 
-stub = StubLLMClient()
+test_client = TestLLMClient()
 validator = ResponseValidator()
 
 
 def queue_reply(*replies):
-    """Queue the replies the stub client returns and reset its call count."""
-    stub.queue(*replies)
+    """Queue the replies the test client returns and reset its call count."""
+    test_client.queue(*replies)
 
 
 def make_manager():
-    """Build the AIManager under test: stubbed offline, real Z.ai live."""
+    """Build the AIManager under test: test client offline, real Z.ai live."""
     if LIVE:
         return AIManager()
     # backoff_seconds 0 disables the retry waits so the suite stays fast
-    return AIManager(client=stub, backoff_seconds=0)
+    return AIManager(client=test_client, backoff_seconds=0)
 
 
 # ---------------------------------------------------------------------------
@@ -222,42 +222,42 @@ def test_invalid_payloads(run):
     for name, record, substrings in cases:
         queue_reply()
         result = run(record)
-        check(name, is_error(result, *substrings) and (LIVE or stub.calls == 0),
+        check(name, is_error(result, *substrings) and (LIVE or test_client.calls == 0),
               f"got: {result}")
 
 
 # ---------------------------------------------------------------------------
-# [4] reprompting on invalid AI replies (stubbed client only)
+# [4] reprompting on invalid AI replies (test client only)
 # ---------------------------------------------------------------------------
 
 def test_reprompting(run):
-    print("\n--- [4] reprompting on invalid AI replies (stubbed client only) ---")
+    print("\n--- [4] reprompting on invalid AI replies (test client only) ---")
 
     queue_reply(make_ai_reply(severity="high"), make_ai_reply())
     result = run(make_record())
-    retry_content = stub.last_messages[1]["content"]
+    retry_content = test_client.last_messages[1]["content"]
     check("invalid AI reply is reprompted with its violations, then succeeds",
-          is_success(result) and stub.calls == 2
+          is_success(result) and test_client.calls == 2
           and "Your previous reply was rejected" in retry_content
           and "must be a number" in retry_content,
-          f"got: {result} after {stub.calls} call(s)")
+          f"got: {result} after {test_client.calls} call(s)")
 
     queue_reply("garbage", '{"severity": 0.5, "confidence": 2.0}', make_ai_reply())
     result = run(make_record())
     check("valid reply on the final attempt still succeeds",
-          is_success(result) and stub.calls == 3,
-          f"got: {result} after {stub.calls} call(s)")
+          is_success(result) and test_client.calls == 3,
+          f"got: {result} after {test_client.calls} call(s)")
 
     queue_reply("garbage", "still garbage", '{"severity": "way too high"}')
     result = run(make_record())
     check("persistent invalid AI replies fail after 3 attempts",
-          is_error(result, "after 3 attempts") and stub.calls == 3,
-          f"got: {result} after {stub.calls} call(s)")
+          is_error(result, "after 3 attempts") and test_client.calls == 3,
+          f"got: {result} after {test_client.calls} call(s)")
 
 
 def main():
     print("=" * 64)
-    print(f"ai_manager tests ({'LIVE Z.ai API' if LIVE else 'stubbed LLM client, offline'})")
+    print(f"ai_manager tests ({'LIVE Z.ai API' if LIVE else 'test client, offline'})")
     print("=" * 64)
 
     run = make_manager().analyze
