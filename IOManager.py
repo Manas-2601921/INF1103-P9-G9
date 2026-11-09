@@ -1,6 +1,15 @@
 from datetime import datetime
 import data_manager
 class IOManager:
+    def __init__(self,incident_name:str, incident_description:str, incident_location:str, reporter_role:str, incident_datetime:datetime, injury_reported:bool, immediate_action:str):
+        self.incident_name = incident_name
+        self.incident_description = incident_description
+        self.incident_datetime = incident_datetime
+        self.location = incident_location
+        self.reporter_role = reporter_role
+        self.injury_reported = injury_reported
+        self.immediate_action = immediate_action
+
     @staticmethod
     def display_search_options():
         while True:
