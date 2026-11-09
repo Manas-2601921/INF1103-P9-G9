@@ -62,10 +62,14 @@ AIManager  (composes PromptBuilder + ResponseValidator, uses one LLMClient)
   +-- ResponseValidator            ai_modules/response_validator.py
   |     validates every raw reply against the reply schema
   |
-  +-- LLMClient  (abstract base class, the transport contract)
-        |-- ZaiLLMClient           real Z.ai OpenAI-compatible endpoint
-        |-- RetryableLLMClient     wraps ANY client, retries transient failures
-        +-- TestLLMClient          scripted replies for offline tests
+  +-- LLMClient                     ai_modules/llm_client.py
+        abstract base class, the transport contract
+        |-- ZaiLLMClient           ai_modules/zai_llm_client.py
+        |     real Z.ai OpenAI-compatible endpoint
+        |-- RetryableLLMClient     ai_modules/retryable_llm_client.py
+        |     wraps ANY client, retries transient failures
+        +-- TestLLMClient          ai_modules/test_llm_client.py
+              scripted replies for offline tests
 ```
 
 Design notes:

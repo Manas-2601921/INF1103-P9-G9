@@ -14,9 +14,11 @@ Its collaborators are composed in ``__init__``:
                          injected test client for offline runs)
 """
 
-from ai_modules.llm_client import LLMClient, RetryableLLMClient, ZaiLLMClient
+from ai_modules.llm_client import LLMClient
 from ai_modules.prompt_builder import PromptBuilder
 from ai_modules.response_validator import ResponseValidator
+from ai_modules.retryable_llm_client import RetryableLLMClient
+from ai_modules.zai_llm_client import ZaiLLMClient
 
 sample_record_json = {
   "record_id": "1",

@@ -17,7 +17,7 @@ import os
 import sys
 
 from ai_manager import AIManager
-from ai_modules.llm_client import TestLLMClient
+from ai_modules.test_llm_client import TestLLMClient
 from ai_modules.response_validator import ResponseValidator
 
 LIVE = "--live" in sys.argv
