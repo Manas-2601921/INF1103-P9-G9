@@ -119,6 +119,37 @@ class IOManager:
                 print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
                 continue
 
+    def collect_incident_details(self):
+        
+        self.incident_name = self.prompt_incident_name()
+        if self.incident_name == "quit":
+            return False
+
+        self.incident_description = self.prompt_description()
+        if self.incident_description == "quit":
+            return False
+
+        self.location = self.prompt_location()
+        if self.location == "quit":
+            return False
+
+        self.reporter_role = self.prompt_reporter_role()
+        if self.reporter_role == "quit":
+            return False
+
+        self.incident_datetime = self.prompt_incident_date_time()
+        if self.incident_datetime == "quit":
+            return False
+
+        self.injury_reported = self.prompt_injury_reported()
+        if self.injury_reported == "quit":
+            return False
+
+        self.immediate_action = self.prompt_immediate_action()
+        if self.immediate_action == "quit":
+            return False
+
+        return True
     
     @staticmethod
     def display_search_options():
