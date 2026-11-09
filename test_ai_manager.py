@@ -1,23 +1,24 @@
 """Test script for ai_manager: AI JSON validation and reprompting verified
 with valid, invalid and edge payloads.
 
-By default the AI connector is stubbed, so the script is fully offline
-(no API key, no network). Add --live to run the payload cases against the
-real Z.ai API instead (requires ZAI_KEY in .env); the reprompt section is
-skipped live because the AI's replies cannot be scripted.
+By default the AI manager is driven with an injected StubLLMClient, so the
+script is fully offline (no API key, no network). Add --live to run the
+payload cases against the real Z.ai API instead (requires ZAI_KEY in .env);
+the reprompt section is skipped live because the AI's replies cannot be
+scripted.
 
 Run with:
 
-    .venv/bin/python test_ai_manager.py
+    .venv/Scripts/python test_ai_manager.py
 """
 
 import json
 import os
 import sys
-from unittest.mock import patch
 
-from ai_modules import openai_connector
-from ai_modules.validate_ai_output import validate_ai_output
+from ai_manager import AIManager
+from ai_modules.llm_client import StubLLMClient
+from ai_modules.response_validator import ResponseValidator
 
 LIVE = "--live" in sys.argv
 
@@ -36,7 +37,7 @@ def check(name, ok, detail=""):
 
 
 def is_success(result):
-    """True when ai_manager returned (True, parsed analysis dict)."""
+    """True when the AI manager returned (True, parsed analysis dict)."""
     return (
         isinstance(result, tuple)
         and len(result) == 2
@@ -46,7 +47,7 @@ def is_success(result):
 
 
 def is_error(result, *substrings):
-    """True when ai_manager returned (None, message) containing the substrings."""
+    """True when the AI manager returned (None, message) containing the substrings."""
     return (
         isinstance(result, tuple)
         and len(result) == 2
@@ -105,24 +106,25 @@ def make_record(input_overrides=None):
 
 
 # ---------------------------------------------------------------------------
-# Stubbed AI connector (scripted replies, counted calls, last prompt kept)
+# Offline collaborators: a scripted stub client replaces the Z.ai client
+# (scripted replies, counted calls, last prompt kept)
 # ---------------------------------------------------------------------------
 
-state = {"replies": [], "calls": 0, "last_prompt": None}
-
-
-def fake_zai_connector(prompt):
-    state["calls"] += 1
-    state["last_prompt"] = prompt
-    if state["replies"]:
-        return state["replies"].pop(0)
-    return "STUB ERROR: no canned AI reply was queued for this test case"
+stub = StubLLMClient()
+validator = ResponseValidator()
 
 
 def queue_reply(*replies):
-    """Queue the replies the stubbed connector returns and reset its call count."""
-    state["replies"] = list(replies)
-    state["calls"] = 0
+    """Queue the replies the stub client returns and reset its call count."""
+    stub.queue(*replies)
+
+
+def make_manager():
+    """Build the AIManager under test: stubbed offline, real Z.ai live."""
+    if LIVE:
+        return AIManager()
+    # backoff_seconds 0 disables the retry waits so the suite stays fast
+    return AIManager(client=stub, backoff_seconds=0)
 
 
 # ---------------------------------------------------------------------------
@@ -131,22 +133,22 @@ def queue_reply(*replies):
 
 def test_reply_validation():
     print("\n--- [1] AI reply json validation ---")
-    parsed, problems = validate_ai_output(make_ai_reply())
+    parsed, problems = validator.validate(make_ai_reply())
     check("valid AI reply passes with no problems",
           parsed != {} and problems == [], f"got: {problems}")
 
-    parsed, problems = validate_ai_output("```json\n" + make_ai_reply() + "\n```")
+    parsed, problems = validator.validate("```json\n" + make_ai_reply() + "\n```")
     check("markdown fenced reply passes", problems == [], f"got: {problems}")
 
-    parsed, problems = validate_ai_output(make_ai_reply(severity="high"))
+    parsed, problems = validator.validate(make_ai_reply(severity="high"))
     check("string severity is rejected as a type error",
           any("must be a number" in p for p in problems), f"got: {problems}")
 
-    parsed, problems = validate_ai_output(make_ai_reply(confidence=1.5))
+    parsed, problems = validator.validate(make_ai_reply(confidence=1.5))
     check("confidence above 1.0 is rejected as out of range",
           any("between 0.0 and 1.0" in p for p in problems), f"got: {problems}")
 
-    parsed, problems = validate_ai_output(
+    parsed, problems = validator.validate(
         make_ai_reply(hazard_category="volcano", incident_type="collision"))
     check("invalid hazard category and incident type are both reported",
           any("hazard_category" in p for p in problems)
@@ -155,14 +157,14 @@ def test_reply_validation():
     broken = json.loads(make_ai_reply())
     del broken["supporting_phrase"]
     broken["indicators"]["injury"] = "yes"
-    parsed, problems = validate_ai_output(json.dumps(broken))
+    parsed, problems = validator.validate(json.dumps(broken))
     check("missing field and wrong-typed indicator are both reported",
           any("missing required field 'supporting_phrase'" in p for p in problems)
           and any("must be a boolean" in p for p in problems),
           f"got: {problems}")
 
     for payload in ("sorry, no json here", "[1, 2, 3]", "", None):
-        parsed, problems = validate_ai_output(payload)
+        parsed, problems = validator.validate(payload)
         check(f"edge payload {payload!r} is rejected with a single parse error",
               parsed == {} and len(problems) == 1, f"got: {problems}")
 
@@ -220,58 +222,50 @@ def test_invalid_payloads(run):
     for name, record, substrings in cases:
         queue_reply()
         result = run(record)
-        check(name, is_error(result, *substrings) and (LIVE or state["calls"] == 0),
+        check(name, is_error(result, *substrings) and (LIVE or stub.calls == 0),
               f"got: {result}")
 
 
 # ---------------------------------------------------------------------------
-# [4] reprompting on invalid AI replies (stubbed connector only)
+# [4] reprompting on invalid AI replies (stubbed client only)
 # ---------------------------------------------------------------------------
 
 def test_reprompting(run):
-    print("\n--- [4] reprompting on invalid AI replies (stubbed connector only) ---")
+    print("\n--- [4] reprompting on invalid AI replies (stubbed client only) ---")
 
     queue_reply(make_ai_reply(severity="high"), make_ai_reply())
     result = run(make_record())
-    retry_content = state["last_prompt"][1]["content"]
+    retry_content = stub.last_messages[1]["content"]
     check("invalid AI reply is reprompted with its violations, then succeeds",
-          is_success(result) and state["calls"] == 2
+          is_success(result) and stub.calls == 2
           and "Your previous reply was rejected" in retry_content
           and "must be a number" in retry_content,
-          f"got: {result} after {state['calls']} call(s)")
+          f"got: {result} after {stub.calls} call(s)")
 
     queue_reply("garbage", '{"severity": 0.5, "confidence": 2.0}', make_ai_reply())
     result = run(make_record())
     check("valid reply on the final attempt still succeeds",
-          is_success(result) and state["calls"] == 3,
-          f"got: {result} after {state['calls']} call(s)")
+          is_success(result) and stub.calls == 3,
+          f"got: {result} after {stub.calls} call(s)")
 
     queue_reply("garbage", "still garbage", '{"severity": "way too high"}')
     result = run(make_record())
     check("persistent invalid AI replies fail after 3 attempts",
-          is_error(result, "after 3 attempts") and state["calls"] == 3,
-          f"got: {result} after {state['calls']} call(s)")
+          is_error(result, "after 3 attempts") and stub.calls == 3,
+          f"got: {result} after {stub.calls} call(s)")
 
 
 def main():
     print("=" * 64)
-    print(f"ai_manager tests ({'LIVE Z.ai API' if LIVE else 'stubbed AI connector, offline'})")
+    print(f"ai_manager tests ({'LIVE Z.ai API' if LIVE else 'stubbed LLM client, offline'})")
     print("=" * 64)
 
-    if not LIVE:
-        # the connector now refuses to run without a key; supply a dummy
-        # value so the stubbed tests exercise the full retry/reprompt path
-        # even in containers or CI runners that have no .env file
-        os.environ.setdefault("ZAI_KEY", "stubbed-offline-test-key")
-        patch.object(openai_connector, "zai_connector", fake_zai_connector).start()
-
-    import ai_manager
+    run = make_manager().analyze
 
     if LIVE and not os.getenv("ZAI_KEY"):
         print("\nZAI_KEY is not set (add it to .env); cannot run the live tests")
         sys.exit(1)
 
-    run = ai_manager.ai_manager
     test_reply_validation()
     test_valid_payloads(run)
     test_invalid_payloads(run)

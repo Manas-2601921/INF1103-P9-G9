@@ -20,7 +20,10 @@ import io_manager as io
 # (viewing and searching stored incidents), so import failures are deferred
 # to the action that actually needs the AI.
 try:
-    import ai_manager
+    from ai_manager import AIManager
+    # One shared AI manager instance: it composes the prompt builder, the
+    # response validator and the Z.ai client behind the LLMClient interface.
+    ai_manager = AIManager()
 except ImportError as exc:
     ai_manager = None
     AI_IMPORT_ERROR = str(exc)
@@ -152,7 +155,7 @@ def analyse_incident(record: dict) -> dict:
             "run 'pip install -r requirements.txt' first"
         )
 
-    ok, ai_output = ai_manager.ai_manager(record)
+    ok, ai_output = ai_manager.analyze(record)
     if ok:
         return to_severity_band(ai_output)
 
