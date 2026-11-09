@@ -1,13 +1,7 @@
 from datetime import datetime
 import data_manager
 class IOManager:
-    # Constants for the different roles that can report an incident. The keys are the input values that the user can enter, and the values are the corresponding role names.
-    ROLE_OPTIONS = {
-        "1": "Employee", "employee": "Employee",
-        "2": "Supervisor", "supervisor": "Supervisor",
-        "3": "Manager", "manager": "Manager",
-        "4": "Client", "client": "Client"
-    }
+    
 
     def __init__(self, incident_name:str, incident_description:str, incident_datetime:datetime, incident_location:str, reporter_role:str, injury_reported:bool, immediate_action:str):
         self.incident_name = incident_name
@@ -28,6 +22,104 @@ class IOManager:
                 continue
             return newIncidentName
 
+    def prompt_incident_description(self):
+        while True:
+            newIncidentDescription = input("Enter the description of the incident (or type 'quit' to exit): ")
+            if newIncidentDescription.lower() == 'quit':
+                return "quit"
+            if not newIncidentDescription.strip():
+                print("Description cannot be empty. Please describe what happened.")
+                continue
+            return newIncidentDescription
+
+    def prompt_incident_datetime(self):
+        while True:
+            newIncidentDateTime = input("Enter the date and time of the incident (DD-MM-YYYY HH:MM) (or type 'quit' to exit):")
+            if newIncidentDateTime.lower() == 'quit':
+                return "quit"
+            elif newIncidentDateTime is None:
+                print("Invalid input. Please enter a valid incident date and time.")
+                continue
+            else:
+                try:
+                    newIncidentDateTime = datetime.strptime(newIncidentDateTime, "%d-%m-%Y %H:%M")
+                    return newIncidentDateTime
+                except ValueError:
+                    print("Invalid date and time format. Please enter the date and time in the format DD-MM-YYYY HH:MM.")
+                    continue
+
+    def prompt_incident_location(self):
+        while True:
+            newIncidentLocation = input(f"Enter the location of the incident (or type 'quit' to exit): " + "\nFor example: Warehouse, Office, Factory, etc.")
+    
+            if newIncidentLocation.lower() == 'quit':
+                return "quit"
+            if not newIncidentLocation.strip():
+                print("Location cannot be empty. Please enter where the incident happened.")
+                continue
+            return newIncidentLocation
+
+    # Constants for the different roles that can report an incident. The keys are the input values that the user can enter, and the values are the corresponding role names.
+    ROLE_OPTIONS = {
+        "1": "Employee", "employee": "Employee",
+        "2": "Supervisor", "supervisor": "Supervisor",
+        "3": "Manager", "manager": "Manager",
+        "4": "Client", "client": "Client"
+    }
+
+    def prompt_reporter_role(self):
+        print("\nSelect your role in the company:")
+        print("  1. Employee")
+        print("  2. Supervisor")
+        print("  3. Manager")
+        print("  4. Client")
+    
+        while True:
+            answer = input("Enter the option number or role name (or type 'quit' to exit): ").strip()
+    
+            if answer.lower() == 'quit':
+                return "quit"
+    
+            role = self.ROLE_OPTIONS.get(answer.lower())
+            if role:
+                return role
+    
+            print("Invalid input. Please enter a valid role.")
+
+    def prompt_injury_reported(self):
+        while True:
+            newIncidentInjuryReported = input("Was there any injury reported Y/N (or type 'quit' to exit): ")
+            if newIncidentInjuryReported.lower() == 'quit':
+                return "quit"
+            elif newIncidentInjuryReported.upper() == 'Y' or newIncidentInjuryReported.upper() == 'YES':
+                newIncidentInjuryReported = True
+                return newIncidentInjuryReported
+            elif newIncidentInjuryReported.upper() == 'N' or newIncidentInjuryReported.upper() == 'NO':
+                newIncidentInjuryReported = False
+                return newIncidentInjuryReported
+            else:
+                print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
+                continue
+
+    def prompt_immediate_action(self):
+        while True:
+            immediateAction = input("Was there any immediate action taken Y/N (or type 'quit' to exit): ")
+            if immediateAction.lower() == 'quit':
+                return "quit"
+            elif immediateAction.upper() == 'Y' or immediateAction.upper() == 'YES':
+                while True:
+                    newImmediateAction = input("Please describe the immediate action taken: ")
+                    if newImmediateAction.strip():
+                        return newImmediateAction
+                    print("Description cannot be empty. Please describe the action taken.")
+            elif immediateAction.upper() == 'N' or immediateAction.upper() == 'NO':
+                immediateAction = "No immediate action was taken"
+                return immediateAction
+            else:
+                print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
+                continue
+
+    
     @staticmethod
     def display_search_options():
         while True:
