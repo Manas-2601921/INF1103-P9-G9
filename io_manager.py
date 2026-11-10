@@ -201,6 +201,7 @@ def generate_incident_review(incident_id):
     print(f"{'Incident Type':<{LABEL_WIDTH}}{incident_record['ai']['incident_type']}")
     print(f"{'Explanation':<{LABEL_WIDTH}}{incident_record['ai']['severity_explanation']}")
     print(f"{'Review Status':<{LABEL_WIDTH}}{incident_record['logic']['final_queue']}")
+    print(f"{'Risk Score':<{LABEL_WIDTH}}{incident_record['logic'].get('risk_score')}")
  
     # section 3: only the risk indicators the AI flagged as True
     print("\nRisk Indicators")

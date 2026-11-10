@@ -6,6 +6,11 @@ import this module; pass collaborators into their constructors when needed.
 """
 
 from data_manager import DataManager
+from logic_manager import LogicManager
+
+
+data_manager = DataManager()
+logic_manager = LogicManager()
 
 
 data_manager = DataManager()

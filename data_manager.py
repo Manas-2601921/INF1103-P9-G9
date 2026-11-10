@@ -173,6 +173,35 @@ class DataManager:
                 
         return stored_record
 
+
+        temporary_path = None
+        try:
+            self._incidents_file.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                mode="wb", dir=self._incidents_file.parent,
+                prefix=f".{self._incidents_file.name}.", suffix=".tmp", delete=False,
+            ) as file:
+                temporary_path = Path(file.name)
+                file.write(content)
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temporary_path, self._incidents_file)
+
+        except (OSError, ValueError) as exc:
+            raise DataSaveError(
+                f"Cannot save incident database '{self._incidents_file}': {exc}"
+            ) from exc
+        
+        finally:
+            if temporary_path is not None:
+                try:
+                    temporary_path.unlink(missing_ok=True)
+                except OSError:
+                    # Cleanup must not hide the original storage failure.
+                    pass
+                
+        return stored_record
+
     def query(self, filter_fn):
         """Return stored records accepted by a predicate, in storage order.
 
@@ -194,6 +223,10 @@ class DataManager:
 
         Returns:
             list[dict]: Summaries containing the record ID, incident date, location,
+                description, hazard category, severity, final queue, escalation
+                status, and risk score. Missing fields use display defaults; a
+                missing escalation status or risk score is None. Returns an empty
+                list if no records are loaded.
                 description, hazard category, severity, final queue, and escalation
                 status. Missing fields use display defaults; a missing escalation
                 status is None. Returns an empty list if no records are loaded.
@@ -217,6 +250,7 @@ class DataManager:
 
                 "final_queue": logic.get("final_queue", "Unassigned"),
                 "escalation_required": logic.get("escalation_required"),
+                "risk_score": logic.get("risk_score"),
             })
 
         return summaries
