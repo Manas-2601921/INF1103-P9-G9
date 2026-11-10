@@ -42,3 +42,50 @@ Data Manager
   |
   v
 Stored Incident Record / Result
+
+---
+
+## AI Manager Architecture (object-oriented)
+
+The AI manager (`ai_manager.py`) is a class, `AIManager`, that orchestrates
+one incident analysis: validate the shared record, build the prompt, query
+the LLM, validate the reply and reprompt on schema violations.
+
+Its collaborators live in `ai_modules/`:
+
+```text
+AIManager  (composes PromptBuilder + ResponseValidator, uses one LLMClient)
+  |
+  +-- PromptBuilder                ai_modules/prompt_builder.py
+  |     builds analysis / retry chat prompts (owns the schema contract text)
+  |
+  +-- ResponseValidator            ai_modules/response_validator.py
+  |     validates every raw reply against the reply schema
+  |
+  +-- LLMClient                     ai_modules/llm_client.py
+        abstract base class, the transport contract
+        |-- ZaiLLMClient           ai_modules/zai_llm_client.py
+        |     real Z.ai OpenAI-compatible endpoint
+        |-- RetryableLLMClient     ai_modules/retryable_llm_client.py
+        |     wraps ANY client, retries transient failures
+        +-- TestLLMClient          ai_modules/test_llm_client.py
+              scripted replies for offline tests
+```
+
+Design notes:
+
+- `LLMClient` is an abstract base class (interface): `AIManager` and the
+  retry wrapper only call its `complete` method, so the real API and the
+  offline test client are interchangeable (polymorphism / LSP).
+- The prompt builder and response validator are created inside `AIManager`
+  (composition); the LLM client is supplied from outside (aggregation), so
+  tests inject a `TestLLMClient` and future backends can be added without
+  modifying the manager (OCP).
+- `RetryableLLMClient` is itself an `LLMClient`, so retry behaviour is added
+  to any backend by wrapping it (inheritance + decorator pattern).
+- Configuration (attempt limits, backoff) is passed via the `AIManager`
+  constructor; internals use `_`-prefixed private attributes and methods
+  (encapsulation).
+
+The test suite (`test_ai_manager.py`) runs fully offline by injecting the
+test client; `--live` switches to the real API.
