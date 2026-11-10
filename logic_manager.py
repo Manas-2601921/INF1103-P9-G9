@@ -102,11 +102,6 @@ class LogicManager:
         try:
             return datetime.strptime(date_str, "%d-%m-%Y")
         except ValueError:
-            pass
-        try:
-            # main.py stores incident datetimes as ISO strings
-            return datetime.fromisoformat(date_str)
-        except ValueError:
             return None
 
     @staticmethod
