@@ -18,7 +18,6 @@ managers.data_manager.save), update the matching function here.
 """
 
 import managers
-import logic_manager
 
 
 def to_severity_band(ai_output: dict) -> dict:

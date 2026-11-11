@@ -276,7 +276,7 @@ class LogicManagerDuplicateTests(unittest.TestCase):
 
 
 class LogicManagerTriageTests(unittest.TestCase):
-    """determine_final_status (the actual triage rules) and route()."""
+    """determine_final_status (the actual triage rules)."""
 
     def setUp(self):
         self.lm = LogicManager()
@@ -333,11 +333,6 @@ class LogicManagerTriageTests(unittest.TestCase):
     def test_nothing_special_is_routine_log(self):
         r = self.lm.determine_final_status(dummy_record(), dummy_ai(), [])
         self.assertEqual(r["final_queue"], self.lm.status_routine_log)
-
-    def test_route_returns_the_queue_string(self):
-        """route() is just a wrapper around determine_final_status that
-        returns the queue name."""
-        self.assertEqual(self.lm.route(dummy_record(), dummy_ai(), []), self.lm.status_routine_log)
 
 
 class LogicManagerScoreTests(unittest.TestCase):

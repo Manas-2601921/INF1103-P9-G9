@@ -203,7 +203,7 @@ class LogicManager:
             base += 1
         return base
 
-    def evaluate(self, record, ai_output, history, reference_date=None):
+    def determine_final_status(self, record, ai_output, history, reference_date=None):
         """The main triage call. Checks the rules in order - invalid AI
         output, reporter/AI contradiction, high severity fire/electrical,
         injury/danger override, then recurrence - and routes to the first
@@ -269,8 +269,3 @@ class LogicManager:
             "supporting_phrase": ai_output.get("supporting_phrase"),
         }
 
-    def route(self, record, ai_output, history, reference_date=None):
-        """Same as evaluate() but just gives back the queue name."""
-        return self.evaluate(record, ai_output, history, reference_date)["final_queue"]
-
-    determine_final_status = evaluate
