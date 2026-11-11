@@ -269,3 +269,8 @@ class LogicManager:
             "supporting_phrase": ai_output.get("supporting_phrase"),
         }
 
+    def route(self, record, ai_output, history, reference_date=None):
+        """Same as determine_final_status() but just gives back the queue
+        name - for callers (e.g. a pre-save preview) that only need to know
+        where an incident would land, not the full triage breakdown."""
+        return self.determine_final_status(record, ai_output, history, reference_date)["final_queue"]

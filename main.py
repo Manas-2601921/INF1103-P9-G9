@@ -187,6 +187,25 @@ def print_triage_summary(logic_result: dict) -> None:
     print("Supporting Phrase    : ", logic_result.get("supporting_phrase"))
 
 
+def confirm_save(final_queue: str) -> bool:
+    """Ask the user to confirm saving the incident after previewing its
+    triage queue. Treats blank/invalid input as 'yes' only for 'Y'/'YES'.
+
+    Args:
+        final_queue: the queue name produced by LogicManager.route().
+
+    Returns:
+        True if the user confirmed, False if they declined or cancelled.
+    """
+    print(f"\nThis incident would be routed to: {final_queue}")
+    try:
+        answer = input("Save this incident? Y/N: ").strip().upper()
+    except (EOFError, KeyboardInterrupt):
+        print("\nSave cancelled.")
+        return False
+    return answer in ("Y", "YES")
+
+
 def report_new_incident() -> None:
     """Collect, analyse, triage and store one new incident report."""
     record_input = collect_incident_input()
@@ -197,6 +216,12 @@ def report_new_incident() -> None:
     record = {"record_id": "", "input": record_input}
     ai_output = analyse_incident(record)
     history = managers.data_manager.load()
+
+    previewed_queue = managers.logic_manager.route(record_input, ai_output, history)
+    if not confirm_save(previewed_queue):
+        print("Incident report cancelled - nothing was saved.")
+        return
+
     logic_result = managers.logic_manager.determine_final_status(
         record_input, ai_output, history
     )
