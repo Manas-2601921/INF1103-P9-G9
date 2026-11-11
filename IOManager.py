@@ -1,5 +1,5 @@
 from datetime import datetime
-import data_manager
+import managers
 class IOManager:
     
 
@@ -371,7 +371,7 @@ class IOManager:
         
     @staticmethod
     def find_by_title(incident_title:str):
-        results = data_manager.query(
+        results = managers.data_manager.query(
             lambda record: (record.get("input", {}).get("incident_name") or "").strip().lower() == incident_title.strip().lower()
         )
         if results != None or []:
@@ -381,7 +381,7 @@ class IOManager:
 
     @staticmethod
     def find_by_category(incident_category:str):
-        results = data_manager.query(
+        results = managers.data_manager.query(
             lambda record: (record.get("ai", {}).get("hazard_category") or "").strip().lower() == incident_category.strip().lower()
         )
         if results != None or []:
@@ -393,7 +393,7 @@ class IOManager:
     def get_all_incident_categories():
         incident_categories = sorted({
             (record.get("ai", {}).get("hazard_category") or "").strip()
-                for record in data_manager.query(lambda record: True)
+                for record in managers.data_manager.query(lambda record: True)
                 if (record.get("ai", {}).get("hazard_category") or "").strip()
         })
         if(incident_categories):
@@ -402,7 +402,7 @@ class IOManager:
             return False
     @staticmethod
     def find_by_datetime_range(start_datetime:datetime, end_datetime:datetime):
-        search_results = data_manager.query(
+        search_results = managers.data_manager.query(
             lambda record: start_datetime <= (record.get("input", {}).get("incident_datetime") or "") <= end_datetime
         )
         if not search_results:
@@ -411,7 +411,7 @@ class IOManager:
 
     @staticmethod
     def find_by_specific_datetime(specific_datetime:datetime):
-        search_results = data_manager.query(
+        search_results = managers.data_manager.query(
             lambda record: record.get("input", {}).get("incident_datetime") == specific_datetime
         )
         if not search_results:

@@ -15,6 +15,10 @@ instead of crashing the application.
 import managers
 import io_manager as io
 from IOManager import IOManager
+from dashboard.incident import Incident
+from dashboard.input_section import InputSection
+from dashboard.ai_section import AISection
+from dashboard.logic_section import LogicSection
 
 # The AI stack needs the `openai` package. The menu still works without it
 # (viewing and searching stored incidents), so import failures are deferred
@@ -212,14 +216,17 @@ def confirm_save(final_queue: str) -> bool:
 
 def report_new_incident() -> None:
     """Collect, analyse, triage and store one new incident report."""
+    incident = Incident()
     record_input = collect_incident_input()
     if record_input is None:
         print("Incident report cancelled - nothing was saved.")
         return
 
+    incident.input_section = InputSection.from_dict(record_input)
     record = {"record_id": "", "input": record_input}
     ai_output = analyse_incident(record)
-    history = managers.data_manager.load()
+    incident.ai_section = AISection.from_dict(ai_output)
+    history = [item.to_dict() for item in managers.data_manager.load()]
 
     previewed_queue = managers.logic_manager.route(record_input, ai_output, history)
     if not confirm_save(previewed_queue):
@@ -229,7 +236,8 @@ def report_new_incident() -> None:
     logic_result = managers.logic_manager.determine_final_status(
         record_input, ai_output, history
     )
-    managers.data_manager.save({"input": record_input, "ai": ai_output, "logic": logic_result})
+    incident.logic_section = LogicSection.from_dict(logic_result)
+    managers.data_manager.save(incident)
     print_triage_summary(logic_result)
 
 
@@ -275,7 +283,7 @@ def run_action(action) -> None:
 def main() -> None:
     """Run the main menu loop until the user chooses to exit."""
     print(f"Welcome to the {MENU_TITLE.title()}.")
-    print("A new database file is created automatically if none exists yet.")
+    print("SQLite storage must be initialized with: python -m flask --app app init-db")
 
     while True:
         print_menu()

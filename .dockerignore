@@ -13,3 +13,7 @@ __pycache__
 Engineering Report
 docker-image
 submission-zip
+tmp/
+*.db
+*.db-wal
+*.db-shm

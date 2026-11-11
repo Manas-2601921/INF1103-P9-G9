@@ -841,17 +841,31 @@ def run_case(case):
 
     # fresh temp database per case, seeded with history when requested
     with tempfile.TemporaryDirectory() as temp_dir:
-        db = Path(temp_dir) / "incidents.json"
-        if case_input.get("history"):
-            db.write_text(json.dumps([build_history_entry(h) for h in case_input["history"]],
-                                     ensure_ascii=False), "utf-8")
+        from dashboard import create_app
+        from dashboard.config import TestConfig
+        from dashboard.extensions import db
+        from dashboard.incident import Incident
 
-        ai_reply = ((False, case_input["ai_refuses"]) if case_input.get("ai_refuses")
-                    else case_input["ai"])
-        with patch.object(managers, "data_manager", DataManager(db)):
-            run_pipeline(ai_reply, case_input.get("report") or {})
+        class Config(TestConfig):
+            SQLALCHEMY_DATABASE_URI = "sqlite:///" + (Path(temp_dir) / "incidents.db").as_posix()
 
-        records = json.loads(db.read_text(encoding="utf-8")) if db.exists() else []
+        app = create_app(Config)
+        assert app.test_cli_runner().invoke(args=["init-db"]).exit_code == 0
+        manager = DataManager(app)
+        try:
+            with app.app_context():
+                for h in case_input.get("history") or []:
+                    db.session.add(Incident.from_dict(build_history_entry(h)).convert_to_db_model())
+                db.session.commit()
+            ai_reply = ((False, case_input["ai_refuses"]) if case_input.get("ai_refuses")
+                        else case_input["ai"])
+            with patch.object(managers, "data_manager", manager):
+                run_pipeline(ai_reply, case_input.get("report") or {})
+            records = [incident.to_dict() for incident in manager.load()]
+        finally:
+            with app.app_context():
+                db.session.remove()
+                db.engine.dispose()
     actual = actual_of(records) if records else {}
 
     mismatches = []
