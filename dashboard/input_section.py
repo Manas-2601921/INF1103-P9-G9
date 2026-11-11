@@ -12,18 +12,16 @@ class InputSection(SectionObject):
 
     Wraps the record's ``input`` dictionary: incident_name, description,
     location, reporter_role, incident_datetime, injury_reported and
-    immediate_action. All seven keys are required and known, so a partial
-    dictionary (a legacy seed) still loads but ``validate()`` reports the
-    keys it is missing.
+    immediate_action. All seven keys are known, so excess keys are dropped
+    while a partial dictionary (a legacy seed) still loads as-is.
     """
 
     manager_json: dict = field(default_factory=dict)
 
-    REQUIRED_KEYS: ClassVar[tuple[str, ...]] = (
+    KNOWN_KEYS: ClassVar[tuple[str, ...]] = (
         "incident_name", "description", "location", "reporter_role",
         "incident_datetime", "injury_reported", "immediate_action",
     )
-    KNOWN_KEYS: ClassVar[tuple[str, ...]] = REQUIRED_KEYS
 
     @classmethod
     def from_dict(cls, data: dict) -> "InputSection":

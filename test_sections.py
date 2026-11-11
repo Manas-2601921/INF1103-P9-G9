@@ -1,8 +1,10 @@
-"""Test script for the dashboard section objects: declared key schemas,
-excess-key dropping and blank/missing validation.
+"""Test script for the dashboard section objects: declared known-key
+schemas, excess-key dropping and tolerance of partial or empty data.
 
 Fully offline — the sections are plain wrapper objects with no API, no
-database and no Flask app involved.
+database and no Flask app involved. Missing or blank values are the
+managers' responsibility; the sections only filter excess keys and
+round-trip what they are given.
 
 Run with:
 
@@ -29,7 +31,7 @@ def check(name, ok, detail=""):
 
 
 # ---------------------------------------------------------------------------
-# Hardcoded sample manager dictionaries (the declared key schemas)
+# Hardcoded sample manager dictionaries (the declared known-key schemas)
 # ---------------------------------------------------------------------------
 
 def make_input(**overrides):
@@ -100,27 +102,28 @@ def test_interface():
               isinstance(section, SectionObject)
               and issubclass(cls, SectionObject)
               and callable(getattr(section, "to_dict", None))
-              and callable(getattr(section, "validate", None)))
+              and callable(getattr(cls, "from_dict", None)))
 
 
 # ---------------------------------------------------------------------------
-# [2] valid sections validate clean
+# [2] known keys round-trip verbatim
 # ---------------------------------------------------------------------------
 
-def test_valid_sections():
-    print("\n--- [2] valid sections validate clean ---")
-    check("a complete InputSection validates clean",
-          InputSection.from_dict(make_input()).validate() == [],
-          f"got: {InputSection.from_dict(make_input()).validate()}")
+def test_verbatim_round_trips():
+    print("\n--- [2] known keys round-trip verbatim ---")
+    check("InputSection round-trips the input dictionary exactly",
+          InputSection.from_dict(make_input()).to_dict() == make_input(),
+          f"got: {InputSection.from_dict(make_input()).to_dict()}")
 
-    ai_section = AISection.from_dict(make_ai())
-    check("a complete AISection validates clean",
-          ai_section.validate() == [], f"got: {ai_section.validate()}")
+    check("AISection round-trips the ai dictionary exactly "
+          "(optional severity_score included)",
+          AISection.from_dict(make_ai()).to_dict() == make_ai(),
+          f"got: {AISection.from_dict(make_ai()).to_dict()}")
 
-    logic_section = LogicSection.from_dict(make_logic())
-    check("a complete LogicSection validates clean "
-          "(False and 0 are real values, not blanks)",
-          logic_section.validate() == [], f"got: {logic_section.validate()}")
+    check("LogicSection round-trips the logic dictionary exactly "
+          "(False and 0 values survive)",
+          LogicSection.from_dict(make_logic()).to_dict() == make_logic(),
+          f"got: {LogicSection.from_dict(make_logic()).to_dict()}")
 
 
 # ---------------------------------------------------------------------------
@@ -152,72 +155,52 @@ def test_excess_keys_dropped():
 
 
 # ---------------------------------------------------------------------------
-# [4] blank and missing required keys are reported by validate()
+# [4] partial and empty data never raise
 # ---------------------------------------------------------------------------
 
-def test_blank_and_missing():
-    print("\n--- [4] blank and missing required keys reported ---")
+def test_partial_and_empty_data():
+    print("\n--- [4] partial and empty data never raise ---")
     partial = InputSection.from_dict(
         {k: v for k, v in make_input().items() if k != "description"})
-    problems = partial.validate()
-    check("a missing required key is reported with its name",
-          len(problems) == 1 and "required key 'description'" in problems[0],
-          f"got: {problems}")
+    check("a partial dictionary loads with the missing key simply absent",
+          "description" not in partial.manager_json
+          and partial.manager_json.get("location") == "Warehouse",
+          f"got: {partial.manager_json}")
 
-    for value, label in (("", "empty string"), ("   ", "whitespace-only string"),
-                         (None, "None value")):
-        section = InputSection.from_dict(make_input(location=value))
-        problems = section.validate()
-        check(f"a {label} for a required key is reported",
-              len(problems) == 1 and "required key 'location'" in problems[0],
-              f"got: {problems}")
+    blank = InputSection.from_dict(make_input(location="", reporter_role=None))
+    check("blank values are stored verbatim, not rejected",
+          blank.manager_json["location"] == "" and blank.manager_json["reporter_role"] is None,
+          f"got: {blank.manager_json}")
 
-    section = AISection.from_dict(make_ai(indicators={}))
-    problems = section.validate()
-    check("an empty dictionary for a required key is reported",
-          len(problems) == 1 and "required key 'indicators'" in problems[0],
-          f"got: {problems}")
-
-    empty = InputSection.from_dict(None)
-    check("from_dict(None) still loads an empty section without raising",
-          empty.manager_json == {} and len(empty.validate()) == 7,
-          f"got: {empty.manager_json} / {empty.validate()}")
+    for cls in (InputSection, AISection, LogicSection):
+        empty = cls.from_dict(None)
+        check(f"{cls.__name__}.from_dict(None) loads an empty section without raising",
+              empty.manager_json == {}, f"got: {empty.manager_json}")
 
 
 # ---------------------------------------------------------------------------
-# [5] the manual-review stub is an alternative valid shape
+# [5] the manual-review stub serialises to exactly its keys
 # ---------------------------------------------------------------------------
 
 def test_stub_shape():
-    print("\n--- [5] manual-review stub tolerance ---")
+    print("\n--- [5] manual-review stub serialisation ---")
     stub_data = {"repeat_pattern_indicators": {"datetime": "22-01-2026 13:10"},
                  "ai_error": "AI output failed schema validation after 3 attempts"}
     stub = AISection.from_dict(stub_data)
-    check("the failure stub validates clean instead of the full schema",
-          stub.validate() == [], f"got: {stub.validate()}")
-    check("the stub serialises to exactly the keys it holds",
+    check("the failure stub serialises to exactly the keys it holds",
           stub.to_dict() == stub_data, f"got: {stub.to_dict()}")
 
-    stub_with_blank = AISection.from_dict(
-        {"repeat_pattern_indicators": {}, "ai_error": "failed"})
-    check("a blank key inside the stub is still reported",
-          len(stub_with_blank.validate()) == 1
-          and "repeat_pattern_indicators" in stub_with_blank.validate()[0],
-          f"got: {stub_with_blank.validate()}")
-
-    direct = AISection(manager_json=dict(stub_data, weather="raining"))
-    problems = direct.validate()
-    check("excess keys built without from_dict are reported by validate()",
-          len(problems) == 1 and "unexpected key(s): weather" in problems[0],
-          f"got: {problems}")
+    stub_noisy = AISection.from_dict(dict(stub_data, weather="raining"))
+    check("excess keys are dropped from the stub like from any ai dictionary",
+          stub_noisy.to_dict() == stub_data, f"got: {stub_noisy.to_dict()}")
 
 
 # ---------------------------------------------------------------------------
-# [6] copy semantics and round trips
+# [6] copy semantics
 # ---------------------------------------------------------------------------
 
-def test_round_trips():
-    print("\n--- [6] copy semantics and round trips ---")
+def test_copy_semantics():
+    print("\n--- [6] copy semantics ---")
     ai = make_ai()
     section = AISection.from_dict(ai)
     returned = section.to_dict()
@@ -238,11 +221,11 @@ def main():
     print("=" * 64)
 
     test_interface()
-    test_valid_sections()
+    test_verbatim_round_trips()
     test_excess_keys_dropped()
-    test_blank_and_missing()
+    test_partial_and_empty_data()
     test_stub_shape()
-    test_round_trips()
+    test_copy_semantics()
 
     print("\n" + "=" * 64)
     print(f"Results: {passed} passed, {failed} failed")

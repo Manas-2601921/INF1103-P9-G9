@@ -12,18 +12,16 @@ class LogicSection(SectionObject):
 
     Wraps the record's ``logic`` dictionary: final_queue,
     escalation_required, recurring, duplicate_possible, risk_score,
-    rule_applied, ai_explanation and supporting_phrase. All eight keys are
-    required and known; ``False`` and ``0`` values (e.g. risk_score 0) are
-    real values, not blanks.
+    rule_applied, ai_explanation and supporting_phrase. ``False`` and ``0``
+    values (e.g. risk_score 0) are stored verbatim like any other value.
     """
 
     manager_json: dict = field(default_factory=dict)
 
-    REQUIRED_KEYS: ClassVar[tuple[str, ...]] = (
+    KNOWN_KEYS: ClassVar[tuple[str, ...]] = (
         "final_queue", "escalation_required", "recurring", "duplicate_possible",
         "risk_score", "rule_applied", "ai_explanation", "supporting_phrase",
     )
-    KNOWN_KEYS: ClassVar[tuple[str, ...]] = REQUIRED_KEYS
 
     @classmethod
     def from_dict(cls, data: dict) -> "LogicSection":
