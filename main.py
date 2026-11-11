@@ -239,17 +239,18 @@ def view_stored_incidents() -> None:
     print_stored_incident_summaries(summaries)
 
 
-def search_by_category() -> None:
+def search_by_category(io:IOManager) -> None:
+    #io = IOManager(None,None,None,None,None,None,None)
     """Show the incident summaries based on different categories"""
     while True:
-        search_option = IOManager.display_search_options()
+        search_option = io.display_search_options()
         if search_option == "quit":
             break
         else:
-            search_result = IOManager.handle_search_option(search_option)
+            search_result = io.handle_search_option(search_option)
             if search_result == "quit":
                 continue
-            IOManager.display_search_results(search_result[0], search_result[1])
+            io.display_search_results(search_result[0], search_result[1])
     
 
     # search_options = io.handle_search_options()
@@ -264,6 +265,7 @@ def run_action(action) -> None:
         action: a zero-argument callable.
     """
     try:
+        
         action()
     except (EOFError, KeyboardInterrupt):
         print("\nAction cancelled - returning to the menu.")
@@ -290,7 +292,7 @@ def main() -> None:
         elif choice == "2":
             run_action(view_stored_incidents)
         elif choice == "3":
-            run_action(search_by_category)
+            run_action(lambda:search_by_category(managers.io_manager))
         elif choice == "4":
             print("Goodbye!")
             return

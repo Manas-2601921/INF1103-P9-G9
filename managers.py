@@ -7,7 +7,9 @@ import this module; pass collaborators into their constructors when needed.
 
 from data_manager import DataManager
 from logic_manager import LogicManager
+from IOManager import IOManager
 
 
 data_manager = DataManager()
 logic_manager = LogicManager()
+io_manager = IOManager()
