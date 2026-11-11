@@ -3,14 +3,14 @@ from data_manager import DataManager
 class IOManager:
     
 
-    def __init__(self, incident_name:str, incident_description:str, incident_datetime:datetime, incident_location:str, reporter_role:str, injury_reported:bool, immediate_action:str):
-        self.incident_name = incident_name
-        self.incident_description = incident_description
-        self.incident_datetime = incident_datetime
-        self.location = incident_location
-        self.reporter_role = reporter_role
-        self.injury_reported = injury_reported
-        self.immediate_action = immediate_action
+    def __init__(self):
+        self.incident_name = None
+        self.incident_description = None
+        self.incident_datetime = None
+        self.location = None
+        self.reporter_role = None
+        self.injury_reported = None
+        self.immediate_action = None
         self.__data_manager = DataManager()
 
     def prompt_incident_name(self):
@@ -127,11 +127,11 @@ class IOManager:
         if self.incident_name == "quit":
             return False
 
-        self.incident_description = self.prompt_description()
+        self.incident_description = self.prompt_incident_description()
         if self.incident_description == "quit":
             return False
 
-        self.location = self.prompt_location()
+        self.location = self.prompt_incident_location()
         if self.location == "quit":
             return False
 
@@ -139,7 +139,7 @@ class IOManager:
         if self.reporter_role == "quit":
             return False
 
-        self.incident_datetime = self.prompt_incident_date_time()
+        self.incident_datetime = self.prompt_incident_datetime()
         if self.incident_datetime == "quit":
             return False
 
