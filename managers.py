@@ -12,4 +12,4 @@ from IOManager import IOManager
 
 data_manager = DataManager()
 logic_manager = LogicManager()
-io_manager = IOManager(None,None,None,None,None,None,None)
+io_manager = IOManager()
