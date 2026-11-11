@@ -4,15 +4,43 @@ class IOManager:
     
 
     def __init__(self):
-        self.incident_name = None
-        self.incident_description = None
-        self.incident_datetime = None
-        self.location = None
-        self.reporter_role = None
-        self.injury_reported = None
-        self.immediate_action = None
+        self.__incident_name = None
+        self.__incident_description = None
+        self.__incident_datetime = None
+        self.__location = None
+        self.__reporter_role = None
+        self.__injury_reported = None
+        self.__immediate_action = None
         self.__data_manager = DataManager()
 
+    @property
+    def incident_name(self):
+        return self.__incident_name
+
+    @property
+    def incident_description(self):
+        return self.__incident_description
+
+    @property
+    def incident_datetime(self):
+        return self.__incident_datetime
+
+    @property
+    def location(self):
+        return self.__location
+
+    @property
+    def reporter_role(self):
+        return self.__reporter_role
+
+    @property
+    def injury_reported(self):
+        return self.__injury_reported
+
+    @property
+    def immediate_action(self):
+        return self.__immediate_action
+    
     def prompt_incident_name(self):
         while True:
             newIncidentName = input("Enter the name of the incident (or type 'quit' to exit): ")
@@ -123,52 +151,50 @@ class IOManager:
     # function to collect all the incident details from the user and store them in the class attributes. If the user types "quit" at any point, the function will return False to indicate that the process was aborted.
     def collect_incident_details(self):
         
-        self.incident_name = self.prompt_incident_name()
-        if self.incident_name == "quit":
+        self.__incident_name = self.prompt_incident_name()
+        if self.__incident_name == "quit":
             return False
 
-        self.incident_description = self.prompt_incident_description()
-        if self.incident_description == "quit":
+        self.__incident_description = self.prompt_incident_description()
+        if self.__incident_description == "quit":
             return False
 
-        self.location = self.prompt_incident_location()
-        if self.location == "quit":
+        self.__location = self.prompt_incident_location()
+        if self.__location == "quit":
             return False
 
-        self.reporter_role = self.prompt_reporter_role()
-        if self.reporter_role == "quit":
+        self.__reporter_role = self.prompt_reporter_role()
+        if self.__reporter_role == "quit":
             return False
 
-        self.incident_datetime = self.prompt_incident_datetime()
-        if self.incident_datetime == "quit":
+        self.__incident_datetime = self.prompt_incident_datetime()
+        if self.__incident_datetime == "quit":
             return False
 
-        self.injury_reported = self.prompt_injury_reported()
-        if self.injury_reported == "quit":
+        self.__injury_reported = self.prompt_injury_reported()
+        if self.__injury_reported == "quit":
             return False
 
-        self.immediate_action = self.prompt_immediate_action()
-        if self.immediate_action == "quit":
+        self.__immediate_action = self.prompt_immediate_action()
+        if self.__immediate_action == "quit":
             return False
 
         return True
 
     # To be added into main.py
-    # Create an IOManager object
-    # io_manager = IOManager()
 
     # # Collect all incident information
-    # if io_manager.collect_incident_details():
+    # if managers.io_manager.collect_incident_details():
 
     #     print("\nIncident information collected successfully!")
 
-    #     print(io_manager.incident_name)
-    #     print(io_manager.incident_description)
-    #     print(io_manager.location)
-    #     print(io_manager.reporter_role)
-    #     print(io_manager.incident_datetime)
-    #     print(io_manager.injury_reported)
-    #     print(io_manager.immediate_action)
+    #     print(managers.io_manager.incident_name)
+    #     print(managers.io_manager.incident_description)
+    #     print(managers.io_manager.location)
+    #     print(managers.io_manager.reporter_role)
+    #     print(managers.io_manager.incident_datetime)
+    #     print(managers.io_manager.injury_reported)
+    #     print(managers.io_manager.immediate_action)
 
     # else:
     #     print("Incident reporting cancelled.")
