@@ -336,7 +336,7 @@ class LogicManagerTriageTests(unittest.TestCase):
 
     def test_route_returns_the_queue_string(self):
         """route() is just a wrapper around determine_final_status that
-        returns the queue name."""
+        returns the queue name - used for main.py's pre-save preview."""
         self.assertEqual(self.lm.route(dummy_record(), dummy_ai(), []), self.lm.status_routine_log)
 
 

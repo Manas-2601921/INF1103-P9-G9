@@ -198,7 +198,7 @@ class LogicManager:
             base += 1
         return base
 
-    def evaluate(self, record, ai_output, history, reference_date=None):
+    def determine_final_status(self, record, ai_output, history, reference_date=None):
         """The main triage call. Checks the rules in order - invalid AI
         output, reporter/AI contradiction, high severity fire/electrical,
         injury/danger override, then recurrence - and routes to the first
@@ -265,7 +265,7 @@ class LogicManager:
         }
 
     def route(self, record, ai_output, history, reference_date=None):
-        """Same as evaluate() but just gives back the queue name."""
-        return self.evaluate(record, ai_output, history, reference_date)["final_queue"]
-
-    determine_final_status = evaluate
+        """Same as determine_final_status() but just gives back the queue
+        name - for callers (e.g. a pre-save preview) that only need to know
+        where an incident would land, not the full triage breakdown."""
+        return self.determine_final_status(record, ai_output, history, reference_date)["final_queue"]
