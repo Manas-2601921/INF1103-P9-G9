@@ -1,28 +1,26 @@
 """The logic manager's triage decision for one incident."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from dashboard.section_object import SectionObject
 
 
 @dataclass
 class LogicSection(SectionObject):
-    """The logic manager's triage decision for one incident."""
+    """The logic manager's triage decision for one incident.
 
-    final_queue: str | None = None
-    escalation_required: bool | None = None
-    recurring: bool | None = None
-    duplicate_possible: bool | None = None
-    risk_score: int | None = None
-    rule_applied: str | None = None
-    ai_explanation: str | None = None
-    supporting_phrase: str | None = None
+    Wraps the record's ``logic`` dictionary: final_queue,
+    escalation_required, recurring, duplicate_possible, risk_score,
+    rule_applied, ai_explanation and supporting_phrase.
+    """
+
+    manager_json: dict = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict) -> "LogicSection":
-        """Build a LogicSection from the record's logic dictionary."""
-        return cls(**cls._filter_known(data))
+        """Wrap the record's logic dictionary into a LogicSection."""
+        return cls(manager_json=dict(data or {}))
 
     def to_dict(self) -> dict:
-        """Return the logic fields that are set."""
-        return self._without_unset()
+        """Return a copy of the wrapped logic dictionary."""
+        return dict(self.manager_json)

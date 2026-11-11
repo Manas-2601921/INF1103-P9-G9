@@ -9,28 +9,22 @@ from dashboard.section_object import SectionObject
 class AISection(SectionObject):
     """The AI manager's analysis of one incident.
 
-    Tolerates partial data: the manual-review failure stub carries only
-    ``repeat_pattern_indicators`` and ``ai_error``, and ``to_dict`` drops
-    unset fields so a stub serialises to exactly what it holds.
+    Wraps the record's ``ai`` dictionary: severity, confidence,
+    severity_explanation, hazard_category, incident_type, indicators,
+    repeat_pattern_indicators, recommended_immediate_action and
+    supporting_phrase. The AI manager adds the banded severity plus the raw
+    ``severity_score``, and the manual-review failure stub carries only
+    ``repeat_pattern_indicators`` and ``ai_error`` — storing the dictionary
+    verbatim keeps a stub serialising to exactly the keys it holds.
     """
 
-    severity: float | str | None = None
-    confidence: float | None = None
-    severity_explanation: str | None = None
-    hazard_category: str | None = None
-    incident_type: str | None = None
-    indicators: dict = field(default_factory=dict)
-    repeat_pattern_indicators: dict = field(default_factory=dict)
-    recommended_immediate_action: str | None = None
-    supporting_phrase: str | None = None
-    severity_score: float | None = None
-    ai_error: str | None = None
+    manager_json: dict = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict) -> "AISection":
-        """Build an AISection from the record's ai dictionary."""
-        return cls(**cls._filter_known(data))
+        """Wrap the record's ai dictionary into an AISection."""
+        return cls(manager_json=dict(data or {}))
 
     def to_dict(self) -> dict:
-        """Return the AI fields that are set."""
-        return self._without_unset()
+        """Return a copy of the wrapped ai dictionary."""
+        return dict(self.manager_json)
