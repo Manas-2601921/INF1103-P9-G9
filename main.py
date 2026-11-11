@@ -13,8 +13,7 @@ instead of crashing the application.
 """
 
 import managers
-import io_manager as io
-from IOManager import IOManager
+#import io_manager as io
 
 # The AI stack needs the `openai` package. The menu still works without it
 # (viewing and searching stored incidents), so import failures are deferred
@@ -77,26 +76,8 @@ def collect_incident_input() -> dict | None:
         user cancelled by typing 'quit' or interrupting the prompts.
     """
     try:
-        incident_name = io.prompt_incident_name()
-        if incident_name == "quit":
-            return None
-        description = io.prompt_description()
-        if description == "quit":
-            return None
-        location = io.prompt_location()
-        if location == "quit":
-            return None
-        reporter_role = io.prompt_reporter_role()
-        if reporter_role == "quit":
-            return None
-        incident_datetime = io.prompt_incident_date_time()
-        if incident_datetime == "quit":
-            return None
-        injury_reported = io.prompt_injury_reported()
-        if injury_reported == "quit":
-            return None
-        immediate_action = io.prompt_immediate_action()
-        if immediate_action == "quit":
+        result_collect_incident_details = managers.io_manager.collect_incident_details()
+        if not result_collect_incident_details:
             return None
     except (EOFError, KeyboardInterrupt):
         print("\nIncident report cancelled.")
@@ -105,13 +86,13 @@ def collect_incident_input() -> dict | None:
     # prompt_incident_date_time returns a datetime object; the shared record
     # stores an ISO string so the logic rules and the data file agree.
     return {
-        "incident_name": incident_name,
-        "description": description,
-        "location": location,
-        "reporter_role": reporter_role,
-        "incident_datetime": incident_datetime.isoformat(timespec="seconds"),
-        "injury_reported": injury_reported,
-        "immediate_action": immediate_action,
+        "incident_name": managers.io_manager.incident_name,
+        "description": managers.io_manager.incident_description,
+        "location": managers.io_manager.location,
+        "reporter_role": managers.io_manager.reporter_role,
+        "incident_datetime": managers.io_manager.incident_datetime.isoformat(timespec="seconds"),
+        "injury_reported": managers.io_manager.injury_reported,
+        "immediate_action": managers.io_manager.immediate_action,
     }
 
 
@@ -213,7 +194,9 @@ def confirm_save(final_queue: str) -> bool:
 def report_new_incident() -> None:
     """Collect, analyse, triage and store one new incident report."""
     record_input = collect_incident_input()
-    if record_input is None:
+    record_input_obj = managers.input_section.from_dict(record_input)
+    
+    if record_input_obj is None:
         print("Incident report cancelled - nothing was saved.")
         return
 
