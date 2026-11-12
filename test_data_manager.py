@@ -32,16 +32,16 @@ class DataManagerTests(unittest.TestCase):
         self.assertIsNone(incident.logic_section)
         self.assertIsNone(incident.to_dict()["input"])
         for section_name, section in (
-            ("input_section", InputSection(description="Report")),
-            ("ai_section", AISection(ai_error="Unavailable")),
-            ("logic_section", LogicSection(final_queue="Manual Review")),
+            ("input_section", InputSection.from_dict({"description": "Report"})),
+            ("ai_section", AISection.from_dict({"ai_error": "Unavailable"})),
+            ("logic_section", LogicSection.from_dict({"final_queue": "Manual Review"})),
         ):
             with self.assertRaises(ValueError):
                 self.manager().save(incident)
             setattr(incident, section_name, section)
         self.assertIs(self.manager().save(incident), incident)
         self.assertEqual(incident.record_id, "INC-0001")
-        self.assertEqual(self.manager().load()[0].ai_section.ai_error, "Unavailable")
+        self.assertEqual(self.manager().load()[0].ai_section.to_dict()["ai_error"], "Unavailable")
         with self.assertRaises(TypeError):
             incident.input_section = {}
 
@@ -65,7 +65,7 @@ class DataManagerTests(unittest.TestCase):
         self.assertEqual([i.record_id for i in manager.load()], ["INC-0001", "INC-0002"])
         # Plain sections remain usable after all database sessions close.
         db.session.remove()
-        self.assertEqual(loaded.input_section.location, "Warehouse")
+        self.assertEqual(loaded.input_section.to_dict()["location"], "Warehouse")
 
     def test_failed_commit_preserves_caller_and_rolls_back(self):
         incident = self.completed()
@@ -79,13 +79,37 @@ class DataManagerTests(unittest.TestCase):
         self.manager().save(incident)
         self.assertEqual(len(self.manager().load()), 1)
 
+    def test_created_at_uses_wrapped_input_datetime_or_processing_time(self):
+        incident = self.completed()
+        incident.metadata = {}
+        self.manager().save(incident)
+        self.assertEqual(incident.metadata["created_at"],
+                         incident.input_section.to_dict()["incident_datetime"])
+        self.assertEqual(self.manager().load()[0].metadata, incident.metadata)
+
+        incident = self.completed()
+        incident.metadata = {}
+        incident.input_section.manager_json.pop("incident_datetime")
+        self.manager().save(incident)
+        self.assertEqual(incident.metadata["created_at"], incident.metadata["processed_at"])
+
+    def test_cancelled_report_does_not_analyse_or_save(self):
+        import main
+
+        with patch.object(main, "collect_incident_input", return_value=None), \
+                patch.object(main, "analyse_incident") as analyse, \
+                patch.object(main.managers, "data_manager") as manager:
+            main.report_new_incident()
+        analyse.assert_not_called()
+        manager.save.assert_not_called()
+
     def test_io_search_uses_shared_manager(self):
         import managers
         from IOManager import IOManager
 
         manager = self.manager()
         incident = self.completed()
-        incident.ai_section.hazard_category = "mechanical"
+        incident.ai_section.manager_json["hazard_category"] = "mechanical"
         manager.save(incident)
         with patch.object(managers, "data_manager", manager):
             self.assertEqual(IOManager.find_by_title("test"), [incident.to_dict()])

@@ -75,7 +75,7 @@ class DataManager:
         
         metadata = incident.metadata
         now = datetime.now().isoformat(timespec="seconds")
-        metadata.setdefault("created_at", incident.input_section.incident_datetime or now)
+        metadata.setdefault("created_at", incident.input_section.to_dict().get("incident_datetime") or now)
         metadata.setdefault("processed_at", now)
         model = incident.convert_to_db_model()
         model.created_at = metadata["created_at"]

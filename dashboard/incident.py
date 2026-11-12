@@ -5,7 +5,6 @@ transactions and supplies timestamps for newly processed incidents.
 """
 
 from copy import deepcopy
-from dataclasses import fields
 import re
 
 from dashboard.input_section import InputSection
@@ -83,7 +82,7 @@ class Incident:
 
     @classmethod
     def from_dict(cls, record):
-        """Accept the existing record shape; section defaults still apply."""
+        """Accept the existing record shape and filter through each section's schema."""
         if not isinstance(record, dict) or any(
             not isinstance(record.get(key), dict) for key in ("input", "ai", "logic")
         ):
@@ -137,8 +136,12 @@ class Incident:
         ):
             if row is None:
                 raise ValueError(f"Incident is missing its {section_type.__name__} row.")
-            values = {field.name: deepcopy(getattr(row, field.name))
-                      for field in fields(section_type)}
+            # Sections wrap manager_json now; the relational tables still have
+            # one column per declared manager key. Omit unset SQL defaults so
+            # partial AI failure stubs retain their original dictionary shape.
+            values = {key: deepcopy(getattr(row, key))
+                      for key in section_type.KNOWN_KEYS
+                      if getattr(row, key) is not None and getattr(row, key) != {}}
             sections.append(section_type.from_dict(values))
         metadata = {key: getattr(model, key) for key in ("created_at", "processed_at")
                     if getattr(model, key) is not None}

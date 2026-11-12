@@ -201,9 +201,7 @@ def report_new_incident() -> None:
     """Collect, analyse, triage and store one new incident report."""
     incident = Incident()
     record_input = collect_incident_input()
-    record_input_obj = managers.input_section.from_dict(record_input)
-    
-    if record_input_obj is None:
+    if record_input is None:
         print("Incident report cancelled - nothing was saved.")
         return
 
