@@ -32,6 +32,8 @@ def create_app(config_class=DevConfig):
 
     # Extensions
     db.init_app(app)
+    from dashboard.database import register_database
+    register_database(app)
 
     # Routes: every page is a MethodView class on the dashboard blueprint
     from dashboard.routes import bp as dashboard_bp

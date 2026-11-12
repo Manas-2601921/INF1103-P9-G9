@@ -1,206 +1,100 @@
-"""JSON persistence and queries for workplace incident records."""
+"""SQLite persistence for Incident objects and dictionary-based query helpers."""
 
-from pathlib import Path
+from contextlib import contextmanager
 from datetime import datetime
-import json
-import os
-import tempfile
+
+from flask import current_app, has_app_context
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session, selectinload
+
+from dashboard.extensions import db
+from dashboard.incident import Incident
+from dashboard.models import IncidentModel
 
 
 class DataManager:
-    """Manage one incident database independently of other manager instances.
+    """Persist completed incidents; use a configured Flask app or the active app.
 
-    The file path belongs to the instance; records are read on each operation
-    so a new instance can access records saved in an earlier run.
+    Without either, a default app is created lazily for terminal use. Initialize
+    its database with `python -m flask --app app init-db` before using storage.
+    Each operation owns a separate session, never committing unrelated changes.
     """
 
-    def __init__(self, incidents_file="data/incidents.json"):
-        """Accept a string or Path, defaulting to the existing database path."""
-        self._incidents_file = Path(incidents_file)
+    def __init__(self, app=None):
+        self._app = app
 
-    @property
-    def incidents_file(self):
-        """Return the database path without exposing a writable attribute."""
-        return self._incidents_file
+    @contextmanager
+    def _session(self):
+        app = self._app
+        if app is None and has_app_context():
+            app = current_app._get_current_object()
+        if app is None:
+            from dashboard import create_app
+            app = self._app = create_app()
+        with app.app_context():
+            with Session(db.engine) as session:
+                yield session
 
-    def load(self):
-        """Read stored incident dictionaries without producing console output.
+    def load(self) -> list[Incident]:
+        """Return fully reconstructed incidents ordered by database ID.
 
-        Returns:
-            list[dict]: Stored records. A missing file (including a missing
-            parent directory) or a valid empty JSON array returns an empty list.
-
-        Raises:
-            InvalidIncidentDataError: The file is empty, contains invalid JSON
-                or UTF-8, or is not a list containing only JSON objects.
-            DataLoadError: The file cannot be accessed or read, for example
-                because of permissions, an invalid path, or an I/O failure.
-
-        Only the record container is validated here, not individual incident
-        fields. Original read/parse exceptions are preserved as __cause__.
-        Unexpected programming errors propagate rather than appearing to be
-        an empty database. This method never creates or changes the file.
+        Objects and sections remain usable after the session closes. Missing or
+        unreadable tables raise DataLoadError; damaged section graphs raise
+        InvalidIncidentDataError. No tables or files are reset automatically.
         """
         try:
-            # Open directly: an exists() check can hide access errors and the
-            # file could disappear between checking and opening it.
-            with self._incidents_file.open("r", encoding="utf-8") as file:
-                incidents_data = json.load(file)
+            with self._session() as session:
+                models = session.scalars(select(IncidentModel).options(
+                    selectinload(IncidentModel.input_section),
+                    selectinload(IncidentModel.ai_section),
+                    selectinload(IncidentModel.logic_section),
+                ).order_by(IncidentModel.id)).all()
+                try:
+                    return [Incident.from_db_model(model) for model in models]
+                except (ValueError, TypeError) as exc:
+                    raise InvalidIncidentDataError("Stored incident sections are invalid.") from exc
+        except SQLAlchemyError as exc:
+            raise DataLoadError("Cannot load incidents from SQLite; check database initialization.") from exc
 
-        except FileNotFoundError:
-            return []
-        
-        except UnicodeDecodeError as exc:
-            raise InvalidIncidentDataError(
-                f"Incident database '{self._incidents_file}' is not valid UTF-8."
-            ) from exc
-        
-        except json.JSONDecodeError as exc:
-            raise InvalidIncidentDataError(
-                f"Incident database '{self._incidents_file}' contains invalid JSON "
-                f"at line {exc.lineno}, column {exc.colno}: {exc.msg}."
-            ) from exc
-        
-        except (OSError, ValueError) as exc:
-            # OSError covers permission errors, directories used as files,
-            # invalid path components, and device/read failures. ValueError
-            # covers paths containing an embedded null character.
-            raise DataLoadError(
-                f"Cannot read incident database '{self._incidents_file}': {exc}"
-            ) from exc
+    def save(self, incident: Incident) -> Incident:
+        """Insert a completed Incident atomically and return the same instance.
 
-        if not isinstance(incidents_data, list):
-            raise InvalidIncidentDataError(
-                f"Incident database '{self._incidents_file}' must contain a JSON list."
-            )
-        
-        for index, record in enumerate(incidents_data):
-            if not isinstance(record, dict):
-                raise InvalidIncidentDataError(
-                    f"Incident database '{self._incidents_file}' contains a non-object "
-                    f"record at index {index}."
-                )
-            
-        return incidents_data
-
-    def save(self, record):
-        """Persist an incident and return its stored dictionary without printing.
-
-        The input must contain dictionary-valued input, ai, and logic sections,
-        and a non-empty string at ai.repeat_pattern_indicators.datetime.
-        Domain validation remains the responsibility of the other managers.
-
-        Raises:
-            DataLoadError: Existing data cannot be loaded or its IDs are invalid.
-            ValueError: The supplied record has an invalid structure or the
-                updated records cannot be serialized as UTF-8 JSON.
-            DataSaveError: Creating or replacing the database fails.
-
-        Writes a temporary file beside the database, then replaces the database
-        only after writing succeeds. Existing data is preserved on write failure.
-        This JSON implementation assumes a single writer; it does not coordinate
-        concurrent requests. The caller's record is not modified.
+        All three sections must be attached. This inserts new records only;
+        previously saved incidents are rejected. ID and metadata are updated on
+        the caller only after commit succeeds. Field/domain validation belongs
+        to the layer that constructs each section.
         """
-        records = self.load()
-
-        if not isinstance(record, dict) or any(
-            not isinstance(record.get(section), dict)
-            for section in ("input", "ai", "logic")
-        ):
-            raise ValueError("Incident must contain input, ai, and logic dictionaries.")
+        if not isinstance(incident, Incident):
+            raise TypeError("save() requires an Incident instance.")
         
-        indicators = record["ai"].get("repeat_pattern_indicators")
-        created_at = indicators.get("datetime") if isinstance(indicators, dict) else None
+        incident.validate_complete()
 
-        if not isinstance(created_at, str) or not created_at.strip():
-            raise ValueError("Incident ai.repeat_pattern_indicators.datetime must be a non-empty string.")
-
-        identifiers = set()
-
-        for existing in records:
-            identifier = existing.get("record_id")
-            suffix = identifier[4:] if isinstance(identifier, str) and identifier.startswith("INC-") else ""
-            if not suffix.isascii() or not suffix.isdigit() or int(suffix) < 1:
-                raise InvalidIncidentDataError("Stored incident has an invalid record_id.")
-            number = int(suffix)
-            if number in identifiers:
-                raise InvalidIncidentDataError("Stored incidents contain duplicate record IDs.")
-            identifiers.add(number)
-
-        next_id = max(identifiers, default=0) + 1
-
-        stored_record = {
-            "record_id": f"INC-{next_id:04d}",
-            "input": record["input"],
-            "ai": record["ai"],
-            "logic": record["logic"],
-            "metadata": {
-                "created_at": created_at,
-                "processed_at": datetime.now().isoformat(timespec="seconds"),
-            },
-        }
-        records.append(stored_record)
-        try:
-            content = (json.dumps(records, indent=4, ensure_ascii=False, allow_nan=False) + "\n").encode("utf-8")
-        except (TypeError, ValueError, UnicodeEncodeError) as exc:
-            raise ValueError("Incident records cannot be serialized as UTF-8 JSON.") from exc
-
-        temporary_path = None
-        try:
-            self._incidents_file.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                mode="wb", dir=self._incidents_file.parent,
-                prefix=f".{self._incidents_file.name}.", suffix=".tmp", delete=False,
-            ) as file:
-                temporary_path = Path(file.name)
-                file.write(content)
-                file.flush()
-                os.fsync(file.fileno())
-            os.replace(temporary_path, self._incidents_file)
-
-        except (OSError, ValueError) as exc:
-            raise DataSaveError(
-                f"Cannot save incident database '{self._incidents_file}': {exc}"
-            ) from exc
+        if incident.record_id is not None:
+            raise ValueError("save() inserts new incidents; this incident already has a record_id.")
         
-        finally:
-            if temporary_path is not None:
-                try:
-                    temporary_path.unlink(missing_ok=True)
-                except OSError:
-                    # Cleanup must not hide the original storage failure.
-                    pass
-                
-        return stored_record
+        metadata = incident.metadata
+        now = datetime.now().isoformat(timespec="seconds")
+        metadata.setdefault("created_at", incident.input_section.to_dict().get("incident_datetime") or now)
+        metadata.setdefault("processed_at", now)
+        model = incident.convert_to_db_model()
+        model.created_at = metadata["created_at"]
+        model.processed_at = metadata["processed_at"]
 
-
-        temporary_path = None
         try:
-            self._incidents_file.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                mode="wb", dir=self._incidents_file.parent,
-                prefix=f".{self._incidents_file.name}.", suffix=".tmp", delete=False,
-            ) as file:
-                temporary_path = Path(file.name)
-                file.write(content)
-                file.flush()
-                os.fsync(file.fileno())
-            os.replace(temporary_path, self._incidents_file)
-
-        except (OSError, ValueError) as exc:
-            raise DataSaveError(
-                f"Cannot save incident database '{self._incidents_file}': {exc}"
-            ) from exc
+            # Exiting session.begin() commits automatically, or rolls back if an error occurs
+            with self._session() as session:
+                with session.begin():
+                    session.add(model)
+                    session.flush()
+                    record_id = f"INC-{model.id:04d}"
+                # session.begin rolls back on failure; no partial section rows survive.
+        except SQLAlchemyError as exc:
+            raise DataSaveError("Cannot save incident to SQLite.") from exc
         
-        finally:
-            if temporary_path is not None:
-                try:
-                    temporary_path.unlink(missing_ok=True)
-                except OSError:
-                    # Cleanup must not hide the original storage failure.
-                    pass
-                
-        return stored_record
+        incident.record_id = record_id
+        incident.metadata = metadata
+        return incident
 
     def query(self, filter_fn):
         """Return stored records accepted by a predicate, in storage order.
@@ -213,7 +107,7 @@ class DataManager:
             list: Matching records, or an empty list if none match or no records
                 are loaded. Exceptions from the predicate propagate.
         """
-        records = self.load()
+        records = [incident.to_dict() for incident in self.load()]
         return [record for record in records if filter_fn(record)]
 
     # Query and summary helpers
@@ -231,7 +125,7 @@ class DataManager:
                 status. Missing fields use display defaults; a missing escalation
                 status is None. Returns an empty list if no records are loaded.
         """
-        records = self.load()
+        records = [incident.to_dict() for incident in self.load()]
         summaries = []
 
         for record in records:
@@ -376,13 +270,13 @@ class DataManager:
         return incidents
 
 
-# Exceptions for data loading and validation
 class DataLoadError(Exception):
-    """Stored incidents could not be read; callers decide how to report this."""
+    """Stored incidents could not be read."""
 
 
 class InvalidIncidentDataError(DataLoadError):
-    """The database is not valid UTF-8 JSON containing a list of objects."""
+    """Stored incident rows could not be reconstructed."""
+
 
 class DataSaveError(Exception):
-    """Incident records could not be written; callers decide how to report this."""
+    """An incident transaction could not be committed."""

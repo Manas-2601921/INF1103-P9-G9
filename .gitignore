@@ -67,3 +67,9 @@ Thumbs.db
 # Local databases
 *.sqlite3
 *.db
+
+# Local SQLite setup notes
+/dashboard/SQLITE.md
+
+# Tmp
+/tmp/

@@ -18,6 +18,10 @@ managers.data_manager.save), update the matching function here.
 """
 
 import managers
+from dashboard.incident import Incident
+from dashboard.input_section import InputSection
+from dashboard.ai_section import AISection
+from dashboard.logic_section import LogicSection
 
 
 def to_severity_band(ai_output: dict) -> dict:
@@ -101,11 +105,15 @@ def report_new_incident(record_input: dict, ai_result) -> dict:
     Returns:
         The logic decision stored with the record.
     """
+    incident = Incident()
+    incident.input_section = InputSection.from_dict(record_input)
     ai_output = analyse_incident(record_input, ai_result)
-    history = managers.data_manager.load()
+    incident.ai_section = AISection.from_dict(ai_output)
+    history = [item.to_dict() for item in managers.data_manager.load()]
     logic_result = managers.logic_manager.determine_final_status(
         record_input, ai_output, history
     )
-    managers.data_manager.save({"input": record_input, "ai": ai_output, "logic": logic_result})
+    incident.logic_section = LogicSection.from_dict(logic_result)
+    managers.data_manager.save(incident)
     print_triage_summary(logic_result)
     return logic_result
