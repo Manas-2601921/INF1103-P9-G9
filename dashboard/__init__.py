@@ -35,8 +35,12 @@ def create_app(config_class=DevConfig):
     from dashboard.database import register_database
     register_database(app)
 
-    # Routes: every page is a MethodView class on the dashboard blueprint
+    # Routes: every page is a MethodView class on the dashboard blueprint.
+    # Feature view modules register their url rules on the shared blueprint
+    # at import time, so they must be imported before the blueprint itself
+    # is registered on the app.
     from dashboard.routes import bp as dashboard_bp
+    from dashboard import views_trends  # noqa: F401  (registers /trends)
     app.register_blueprint(dashboard_bp)
 
     return app
