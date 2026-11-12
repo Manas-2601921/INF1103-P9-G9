@@ -116,6 +116,27 @@ class DataManagerTests(unittest.TestCase):
             self.assertEqual(IOManager.find_by_category("mechanical"), [incident.to_dict()])
             self.assertEqual(IOManager.get_all_incident_categories(), ["mechanical"])
 
+    def test_interactive_search_options_use_shared_manager(self):
+        import managers
+        from IOManager import IOManager
+
+        manager = self.manager()
+        incident = self.completed()
+        incident.ai_section.manager_json["hazard_category"] = "mechanical"
+        manager.save(incident)
+        cases = (
+            (1, ["Test"]),
+            (2, ["mechanical"]),
+            (3, ["1", "11-11-2026 08:00", "11-11-2026 10:00"]),
+            (3, ["2", "11-11-2026 09:00"]),
+        )
+        with patch.object(managers, "data_manager", manager):
+            for option, answers in cases:
+                with self.subTest(option=option, answers=answers), \
+                        patch("builtins.input", side_effect=answers):
+                    records, _ = IOManager().handle_search_option(option)
+                    self.assertEqual(records, [incident.to_dict()])
+
     def test_uninitialized_database_and_missing_section_are_reported(self):
         db.session.execute(text("PRAGMA foreign_keys=ON"))
         db.session.execute(text("INSERT INTO Incidents (id) VALUES (99)"))

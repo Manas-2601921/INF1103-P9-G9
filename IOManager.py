@@ -1,6 +1,5 @@
 from datetime import datetime
 import managers
-from data_manager import DataManager
 class IOManager:
     
 
@@ -12,7 +11,6 @@ class IOManager:
         self.__reporter_role = None
         self.__injury_reported = None
         self.__immediate_action = None
-        self.__data_manager = DataManager()
 
     @property
     def incident_name(self):
@@ -228,14 +226,14 @@ class IOManager:
                 elif input_incident_name_lower:
                     break
 
-            incidents_by_name_records = self.find_by_title(input_incident_name_lower,self.__data_manager)
+            incidents_by_name_records = self.find_by_title(input_incident_name_lower)
             if(incidents_by_name_records):
                 return incidents_by_name_records,input_incident_name
             return [], input_incident_name
 
                 
         elif(search_option == 2):
-            incident_categories = self.get_all_incident_categories(self.__data_manager)
+            incident_categories = self.get_all_incident_categories()
             if incident_categories:
                 print("\nCategories related to all your incidents:")
                 for incident_category in incident_categories:
@@ -249,7 +247,7 @@ class IOManager:
                         break
                     else:
                         print("Error: Invalid search category. Please re-enter")
-                incidents_by_category_records= self.find_by_category(input_incident_category_lower,self.__data_manager)
+                incidents_by_category_records= self.find_by_category(input_incident_category_lower)
                 if incidents_by_category_records:
                     return incidents_by_category_records,input_incident_category
                 return [], input_incident_category
@@ -283,7 +281,7 @@ class IOManager:
                     if iso_start_dt > iso_end_dt:
                         print("End datetime cannot be earlier than the start datetime. Please try again.")
                     else:
-                        incidents_by_datetime_records = self.find_by_datetime_range(iso_start_dt, iso_end_dt, self.__data_manager)
+                        incidents_by_datetime_records = self.find_by_datetime_range(iso_start_dt, iso_end_dt)
                         return incidents_by_datetime_records, f"search results between {input_start_datetime} and {input_end_datetime}"
                 elif(input_datetime_search_type == "2"):
                     while True:
@@ -298,7 +296,7 @@ class IOManager:
                             except ValueError:
                                 print("Error: Invalid datetime format. Please make sure datetime field is valid datetime format")
                                 continue
-                            incidents_by_datetime_records = self.find_by_specific_datetime(iso_specific_dt, self.__data_manager)
+                            incidents_by_datetime_records = self.find_by_specific_datetime(iso_specific_dt)
                             return incidents_by_datetime_records, input_specific_datetime
                 else:
                     print("Error: Invalid datetime search option entered. Please enter only options 1 or 2")
@@ -417,7 +415,7 @@ class IOManager:
             return []
 
     @staticmethod
-    def get_all_incident_categories(data_manager:DataManager):
+    def get_all_incident_categories():
         incident_categories = sorted({
             (record.get("ai", {}).get("hazard_category") or "").strip()
                 for record in managers.data_manager.query(lambda record: True)
@@ -453,5 +451,3 @@ class IOManager:
             return True
         except ValueError:
             return False
-    
-    
