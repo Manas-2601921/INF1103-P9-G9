@@ -1,6 +1,7 @@
 """The AI manager's analysis of one incident."""
 
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 from dashboard.section_object import SectionObject
 
@@ -9,28 +10,29 @@ from dashboard.section_object import SectionObject
 class AISection(SectionObject):
     """The AI manager's analysis of one incident.
 
-    Tolerates partial data: the manual-review failure stub carries only
-    ``repeat_pattern_indicators`` and ``ai_error``, and ``to_dict`` drops
-    unset fields so a stub serialises to exactly what it holds.
+    Wraps the record's ``ai`` dictionary: severity, confidence,
+    severity_explanation, hazard_category, incident_type, indicators,
+    repeat_pattern_indicators, recommended_immediate_action and
+    supporting_phrase, plus the optional ``severity_score`` the AI manager
+    adds alongside the banded severity and the optional ``ai_error`` that
+    marks the manual-review failure stub. Storing the filtered dictionary
+    verbatim keeps a stub serialising to exactly the keys it holds.
     """
 
-    severity: float | str | None = None
-    confidence: float | None = None
-    severity_explanation: str | None = None
-    hazard_category: str | None = None
-    incident_type: str | None = None
-    indicators: dict = field(default_factory=dict)
-    repeat_pattern_indicators: dict = field(default_factory=dict)
-    recommended_immediate_action: str | None = None
-    supporting_phrase: str | None = None
-    severity_score: float | None = None
-    ai_error: str | None = None
+    manager_json: dict = field(default_factory=dict)
+
+    KNOWN_KEYS: ClassVar[tuple[str, ...]] = (
+        "severity", "confidence", "severity_explanation", "hazard_category",
+        "incident_type", "indicators", "repeat_pattern_indicators",
+        "recommended_immediate_action", "supporting_phrase",
+        "severity_score", "ai_error",
+    )
 
     @classmethod
     def from_dict(cls, data: dict) -> "AISection":
-        """Build an AISection from the record's ai dictionary."""
-        return cls(**cls._filter_known(data))
+        """Wrap the record's ai dictionary, dropping excess keys."""
+        return cls(manager_json=cls._filter_known(data))
 
     def to_dict(self) -> dict:
-        """Return the AI fields that are set."""
-        return self._without_unset()
+        """Return a copy of the wrapped ai dictionary."""
+        return dict(self.manager_json)

@@ -3,12 +3,13 @@
 The factory pattern keeps the Flask app configurable: ``create_app`` binds
 the extensions and registers the blueprints, while entry points (``app.py``,
 the CLI, the test suites) choose the configuration class they need.
+
+Flask itself is imported inside ``create_app`` on purpose: importing the
+``dashboard`` package must stay cheap so the section objects (and the
+managers that create them) load without the web or database stack.
 """
 
-from flask import Flask, render_template
-
 from dashboard.config import DevConfig
-from dashboard.extensions import db
 
 
 def create_app(config_class=DevConfig):
@@ -22,6 +23,10 @@ def create_app(config_class=DevConfig):
     Returns:
         flask.Flask: The configured application with extensions bound.
     """
+    from flask import Flask
+
+    from dashboard.extensions import db
+
     app = Flask(__name__)
     app.config.from_object(config_class)
 

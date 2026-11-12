@@ -1,17 +1,47 @@
 from datetime import datetime
 import managers
+from data_manager import DataManager
 class IOManager:
     
 
-    def __init__(self, incident_name:str, incident_description:str, incident_datetime:datetime, incident_location:str, reporter_role:str, injury_reported:bool, immediate_action:str):
-        self.incident_name = incident_name
-        self.incident_description = incident_description
-        self.incident_datetime = incident_datetime
-        self.location = incident_location
-        self.reporter_role = reporter_role
-        self.injury_reported = injury_reported
-        self.immediate_action = immediate_action
+    def __init__(self):
+        self.__incident_name = None
+        self.__incident_description = None
+        self.__incident_datetime = None
+        self.__location = None
+        self.__reporter_role = None
+        self.__injury_reported = None
+        self.__immediate_action = None
+        self.__data_manager = DataManager()
 
+    @property
+    def incident_name(self):
+        return self.__incident_name
+
+    @property
+    def incident_description(self):
+        return self.__incident_description
+
+    @property
+    def incident_datetime(self):
+        return self.__incident_datetime
+
+    @property
+    def location(self):
+        return self.__location
+
+    @property
+    def reporter_role(self):
+        return self.__reporter_role
+
+    @property
+    def injury_reported(self):
+        return self.__injury_reported
+
+    @property
+    def immediate_action(self):
+        return self.__immediate_action
+    
     def prompt_incident_name(self):
         while True:
             newIncidentName = input("Enter the name of the incident (or type 'quit' to exit): ")
@@ -122,52 +152,50 @@ class IOManager:
     # function to collect all the incident details from the user and store them in the class attributes. If the user types "quit" at any point, the function will return False to indicate that the process was aborted.
     def collect_incident_details(self):
         
-        self.incident_name = self.prompt_incident_name()
-        if self.incident_name == "quit":
+        self.__incident_name = self.prompt_incident_name()
+        if self.__incident_name == "quit":
             return False
 
-        self.incident_description = self.prompt_description()
-        if self.incident_description == "quit":
+        self.__incident_description = self.prompt_incident_description()
+        if self.__incident_description == "quit":
             return False
 
-        self.location = self.prompt_location()
-        if self.location == "quit":
+        self.__location = self.prompt_incident_location()
+        if self.__location == "quit":
             return False
 
-        self.reporter_role = self.prompt_reporter_role()
-        if self.reporter_role == "quit":
+        self.__reporter_role = self.prompt_reporter_role()
+        if self.__reporter_role == "quit":
             return False
 
-        self.incident_datetime = self.prompt_incident_date_time()
-        if self.incident_datetime == "quit":
+        self.__incident_datetime = self.prompt_incident_datetime()
+        if self.__incident_datetime == "quit":
             return False
 
-        self.injury_reported = self.prompt_injury_reported()
-        if self.injury_reported == "quit":
+        self.__injury_reported = self.prompt_injury_reported()
+        if self.__injury_reported == "quit":
             return False
 
-        self.immediate_action = self.prompt_immediate_action()
-        if self.immediate_action == "quit":
+        self.__immediate_action = self.prompt_immediate_action()
+        if self.__immediate_action == "quit":
             return False
 
         return True
 
     # To be added into main.py
-    # Create an IOManager object
-    # io_manager = IOManager()
 
     # # Collect all incident information
-    # if io_manager.collect_incident_details():
+    # if managers.io_manager.collect_incident_details():
 
     #     print("\nIncident information collected successfully!")
 
-    #     print(io_manager.incident_name)
-    #     print(io_manager.incident_description)
-    #     print(io_manager.location)
-    #     print(io_manager.reporter_role)
-    #     print(io_manager.incident_datetime)
-    #     print(io_manager.injury_reported)
-    #     print(io_manager.immediate_action)
+    #     print(managers.io_manager.incident_name)
+    #     print(managers.io_manager.incident_description)
+    #     print(managers.io_manager.location)
+    #     print(managers.io_manager.reporter_role)
+    #     print(managers.io_manager.incident_datetime)
+    #     print(managers.io_manager.injury_reported)
+    #     print(managers.io_manager.immediate_action)
 
     # else:
     #     print("Incident reporting cancelled.")
@@ -176,7 +204,7 @@ class IOManager:
     @staticmethod
     def display_search_options():
         while True:
-            search_option = input("What would you like to search by:\n1. Title \n2. Category\n3. Date \nEnter your option number here (or type 'quit' to exit): ").strip()
+            search_option = input("What would you like to search by:\n1. Incident Name \n2. Category\n3. Date \nEnter your option number here (or type 'quit' to exit): ").strip()
             if search_option.lower() == "quit":
                 return "quit"
             if search_option.isdigit():
@@ -184,30 +212,30 @@ class IOManager:
                 if search_option_int in [1,2,3]:
                     return search_option_int
                 else:
-                    print("Error: invalid option number. Please enter the option number 1-3 only.")
+                    print("Error: invalid option number. Please enter the option number 1-3 or quit.")
             else:
-                print("Error: invalid option number. Please enter the option number 1-3 only.")
-    @staticmethod
-    def handle_search_option(search_option:int):
+                print("Error: invalid option number. Please enter the option number 1-3 or quit.")
+
+    def handle_search_option(self,search_option:int):
         if(search_option == 1):
             while True:
-                input_incident_title = input("Enter the name of the incident you want to search for (or type 'quit' to exit): ").strip()
-                input_incident_title_lower = input_incident_title.lower()
-                if input_incident_title_lower == "quit":
+                input_incident_name = input("Enter the name of the incident you want to search for (or type 'quit' to exit): ").strip()
+                input_incident_name_lower = input_incident_name.lower()
+                if input_incident_name_lower == "quit":
                     return "quit"
-                elif input_incident_title_lower == "":
-                    print("Error: Incident title cannot be empty.")
-                elif input_incident_title_lower:
+                elif input_incident_name_lower == "":
+                    print("Error: Incident name cannot be empty.")
+                elif input_incident_name_lower:
                     break
 
-            incidents_by_title_records = IOManager.find_by_title(input_incident_title_lower)
-            if(incidents_by_title_records):
-                return incidents_by_title_records,input_incident_title
-            return [], input_incident_title
+            incidents_by_name_records = self.find_by_title(input_incident_name_lower,self.__data_manager)
+            if(incidents_by_name_records):
+                return incidents_by_name_records,input_incident_name
+            return [], input_incident_name
 
                 
         elif(search_option == 2):
-            incident_categories = IOManager.get_all_incident_categories()
+            incident_categories = self.get_all_incident_categories(self.__data_manager)
             if incident_categories:
                 print("\nCategories related to all your incidents:")
                 for incident_category in incident_categories:
@@ -221,7 +249,7 @@ class IOManager:
                         break
                     else:
                         print("Error: Invalid search category. Please re-enter")
-                incidents_by_category_records= IOManager.find_by_category(input_incident_category_lower)
+                incidents_by_category_records= self.find_by_category(input_incident_category_lower,self.__data_manager)
                 if incidents_by_category_records:
                     return incidents_by_category_records,input_incident_category
                 return [], input_incident_category
@@ -238,47 +266,47 @@ class IOManager:
                         input_start_datetime = input("Enter the start datetime (DD-MM-YYYY HH:MM) (or type 'quit' to exit): ")
                         if input_start_datetime.lower() == "quit":
                             return "quit"
-                        elif not IOManager.is_valid_dt_format(input_start_datetime):
+                        elif not self.is_valid_dt_format(input_start_datetime):
                             print("Error: Invalid format. Please follow the format: DD-MM-YYYY HH:MM (e.g., 25-10-2023 14:30)")
-                        elif IOManager.is_valid_dt_format(input_start_datetime):
+                        elif self.is_valid_dt_format(input_start_datetime):
                             break
                     while True:
                         input_end_datetime = input("Enter the end datetime (DD-MM-YYYY HH:MM) (or type 'quit' to exit): ")
                         if input_end_datetime.lower() == "quit":
                             return "quit"
-                        elif not IOManager.is_valid_dt_format(input_end_datetime):
+                        elif not self.is_valid_dt_format(input_end_datetime):
                             print("Error: Invalid format. Please follow the format: DD-MM-YYYY HH:MM (e.g., 25-10-2023 14:30)")
-                        elif IOManager.is_valid_dt_format(input_end_datetime):
+                        elif self.is_valid_dt_format(input_end_datetime):
                             break
                     iso_start_dt = datetime.strptime(input_start_datetime, "%d-%m-%Y %H:%M").isoformat(timespec="seconds")
                     iso_end_dt = datetime.strptime(input_end_datetime, "%d-%m-%Y %H:%M").isoformat(timespec="seconds")
                     if iso_start_dt > iso_end_dt:
                         print("End datetime cannot be earlier than the start datetime. Please try again.")
                     else:
-                        incidents_by_datetime_records = IOManager.find_by_datetime_range(iso_start_dt, iso_end_dt)
+                        incidents_by_datetime_records = self.find_by_datetime_range(iso_start_dt, iso_end_dt, self.__data_manager)
                         return incidents_by_datetime_records, f"search results between {input_start_datetime} and {input_end_datetime}"
                 elif(input_datetime_search_type == "2"):
                     while True:
                         input_specific_datetime = input("Enter the specific datetime (DD-MM-YYYY HH:MM) (or type 'quit' to exit): ")
                         if input_specific_datetime.lower() == "quit":
                             return "quit"
-                        elif not IOManager.is_valid_dt_format(input_specific_datetime):
+                        elif not self.is_valid_dt_format(input_specific_datetime):
                             print("Error: Invalid format. Please follow the format: DD-MM-YYYY HH:MM (e.g., 25-10-2023 14:30)")
-                        elif IOManager.is_valid_dt_format(input_specific_datetime):
+                        elif self.is_valid_dt_format(input_specific_datetime):
                             try:
                                 iso_specific_dt = datetime.strptime(input_specific_datetime, "%d-%m-%Y %H:%M").isoformat(timespec="seconds")
                             except ValueError:
                                 print("Error: Invalid datetime format. Please make sure datetime field is valid datetime format")
                                 continue
-                            incidents_by_datetime_records = IOManager.find_by_specific_datetime(iso_specific_dt)
+                            incidents_by_datetime_records = self.find_by_specific_datetime(iso_specific_dt, self.__data_manager)
                             return incidents_by_datetime_records, input_specific_datetime
                 else:
                     print("Error: Invalid datetime search option entered. Please enter only options 1 or 2")
         else:
             print("Error: Invalid search option entered. Please enter only options 1, 2, or 3")
 
-    @staticmethod
-    def display_search_results(search_results_data, user_search_query):
+ 
+    def display_search_results(self, search_results_data, user_search_query):
         num_of_search_results = len(search_results_data)
         if num_of_search_results == 0:
             print(f"No Search Results for '{user_search_query}'\n")
@@ -304,15 +332,14 @@ class IOManager:
                     continue
                 elif 1 <= view_incident_number <= num_of_search_results:
                     incident_display = search_results_data[view_incident_number - 1]
-                    print(IOManager.format_incident_record(incident_display) + "\n")
+                    print(self.format_incident_record(incident_display) + "\n")
                     break
             except ValueError:
                 print("Error: invalid search result number. Please enter a whole number from the search results(or type 'quit' to exit).")
                 continue
             break
 
-    @staticmethod
-    def format_incident_record(incident_record: dict) -> str:
+    def format_incident_record(self, incident_record: dict) -> str:
         # shortcuts so the lines below stay readable
         details = incident_record['input']
         ai = incident_record['ai']
@@ -364,7 +391,7 @@ class IOManager:
         lines.append("")
         lines.append("Recommended Immediate Action")
         lines.append("-" * 20)
-        # ">" is used as the marker instead of "▶" because "▶" cannot be printed on a default Windows console
+        # ">" is used as the marker
         lines.append(f"> {ai['recommended_immediate_action']}")
 
         return "\n".join(lines)
@@ -390,7 +417,7 @@ class IOManager:
             return []
 
     @staticmethod
-    def get_all_incident_categories():
+    def get_all_incident_categories(data_manager:DataManager):
         incident_categories = sorted({
             (record.get("ai", {}).get("hazard_category") or "").strip()
                 for record in managers.data_manager.query(lambda record: True)
