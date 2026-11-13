@@ -40,7 +40,6 @@ def create_app(config_class=DevConfig):
     # at import time, so they must be imported before the blueprint itself
     # is registered on the app.
     from dashboard.routes import bp as dashboard_bp
-    from dashboard import views_trends  # noqa: F401  (registers /trends)
     app.register_blueprint(dashboard_bp)
 
     return app

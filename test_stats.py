@@ -191,33 +191,48 @@ class StatsServiceTests(unittest.TestCase):
         independent = StatsService(DataManager(self.app))
         self.assertEqual(independent.incidents_by_severity()["high"], 1)
 
-    def test_trends_page_renders_empty_state(self):
+    def test_dashboard_renders_empty_state(self):
         client = self.app.test_client()
-        response = client.get("/trends")
+        response = client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"No incidents are stored yet", response.data)
 
-    def test_trends_page_renders_seeded_statistics(self):
+    def test_dashboard_renders_seeded_statistics(self):
         self.seed(days_ago=0, location="Warehouse", hazard_category="mechanical",
                   severity_score=0.8)
         self.seed(days_ago=2, location="Warehouse", hazard_category="mechanical",
                   severity_score=0.6)
         client = self.app.test_client()
-        response = client.get("/trends")
+        response = client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Incident trends", response.data)
+        self.assertIn(b"Incident dashboard &amp; trends", response.data)
         self.assertIn(b"chart.umd.min.js", response.data)
         self.assertIn(b"mechanical", response.data)
         self.assertIn(b'"total": 2', response.data)
 
-    def test_trends_page_counts_partial_incidents_without_severity(self):
+    def test_dashboard_counts_partial_incidents_without_severity(self):
         self.seed(severity="Manual review pending", final_queue="Manual Review")
         client = self.app.test_client()
-        response = client.get("/trends")
+        response = client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(b"No incidents are stored yet", response.data)
         self.assertIn(b'"total": 1', response.data)
         self.assertIn(b'"Manual Review": 1', response.data)
+
+    def test_dashboard_flashes_warning_when_rising_patterns_exist(self):
+        self.seed(days_ago=0, location="Warehouse", hazard_category="mechanical")
+        self.seed(days_ago=2, location="Warehouse", hazard_category="mechanical")
+        client = self.app.test_client()
+        response = client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"alert-warning", response.data)
+        self.assertIn(b"rising hazard pattern(s) detected this week", response.data)
+        self.assertNotIn(b'href="/trends"', response.data)
+
+    def test_standalone_trends_route_is_removed(self):
+        client = self.app.test_client()
+        response = client.get("/trends")
+        self.assertEqual(response.status_code, 404)
 
     def test_future_dated_incidents_are_excluded_from_past_windows(self):
         self.seed(days_ago=-2, location="Warehouse", hazard_category="mechanical")
@@ -255,16 +270,19 @@ class IOManagerNotifyTests(unittest.TestCase):
         @self.app.route("/_test_notify")
         def _test_notify():
             io_manager.notify("AI analysis failed.", category="error")
+            io_manager.notify("Rising hazard detected.", category="warning")
             io_manager.notify("Incident saved.", category="success")
             io_manager.notify("Heads up.", category="info")
             from flask import redirect, url_for
-            return redirect(url_for("dashboard.trends"))
+            return redirect(url_for("dashboard.home"))
 
         client = self.app.test_client()
         response = client.get("/_test_notify", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"alert-danger", response.data)
         self.assertIn(b"AI analysis failed.", response.data)
+        self.assertIn(b"alert-warning", response.data)
+        self.assertIn(b"Rising hazard detected.", response.data)
         self.assertIn(b"alert-success", response.data)
         self.assertIn(b"Incident saved.", response.data)
         self.assertIn(b"alert-info", response.data)

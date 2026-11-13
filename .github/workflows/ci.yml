@@ -34,7 +34,7 @@ jobs:
       - name: Run SQLite storage tests
         run: python -m unittest test_incident_sqlite test_data_manager
 
-      - name: Run analytics dashboard tests (StatsService and /trends)
+      - name: Run analytics dashboard tests (StatsService and dashboard home)
         run: python test_stats.py
 
       - name: Run end-to-end tests (fake AI responses)

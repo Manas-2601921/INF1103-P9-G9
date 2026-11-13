@@ -188,7 +188,7 @@ class DemoSeeder:
                 counts[pair] = counts.get(pair, 0) + 1
             for (location, category), count in sorted(counts.items(), key=lambda kv: -kv[1])[:6]:
                 print(f"  {location} × {category}: {count}")
-            print("Start the dashboard with:  python app.py  then open http://127.0.0.1:5000/trends")
+            print("Start the dashboard with:  python app.py  then open http://127.0.0.1:5000/")
             return 0
 
 

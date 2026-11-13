@@ -185,13 +185,11 @@ class StatsService:
                 recent[pair] += 1
             elif occurred >= prior_start:
                 prior[pair] += 1
-        rising = [
-            RisingPattern(location, category, recent[(location, category)],
-                          prior.get((location, category), 0))
-            for location, category in recent
-            if recent[(location, category)] >= 2
-            and recent[(location, category)] > prior.get((location, category), 0)
-        ]
+        rising = []
+        for (location, category), recent_count in recent.items():
+            prior_count = prior.get((location, category), 0)
+            if recent_count >= 2 and recent_count > prior_count:
+                rising.append(RisingPattern(location, category, recent_count, prior_count))
         rising.sort(key=lambda pattern: -(pattern.recent_count - pattern.prior_count))
         return rising
 

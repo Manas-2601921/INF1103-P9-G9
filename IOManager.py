@@ -452,7 +452,7 @@ class IOManager:
         except ValueError:
             return False
 
-    FLASH_CATEGORIES = ("error", "success", "info")
+    FLASH_CATEGORIES = ("error", "warning", "success", "info")
 
     def notify(self, message: str, category: str = "error") -> None:
         """Display a flow-level message via Flask flash (or stdout in CLI).
