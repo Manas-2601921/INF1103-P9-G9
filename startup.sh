@@ -3,5 +3,6 @@
 # "Startup command" setting at this file: it creates any missing database
 # tables (existing data is preserved) and then starts the web dashboard.
 set -e
+export FLASK_DEBUG=false
 python -m flask --app app init-db
 exec python app.py
