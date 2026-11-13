@@ -12,6 +12,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
 
+def database_url() -> str:
+    """Resolve the database URI from the environment.
+
+    Locally (no ``DATABASE_URL`` set) every consumer uses the SQLite file
+    beside the legacy JSON store, so the CLI, the tests and the Docker
+    image keep working unchanged. A deployed environment (Azure App
+    Service with its PostgreSQL add-on) injects ``DATABASE_URL`` instead,
+    and the app switches automatically — the models are dialect-agnostic
+    ORM. Some cloud providers still hand out the legacy ``postgres://``
+    scheme, which SQLAlchemy rejects, so it is normalised here.
+    """
+    url = os.getenv(
+        "DATABASE_URL", f"sqlite:///{(DATA_DIR / 'incidents.db').as_posix()}"
+    )
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
 class Config:
     """Base configuration shared by every environment."""
 
@@ -22,10 +41,9 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # SQLite lives beside the legacy JSON store so the Docker volume
-    # (/app/data) keeps persisting incident data across restarts.
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", f"sqlite:///{(DATA_DIR / 'incidents.db').as_posix()}"
-    )
+    # (/app/data) keeps persisting incident data across restarts; a
+    # deployed environment swaps in PostgreSQL via DATABASE_URL.
+    SQLALCHEMY_DATABASE_URI = database_url()
 
     DEBUG = False
 
