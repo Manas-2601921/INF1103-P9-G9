@@ -1,32 +1,46 @@
 name: CD
 
-# Deploys the application to Azure App Service. Runs manually from the
+# Deploys the Docker image to Azure App Service. Runs manually from the
 # Actions tab (CD → Run workflow) until automatic deploys are enabled.
 #
+# The image deployed here is the EXACT artifact the Dockerfile defines
+# for the same commit — the deployment promotes the tested image instead
+# of rebuilding the code on the platform runtime.
+#
 # ONE-TIME SETUP (Azure portal):
-#   1. Create an App Service (Linux, Python runtime) and an Azure
-#      Database for PostgreSQL Flexible Server.
+#   1. Create an App Service (Linux) and an Azure Database for PostgreSQL
+#      Flexible Server.
 #   2. App Service → Environment variables:
-#        DATABASE_URL = the PostgreSQL connection string
-#        ZAI_KEY      = the Z.ai API key
-#        SECRET_KEY   = a long random string (sessions/CSRF)
-#   3. Configuration → General settings → Startup command: startup.sh
-#   4. Authentication (Easy Auth): "Action to take when request is not
-#      authenticated" = redirect to login; allow-list the team's emails.
-#   5. App Service → Overview → "Download publish profile"; store its XML
+#        DATABASE_URL  = the PostgreSQL connection string
+#        ZAI_KEY       = the Z.ai API key
+#        SECRET_KEY    = a long random string (sessions/CSRF)
+#        WEBSITES_PORT = 5000   (the port app.py listens on)
+#   3. App Service → Overview → "Download publish profile"; store its XML
 #      content as the GitHub repository secret AZURE_PUBLISH_PROFILE.
+#   4. Set "app-name" below to your App Service name.
+#   5. FIRST RUN ONLY: the workflow pushes the image to GHCR as a PRIVATE
+#      package. Open the repository's Packages page and set the package
+#      to Public so App Service can pull it without registry credentials
+#      (or keep it private and add DOCKER_REGISTRY_* credentials on the
+#      App Service instead).
+#   6. Authentication (Easy Auth): require login, allow-list the team's
+#      emails so the public URL stays team-only.
 #
-# The app reads DATABASE_URL automatically (dashboard/config.py): locally
-# it stays SQLite; the deployed environment uses PostgreSQL.
-#
-# To deploy automatically on every commit to phase3/dev, uncomment the
-# push trigger below (CI already gates quality — this workflow should run
-# after the CI workflow succeeds).
+# The startup command overrides the image's default CMD (the terminal
+# app) so the deployed container serves the web dashboard; locally the
+# image still runs the CLI, and the Dockerfile itself stays untouched.
 
 on:
   workflow_dispatch:
   # push:
   #   branches: [phase3/dev]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: incident-triage
 
 jobs:
   deploy:
@@ -34,20 +48,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to Azure App Service
+      - name: Resolve the image name (GHCR paths must be lowercase)
+        run: |
+          echo "IMAGE=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${IMAGE_NAME}:${{ github.sha }}" >> "$GITHUB_ENV"
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push the image
+        run: |
+          docker build . --file Dockerfile --tag "$IMAGE"
+          docker push "$IMAGE"
+
+      - name: Deploy the image to Azure App Service
         uses: azure/webapps-deploy@v3
         with:
           app-name: incident-triage        # <- set to your App Service name
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-          package: .
-          startup-command: startup.sh
+          images: ${{ env.IMAGE }}
+          startup-command: startup.sh      # overrides the image's CLI CMD
 
       - name: Post-deploy smoke test
-        # Code deploy rebuilds the app on the platform runtime, so the
-        # pipeline verifies the result instead of assuming it: the site
-        # must answer HTTP 200 (or 302 → the Easy Auth login page) within
-        # ~2 minutes of the deploy, or this workflow fails. Update the URL
-        # if you rename the App Service.
+        # The pipeline verifies its own deployments: the site must answer
+        # HTTP 200 (or 302 → the Easy Auth login page) within ~2 minutes
+        # of the deploy, or this workflow fails. Update the URL if you
+        # rename the App Service.
         run: |
           sleep 30
           for attempt in 1 2 3 4 5; do
