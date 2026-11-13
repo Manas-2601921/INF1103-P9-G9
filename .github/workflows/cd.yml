@@ -41,3 +41,23 @@ jobs:
           publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
           package: .
           startup-command: startup.sh
+
+      - name: Post-deploy smoke test
+        # Code deploy rebuilds the app on the platform runtime, so the
+        # pipeline verifies the result instead of assuming it: the site
+        # must answer HTTP 200 (or 302 → the Easy Auth login page) within
+        # ~2 minutes of the deploy, or this workflow fails. Update the URL
+        # if you rename the App Service.
+        run: |
+          sleep 30
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://incident-triage.azurewebsites.net/ || true)
+            if [ "$code" = "200" ] || [ "$code" = "302" ]; then
+              echo "App is up: HTTP $code"
+              exit 0
+            fi
+            echo "Attempt $attempt: HTTP $code — retrying in 20s"
+            sleep 20
+          done
+          echo "Smoke test failed: the app did not respond after deployment"
+          exit 1
