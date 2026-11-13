@@ -1,0 +1,43 @@
+name: CD
+
+# Deploys the application to Azure App Service. Runs manually from the
+# Actions tab (CD → Run workflow) until automatic deploys are enabled.
+#
+# ONE-TIME SETUP (Azure portal):
+#   1. Create an App Service (Linux, Python runtime) and an Azure
+#      Database for PostgreSQL Flexible Server.
+#   2. App Service → Environment variables:
+#        DATABASE_URL = the PostgreSQL connection string
+#        ZAI_KEY      = the Z.ai API key
+#        SECRET_KEY   = a long random string (sessions/CSRF)
+#   3. Configuration → General settings → Startup command: startup.sh
+#   4. Authentication (Easy Auth): "Action to take when request is not
+#      authenticated" = redirect to login; allow-list the team's emails.
+#   5. App Service → Overview → "Download publish profile"; store its XML
+#      content as the GitHub repository secret AZURE_PUBLISH_PROFILE.
+#
+# The app reads DATABASE_URL automatically (dashboard/config.py): locally
+# it stays SQLite; the deployed environment uses PostgreSQL.
+#
+# To deploy automatically on every commit to phase3/dev, uncomment the
+# push trigger below (CI already gates quality — this workflow should run
+# after the CI workflow succeeds).
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [phase3/dev]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: incident-triage        # <- set to your App Service name
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+          package: .
+          startup-command: startup.sh

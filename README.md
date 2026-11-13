@@ -89,3 +89,42 @@ Design notes:
 
 The test suite (`test_ai_manager.py`) runs fully offline by injecting the
 test client; `--live` switches to the real API.
+
+---
+
+## Deployment (Azure App Service + PostgreSQL)
+
+Locally and in Docker the app runs on SQLite with no configuration. A
+deployed environment switches to PostgreSQL automatically via the
+`DATABASE_URL` environment variable (see `dashboard/config.py`); the
+models are dialect-agnostic, so no application code differs between the
+two.
+
+| Environment variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string (set by the cloud database; unset locally) |
+| `ZAI_KEY` | Z.ai API key used by the AI manager |
+| `SECRET_KEY` | Flask session/CSRF secret |
+
+Setup steps (detailed at the top of `.github/workflows/cd.yml`):
+
+1. Create an Azure App Service (Linux, Python) and an Azure Database for
+   PostgreSQL Flexible Server.
+2. Set `DATABASE_URL`, `ZAI_KEY` and `SECRET_KEY` as App Service
+   environment variables.
+3. Set the startup command to `startup.sh` — it runs
+   `flask --app app init-db` (creates any missing tables) and starts the
+   web dashboard.
+4. Enable App Service Authentication (Easy Auth) and allow-list the
+   team's emails, keeping the public URL private to the team.
+5. Store the App Service publish profile as the GitHub secret
+   `AZURE_PUBLISH_PROFILE`, then run the **CD** workflow (Actions tab) —
+   or uncomment its push trigger to deploy on every commit to
+   `phase3/dev`.
+
+Seed the deployed database with demo data:
+
+```bash
+az webapp ssh --name <app-service-name>
+python scripts/seed_demo_data.py --force
+```
