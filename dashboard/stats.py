@@ -9,10 +9,10 @@ manual-review stubs never crash the dashboard.
 """
 
 from collections import defaultdict
-from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from dataclasses import asdict, dataclass
+from datetime import date, timedelta
 
-from dashboard.datetime_utils import parse_incident_datetime
+from dashboard.datetime_utils import IncidentDatetimeParser
 from dashboard.incident import Incident
 
 
@@ -61,77 +61,103 @@ class StatsService:
 
     def __init__(self, data_manager):
         self._data_manager = data_manager
+        self._datetime_parser = IncidentDatetimeParser()
 
     # ------------------------------------------------------------------
     # Distribution statistics
     # ------------------------------------------------------------------
 
     def incidents_by_severity(self) -> dict[str, int]:
-        """Count incidents per severity band, all three bands always present.
-
-        Numeric severities (raw scores or legacy rows) are banded with the
-        pipeline thresholds; already-banded strings count as-is; records
-        without a usable severity are skipped.
-        """
-        counts = {band: 0 for band in self.SEVERITY_BANDS}
-        for incident in self._data_manager.load():
-            band = self._severity_band(incident)
-            if band is not None:
-                counts[band] += 1
-        return counts
+        """Count incidents per severity band, all three bands always present."""
+        return self._count_by_severity(self._data_manager.load())
 
     def incidents_by_hazard_category(self) -> dict[str, int]:
         """Count incidents per AI hazard category, highest count first."""
-        counts: dict[str, int] = defaultdict(int)
-        for incident in self._data_manager.load():
-            category = self._ai_field(incident, "hazard_category")
-            if category:
-                counts[category] += 1
-        return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0])))
+        return self._count_by_hazard_category(self._data_manager.load())
 
     def incidents_by_queue(self) -> dict[str, int]:
         """Count incidents per final triage queue, highest count first."""
-        counts: dict[str, int] = defaultdict(int)
-        for incident in self._data_manager.load():
-            queue = self._logic_field(incident, "final_queue")
-            if queue:
-                counts[queue] += 1
-        return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0])))
+        return self._count_by_queue(self._data_manager.load())
 
     # ------------------------------------------------------------------
     # Time-window statistics
     # ------------------------------------------------------------------
 
     def incidents_per_day(self, days: int = 14, today: date | None = None) -> list[TrendPoint]:
-        """Count incidents for each of the last ``days`` days, zero-filled.
+        """Count incidents for each of the last ``days`` days, zero-filled."""
+        return self._count_per_day(self._data_manager.load(), days, today)
 
-        The series always contains one point per day (including empty days)
-        so the chart shows quiet periods instead of skipping them.
-        """
+    def recurrence_hotspots(self, window_days: int = 30, min_count: int = 2,
+                            today: date | None = None) -> list[Hotspot]:
+        """Location + hazard pairs hit at least ``min_count`` times in the window."""
+        return self._find_hotspots(self._data_manager.load(), window_days, min_count, today)
+
+    def rising_patterns(self, recent_days: int = 7, today: date | None = None) -> list[RisingPattern]:
+        """Location + hazard pairs whose last week outnumbers the prior week."""
+        return self._find_rising_patterns(self._data_manager.load(), recent_days, today)
+
+    def dashboard_payload(self, today: date | None = None) -> dict:
+        """Compute all trend statistics from a single data-manager load."""
+        incidents = self._data_manager.load()
+        return {
+            "total": len(incidents),
+            "by_severity": self._count_by_severity(incidents),
+            "by_category": self._count_by_hazard_category(incidents),
+            "by_queue": self._count_by_queue(incidents),
+            "per_day": [asdict(point) for point in self._count_per_day(incidents, 14, today)],
+            "hotspots": [asdict(spot) for spot in self._find_hotspots(incidents, 30, 2, today)],
+            "rising": [asdict(pattern) for pattern in self._find_rising_patterns(incidents, 7, today)],
+        }
+
+    # ------------------------------------------------------------------
+    # Private aggregation helpers (operate on a single loaded snapshot)
+    # ------------------------------------------------------------------
+
+    def _count_by_severity(self, incidents: list[Incident]) -> dict[str, int]:
+        counts = {band: 0 for band in self.SEVERITY_BANDS}
+        for incident in incidents:
+            band = self._severity_band(incident)
+            if band is not None:
+                counts[band] += 1
+        return counts
+
+    def _count_by_hazard_category(self, incidents: list[Incident]) -> dict[str, int]:
+        counts: dict[str, int] = defaultdict(int)
+        for incident in incidents:
+            category = self._section_field(incident.ai_section, "hazard_category")
+            if category:
+                counts[category] += 1
+        return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0])))
+
+    def _count_by_queue(self, incidents: list[Incident]) -> dict[str, int]:
+        counts: dict[str, int] = defaultdict(int)
+        for incident in incidents:
+            queue = self._section_field(incident.logic_section, "final_queue")
+            if queue:
+                counts[queue] += 1
+        return dict(sorted(counts.items(), key=lambda item: (-item[1], item[0])))
+
+    def _count_per_day(self, incidents: list[Incident], days: int,
+                       today: date | None) -> list[TrendPoint]:
         today = today or date.today()
         first_day = today - timedelta(days=days - 1)
         daily: dict[date, int] = {first_day + timedelta(days=i): 0 for i in range(days)}
-        for incident in self._data_manager.load():
+        for incident in incidents:
             occurred = self._incident_date(incident)
             if occurred in daily:
                 daily[occurred] += 1
         return [TrendPoint(day.isoformat(), daily[day]) for day in daily]
 
-    def recurrence_hotspots(self, window_days: int = 30, min_count: int = 2,
-                            today: date | None = None) -> list[Hotspot]:
-        """Location + hazard pairs hit at least ``min_count`` times in the window.
-
-        This is the stored-data view of the logic manager's recurrence rule:
-        the same hazard repeating at the same location inside the window.
-        """
+    def _find_hotspots(self, incidents: list[Incident], window_days: int,
+                       min_count: int, today: date | None) -> list[Hotspot]:
         today = today or date.today()
         window_start = today - timedelta(days=window_days - 1)
         groups: dict[tuple[str, str], list[date]] = defaultdict(list)
-        for incident in self._data_manager.load():
+        for incident in incidents:
             occurred = self._incident_date(incident)
-            location = self._input_field(incident, "location")
-            category = self._ai_field(incident, "hazard_category")
-            if occurred and occurred >= window_start and location and category:
+            location = self._section_field(incident.input_section, "location")
+            category = self._section_field(incident.ai_section, "hazard_category")
+            if occurred and window_start <= occurred <= today and location and category:
                 groups[(location, category)].append(occurred)
         hotspots = [
             Hotspot(location, category, len(dates), max(dates).isoformat())
@@ -141,24 +167,18 @@ class StatsService:
         hotspots.sort(key=lambda hotspot: (-hotspot.count, hotspot.last_seen))
         return hotspots
 
-    def rising_patterns(self, recent_days: int = 7, today: date | None = None) -> list[RisingPattern]:
-        """Location + hazard pairs whose last week outnumbers the prior week.
-
-        The recent window is the ``recent_days`` days ending today; the prior
-        window is the equally sized stretch right before it. A pair counts as
-        rising when it happened at least twice this week (a single new report
-        is not a trend) and more often than in the prior window.
-        """
+    def _find_rising_patterns(self, incidents: list[Incident], recent_days: int,
+                              today: date | None) -> list[RisingPattern]:
         today = today or date.today()
         recent_start = today - timedelta(days=recent_days - 1)
         prior_start = recent_start - timedelta(days=recent_days)
         recent: dict[tuple[str, str], int] = defaultdict(int)
         prior: dict[tuple[str, str], int] = defaultdict(int)
-        for incident in self._data_manager.load():
+        for incident in incidents:
             occurred = self._incident_date(incident)
-            location = self._input_field(incident, "location")
-            category = self._ai_field(incident, "hazard_category")
-            if not (occurred and location and category):
+            location = self._section_field(incident.input_section, "location")
+            category = self._section_field(incident.ai_section, "hazard_category")
+            if not (occurred and location and category) or occurred > today:
                 continue
             pair = (location, category)
             if occurred >= recent_start:
@@ -179,14 +199,8 @@ class StatsService:
     # Private extraction helpers
     # ------------------------------------------------------------------
 
-    @classmethod
-    def _severity_band(cls, incident: Incident) -> str | None:
-        """Return the incident's severity band, or None when unusable.
-
-        ``severity_score`` (the pipeline's raw 0-1 score) wins; a numeric
-        legacy ``severity`` is banded with the same thresholds; a banded
-        string passes through when it names a known band.
-        """
+    def _severity_band(self, incident: Incident) -> str | None:
+        """Return the incident's severity band, or None when unusable."""
         if incident.ai_section is None:
             return None
         ai = incident.ai_section.manager_json
@@ -199,33 +213,18 @@ class StatsService:
             if value >= 0.4:
                 return "medium"
             return "low"
-        if isinstance(value, str) and value.strip().lower() in cls.SEVERITY_BANDS:
+        if isinstance(value, str) and value.strip().lower() in self.SEVERITY_BANDS:
             return value.strip().lower()
         return None
 
-    @staticmethod
-    def _ai_field(incident: Incident, key: str):
-        """Read a key from the AI section dictionary, tolerating a missing section."""
-        if incident.ai_section is None:
+    def _section_field(self, section, key: str):
+        """Read a key from a section's JSON payload, tolerating a missing section."""
+        if section is None:
             return None
-        return incident.ai_section.manager_json.get(key)
+        return section.manager_json.get(key)
 
-    @staticmethod
-    def _logic_field(incident: Incident, key: str):
-        """Read a key from the logic section dictionary, tolerating a missing section."""
-        if incident.logic_section is None:
-            return None
-        return incident.logic_section.manager_json.get(key)
-
-    @staticmethod
-    def _input_field(incident: Incident, key: str):
-        """Read a key from the input section dictionary, tolerating a missing section."""
-        if incident.input_section is None:
-            return None
-        return incident.input_section.manager_json.get(key)
-
-    @staticmethod
-    def _incident_date(incident: Incident) -> date | None:
+    def _incident_date(self, incident: Incident) -> date | None:
         """Return the incident's occurrence date, or None when unparseable."""
-        occurred = parse_incident_datetime(StatsService._input_field(incident, "incident_datetime"))
+        raw_dt = self._section_field(incident.input_section, "incident_datetime")
+        occurred = self._datetime_parser.parse(raw_dt)
         return occurred.date() if occurred else None

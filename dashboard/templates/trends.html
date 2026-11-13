@@ -114,11 +114,18 @@
     // renders them. tojson serialises the payload safely into this object.
     const STATS = {{ stats | tojson }};
 
-    const bar = (ctx, labels, data, label, color) => new Chart(ctx, {
-        type: "bar",
-        data: { labels: labels, datasets: [{ label: label, data: data, backgroundColor: color }] },
-        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-    });
+    const bar = (ctx, labels, data, label, color, extraOptions = {}) => {
+        const countAxis = extraOptions.indexAxis === "y" ? "x" : "y";
+        return new Chart(ctx, {
+            type: "bar",
+            data: { labels: labels, datasets: [{ label: label, data: data, backgroundColor: color }] },
+            options: {
+                ...extraOptions,
+                plugins: { legend: { display: false } },
+                scales: { [countAxis]: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+    };
 
     bar(document.getElementById("perDayChart"),
         STATS.per_day.map(p => p.label.slice(5)),
@@ -133,7 +140,7 @@
     bar(document.getElementById("queueChart"),
         Object.keys(STATS.by_queue),
         Object.values(STATS.by_queue),
-        "incidents", "#6f42c1").options.indexAxis = "y";
+        "incidents", "#6f42c1", { indexAxis: "y" });
 
     new Chart(document.getElementById("categoryChart"), {
         type: "doughnut",

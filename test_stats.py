@@ -19,10 +19,12 @@ import unittest
 
 from dashboard import create_app
 from dashboard.config import TestConfig
+from dashboard.datetime_utils import IncidentDatetimeParser
 from dashboard.extensions import db
 from dashboard.incident import Incident
 from dashboard.stats import StatsService
 from data_manager import DataManager
+import managers
 
 
 class StatsServiceTests(unittest.TestCase):
@@ -207,6 +209,66 @@ class StatsServiceTests(unittest.TestCase):
         self.assertIn(b"chart.umd.min.js", response.data)
         self.assertIn(b"mechanical", response.data)
         self.assertIn(b'"total": 2', response.data)
+
+    def test_trends_page_counts_partial_incidents_without_severity(self):
+        self.seed(severity="Manual review pending", final_queue="Manual Review")
+        client = self.app.test_client()
+        response = client.get("/trends")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"No incidents are stored yet", response.data)
+        self.assertIn(b'"total": 1', response.data)
+        self.assertIn(b'"Manual Review": 1', response.data)
+
+    def test_future_dated_incidents_are_excluded_from_past_windows(self):
+        self.seed(days_ago=-2, location="Warehouse", hazard_category="mechanical")
+        self.seed(days_ago=-3, location="Warehouse", hazard_category="mechanical")
+        self.assertEqual(self.stats.recurrence_hotspots(), [])
+        self.assertEqual(self.stats.rising_patterns(), [])
+
+
+class IncidentDatetimeParserTests(unittest.TestCase):
+    def setUp(self):
+        self.parser = IncidentDatetimeParser()
+
+    def test_parses_iso_prompt_and_date_only_formats(self):
+        self.assertEqual(self.parser.parse("2026-11-11T09:00:00"),
+                         datetime(2026, 11, 11, 9, 0, 0))
+        self.assertEqual(self.parser.parse("22-01-2026 13:10"),
+                         datetime(2026, 1, 22, 13, 10))
+        self.assertEqual(self.parser.parse("22-01-2026"),
+                         datetime(2026, 1, 22, 0, 0))
+
+    def test_returns_datetime_unchanged_and_none_for_invalid_values(self):
+        now = datetime(2026, 11, 13, 10, 30)
+        self.assertIs(self.parser.parse(now), now)
+        self.assertIsNone(self.parser.parse(None))
+        self.assertIsNone(self.parser.parse("   "))
+        self.assertIsNone(self.parser.parse("not a date"))
+
+
+class IOManagerNotifyTests(unittest.TestCase):
+    setUp = StatsServiceTests.setUp
+
+    def test_notify_flashes_and_renders_bootstrap_alerts_in_base_template(self):
+        io_manager = managers.io_manager
+
+        @self.app.route("/_test_notify")
+        def _test_notify():
+            io_manager.notify("AI analysis failed.", category="error")
+            io_manager.notify("Incident saved.", category="success")
+            io_manager.notify("Heads up.", category="info")
+            from flask import redirect, url_for
+            return redirect(url_for("dashboard.trends"))
+
+        client = self.app.test_client()
+        response = client.get("/_test_notify", follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"alert-danger", response.data)
+        self.assertIn(b"AI analysis failed.", response.data)
+        self.assertIn(b"alert-success", response.data)
+        self.assertIn(b"Incident saved.", response.data)
+        self.assertIn(b"alert-info", response.data)
+        self.assertIn(b"Heads up.", response.data)
 
 
 if __name__ == "__main__":

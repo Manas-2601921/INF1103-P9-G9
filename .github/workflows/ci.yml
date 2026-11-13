@@ -34,6 +34,9 @@ jobs:
       - name: Run SQLite storage tests
         run: python -m unittest test_incident_sqlite test_data_manager
 
+      - name: Run analytics dashboard tests (StatsService and /trends)
+        run: python test_stats.py
+
       - name: Run end-to-end tests (fake AI responses)
         run: python test_end_to_end.py
 
@@ -46,4 +49,5 @@ jobs:
           docker run --rm incident-triage:${{ github.sha }} python test_ai_manager.py
           docker run --rm incident-triage:${{ github.sha }} python test_sections.py
           docker run --rm incident-triage:${{ github.sha }} python -m unittest test_incident_sqlite test_data_manager
+          docker run --rm incident-triage:${{ github.sha }} python test_stats.py
           docker run --rm incident-triage:${{ github.sha }} python test_end_to_end.py

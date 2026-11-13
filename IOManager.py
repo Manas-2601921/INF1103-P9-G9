@@ -451,3 +451,23 @@ class IOManager:
             return True
         except ValueError:
             return False
+
+    FLASH_CATEGORIES = ("error", "success", "info")
+
+    def notify(self, message: str, category: str = "error") -> None:
+        """Display a flow-level message via Flask flash (or stdout in CLI).
+
+        Imports Flask lazily inside the method so ``IOManager`` stays
+        importable without the web stack installed or active.
+        """
+        level = category if category in self.FLASH_CATEGORIES else "info"
+        try:
+            from flask import flash, has_request_context
+        except ImportError:
+            print(message)
+            return
+
+        if has_request_context():
+            flash(message, level)
+        else:
+            print(message)
