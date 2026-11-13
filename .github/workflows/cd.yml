@@ -29,6 +29,11 @@ name: CD
 # The startup command overrides the image's default CMD (the terminal
 # app) so the deployed container serves the web dashboard; locally the
 # image still runs the CLI, and the Dockerfile itself stays untouched.
+#
+# DEFAULT-BRANCH GOTCHA: the "Run workflow" button only appears once this
+# file exists on the repository's DEFAULT branch (main). Until phase3/dev
+# is merged into main, either uncomment the push trigger above to deploy
+# from phase3/dev, or do the deploy by merging to main first.
 
 on:
   workflow_dispatch:
