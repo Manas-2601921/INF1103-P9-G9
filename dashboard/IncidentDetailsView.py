@@ -8,7 +8,7 @@ class IncidentDetailsView(MethodView):
     
     def get(self, record_id):
         try:
-            incident_record = managers.data_manager.query(lambda record: record.get("record_id") == record_id)
+            incident_record = managers.data_manager.get_by_record_id(record_id)
         except DataLoadError:
             current_app.logger.exception("Failed to load incident")
             managers.io_manager.notify("The incident could not be loaded. Please try again later.")
@@ -21,7 +21,7 @@ class IncidentDetailsView(MethodView):
 
         return render_template(
             "incident_details.html",
-            incident=incident_record[0],
+            incident=incident_record.to_dict(),
             format_datetime=managers.io_manager.format_incident_datetime,
         )
         # return render_template("incident_details.html", record_id=record_id)

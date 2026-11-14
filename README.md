@@ -37,6 +37,27 @@ User / Browser  ──▶  Flask App (app.py / HomeView)  ──▶  StatsServic
 
 ---
 
+## Incident query contract
+
+`DataManager.load()`, `query()`, the named incident query helpers, and
+`IOManager.find_by_*()` return `Incident` objects (`list[Incident]`).
+`get_by_record_id()` returns one `Incident` or `None`. Convert with
+`incident.to_dict()` at boundaries that require dictionaries, such as the
+existing triage rules, console formatting, or the details template.
+Summary dictionaries and category strings remain presentation projections.
+
+`query(*criteria)` accepts SQLAlchemy expressions combined with AND, not
+Python callbacks. ID and named equality/title/category queries filter in SQL;
+category options use a distinct SQL projection. Relationships are loaded
+before the session closes so returned objects remain usable.
+
+Date-range/parsed-datetime searches and numeric legacy-severity filtering
+still run in Python: existing text dates have multiple formats and legacy
+severity JSON mixes numbers, numeric strings, and bands. Moving those filters
+fully into SQL requires normalising their stored representations first.
+
+---
+
 ## Environment Variables
 
 Copy `.env.example` to `.env` before running with live AI features (`.env` is git-ignored; **never commit secrets**):

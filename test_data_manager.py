@@ -54,7 +54,7 @@ class DataManagerTests(unittest.TestCase):
         self.assertIsInstance(loaded, Incident)
         self.assertIsInstance(loaded.input_section, InputSection)
         self.assertEqual(loaded.to_dict(), incident.to_dict())
-        self.assertEqual(manager.query_location("Warehouse"), [incident.to_dict()])
+        self.assertEqual([item.to_dict() for item in manager.query_location("Warehouse")], [incident.to_dict()])
         self.assertEqual(manager.query_stored_incident_summaries()[0]["record_id"], incident.record_id)
         with self.assertRaises(ValueError):
             manager.save(incident)
@@ -112,8 +112,8 @@ class DataManagerTests(unittest.TestCase):
         manager.save(incident)
         io = IOManager()
         with patch.object(io, "_data_manager", manager):
-            self.assertEqual(io.find_by_title("test"), [incident.to_dict()])
-            self.assertEqual(io.find_by_category("mechanical"), [incident.to_dict()])
+            self.assertEqual([item.to_dict() for item in io.find_by_title("test")], [incident.to_dict()])
+            self.assertEqual([item.to_dict() for item in io.find_by_category("mechanical")], [incident.to_dict()])
             self.assertEqual(io.get_all_incident_categories(), ["mechanical"])
 
     def test_interactive_search_options_use_shared_manager(self):
@@ -135,7 +135,7 @@ class DataManagerTests(unittest.TestCase):
                 with self.subTest(option=option, answers=answers), \
                         patch("builtins.input", side_effect=answers):
                     records, _ = IOManager().handle_search_option(option)
-                    self.assertEqual(records, [incident.to_dict()])
+                    self.assertEqual([item.to_dict() for item in records], [incident.to_dict()])
 
     def test_uninitialized_database_and_missing_section_are_reported(self):
         db.session.execute(text("PRAGMA foreign_keys=ON"))
