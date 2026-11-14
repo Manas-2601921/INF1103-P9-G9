@@ -1,8 +1,152 @@
 {% extends "base.html" %}
-{% block title %}Dashboard - Workplace Incident Triage{% endblock %}
+{% block title %}Dashboard — Workplace Incident Triage{% endblock %}
 {% block content %}
-<div class="text-center py-5">
-    <h1>Workplace Incident Triage Assistant</h1>
-    <p class="text-muted">The dashboard is under construction.</p>
+<h1 class="h3 mb-4">Incident dashboard &amp; trends</h1>
+
+{% if total == 0 %}
+<div class="alert alert-info">
+    No incidents are stored yet. Report one through the terminal app or run
+    <code>python scripts/seed_demo_data.py</code> to load demo data for the charts.
 </div>
+{% else %}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card text-bg-primary h-100"><div class="card-body">
+            <div class="fs-2 fw-bold">{{ total }}</div>
+            <div>Incidents stored</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card text-bg-danger h-100"><div class="card-body">
+            <div class="fs-2 fw-bold">{{ stats.by_severity.high }}</div>
+            <div>High severity</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card text-bg-warning h-100"><div class="card-body">
+            <div class="fs-2 fw-bold">{{ stats.hotspots | length }}</div>
+            <div>Recurrence hotspots (30d)</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card text-bg-success h-100"><div class="card-body">
+            <div class="fs-2 fw-bold">{{ stats.rising | length }}</div>
+            <div>Rising patterns (7d)</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="h6 card-title">Incidents per day (last 14 days)</h2>
+            <canvas id="perDayChart" height="110"></canvas>
+        </div></div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="h6 card-title">Severity distribution</h2>
+            <canvas id="severityChart" height="110"></canvas>
+        </div></div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="h6 card-title">Hazard categories</h2>
+            <canvas id="categoryChart" height="140"></canvas>
+        </div></div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="h6 card-title">Final queues</h2>
+            <canvas id="queueChart" height="140"></canvas>
+        </div></div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="h6 card-title">Recurrence hotspots — same hazard, same location, last 30 days</h2>
+            {% if stats.hotspots %}
+            <table class="table table-sm table-striped align-middle mb-0">
+                <thead><tr><th>Location</th><th>Hazard category</th><th>Incidents</th><th>Last seen</th></tr></thead>
+                <tbody>
+                {% for hotspot in stats.hotspots %}
+                    <tr>
+                        <td>{{ hotspot.location }}</td>
+                        <td>{{ hotspot.hazard_category }}</td>
+                        <td><span class="badge text-bg-secondary">{{ hotspot.count }}</span></td>
+                        <td>{{ hotspot.last_seen }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted mb-0">No hazard repeated at one location in the last 30 days.</p>
+            {% endif %}
+        </div></div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="h6 card-title">Possible incoming incidents — rising this week</h2>
+            {% if stats.rising %}
+            <ul class="list-group list-group-flush">
+            {% for pattern in stats.rising %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{ pattern.location }} × {{ pattern.hazard_category }}</span>
+                    <span class="badge text-bg-success">+{{ pattern.recent_count - pattern.prior_count }}
+                        ({{ pattern.recent_count }} vs {{ pattern.prior_count }})</span>
+                </li>
+            {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted mb-0">Nothing is trending up compared to the previous week.</p>
+            {% endif %}
+        </div></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    // The statistics are computed by StatsService in Python; this page only
+    // renders them. tojson serialises the payload safely into this object.
+    const STATS = {{ stats | tojson }};
+
+    const bar = (ctx, labels, data, label, color, extraOptions = {}) => {
+        const countAxis = extraOptions.indexAxis === "y" ? "x" : "y";
+        return new Chart(ctx, {
+            type: "bar",
+            data: { labels: labels, datasets: [{ label: label, data: data, backgroundColor: color }] },
+            options: {
+                ...extraOptions,
+                plugins: { legend: { display: false } },
+                scales: { [countAxis]: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+    };
+
+    bar(document.getElementById("perDayChart"),
+        STATS.per_day.map(p => p.label.slice(5)),
+        STATS.per_day.map(p => p.count),
+        "incidents", "#0d6efd");
+
+    bar(document.getElementById("severityChart"),
+        Object.keys(STATS.by_severity),
+        Object.values(STATS.by_severity),
+        "incidents", ["#198754", "#ffc107", "#dc3545"]);
+
+    bar(document.getElementById("queueChart"),
+        Object.keys(STATS.by_queue),
+        Object.values(STATS.by_queue),
+        "incidents", "#6f42c1", { indexAxis: "y" });
+
+    new Chart(document.getElementById("categoryChart"), {
+        type: "doughnut",
+        data: { labels: Object.keys(STATS.by_category),
+                datasets: [{ data: Object.values(STATS.by_category),
+                             backgroundColor: ["#0d6efd", "#6610f2", "#d63384", "#dc3545",
+                                               "#fd7e14", "#fadb03", "#198754", "#20c997", "#6c757d"] }] }
+    });
+</script>
+{% endif %}
 {% endblock %}
