@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Incident details - Workplace Incident Triage{% endblock %}
+{% block content %}
+{% set report = incident.get("input") or {} %}
+{% set analysis = incident.get("ai") or {} %}
+{% set triage = incident.get("logic") or {} %}
+{% set metadata = incident.get("metadata") or {} %}
+
+{% macro display_value(value, key=none) %}
+    {% if value is none or value == "" %}
+        <span class="text-muted">Not available</span>
+    {% elif value is sameas true %}
+        Yes
+    {% elif value is sameas false %}
+        No
+    {% elif key in ("incident_datetime", "datetime", "created_at", "processed_at") and value is string %}
+        <span class="incident-text">{{ format_datetime(value) }}</span>
+    {% elif value is mapping %}
+        {% if value %}
+            <dl class="incident-nested mb-0">
+                {% for key, item in value.items() %}
+                    <dt>{{ key|replace("_", " ")|title }}</dt>
+                    <dd>{{ display_value(item, key) }}</dd>
+                {% endfor %}
+            </dl>
+        {% else %}
+            <span class="text-muted">No details available</span>
+        {% endif %}
+    {% elif value is sequence and value is not string %}
+        {% if value %}
+            <ul class="mb-0 ps-3">
+                {% for item in value %}
+                    <li>{{ display_value(item) }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <span class="text-muted">No details available</span>
+        {% endif %}
+    {% else %}
+        <span class="incident-text">{{ value }}</span>
+    {% endif %}
+{% endmacro %}
+
+{% macro report_section(title, fields) %}
+    <section class="report-section">
+        <h2>{{ title }}</h2>
+        {% if fields %}
+            <dl class="incident-fields">
+                {% for key, value in fields.items() %}
+                    <div class="incident-field">
+                        <dt>{{ key|replace("_", " ")|title }}</dt>
+                        <dd>{{ display_value(value, key) }}</dd>
+                    </div>
+                {% endfor %}
+            </dl>
+        {% else %}
+            <p class="text-muted mb-0">No details available.</p>
+        {% endif %}
+    </section>
+{% endmacro %}
+
+<article class="incident-report">
+    <header class="report-header">
+        <p class="report-label">Workplace Incident Report</p>
+        <h1>{{ report.get("incident_name") or "Unnamed incident" }}</h1>
+        <p class="report-id">Record ID: {{ incident.get("record_id") or "Unassigned" }}</p>
+    </header>
+
+    {{ report_section("Incident report", report) }}
+    {{ report_section("AI analysis", analysis) }}
+    {{ report_section("Triage decision", triage) }}
+    {{ report_section("Record information", metadata) }}
+</article>
+{% endblock %}

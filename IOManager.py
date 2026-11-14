@@ -1,9 +1,13 @@
-from datetime import datetime
-import managers
-class IOManager:
-    
+from datetime import date, datetime
+import logging
 
-    def __init__(self):
+from data_manager import DataManager
+
+
+class IOManager:
+
+    def __init__(self, data_manager: DataManager | None = None):
+        self._data_manager = data_manager if data_manager is not None else DataManager()
         self.__incident_name = None
         self.__incident_description = None
         self.__incident_datetime = None
@@ -180,25 +184,6 @@ class IOManager:
 
         return True
 
-    # To be added into main.py
-
-    # # Collect all incident information
-    # if managers.io_manager.collect_incident_details():
-
-    #     print("\nIncident information collected successfully!")
-
-    #     print(managers.io_manager.incident_name)
-    #     print(managers.io_manager.incident_description)
-    #     print(managers.io_manager.location)
-    #     print(managers.io_manager.reporter_role)
-    #     print(managers.io_manager.incident_datetime)
-    #     print(managers.io_manager.injury_reported)
-    #     print(managers.io_manager.immediate_action)
-
-    # else:
-    #     print("Incident reporting cancelled.")
-
-    
     @staticmethod
     def display_search_options():
         while True:
@@ -243,7 +228,7 @@ class IOManager:
                     input_incident_category_lower = input_incident_category.lower()
                     if input_incident_category_lower == "quit":
                         return "quit"
-                    elif input_incident_category_lower in incident_categories:
+                    elif input_incident_category_lower in {category.lower() for category in incident_categories}:
                         break
                     else:
                         print("Error: Invalid search category. Please re-enter")
@@ -337,6 +322,27 @@ class IOManager:
                 continue
             break
 
+    @staticmethod
+    def format_incident_datetime(value):
+        try:
+            return date.fromisoformat(value).strftime("%d %B %Y")
+        except ValueError:
+            pass
+
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            try:
+                parsed = datetime.strptime(value, "%d-%m-%Y %H:%M")
+            except ValueError:
+                logging.getLogger(__name__).warning("Could not format incident date")
+                return f"Unrecognized date: {value}"
+
+        formatted = parsed.strftime("%d %B %Y, %H:%M")
+        if parsed.utcoffset() is not None:
+            formatted += parsed.strftime(" UTC%z")
+        return formatted
+
     def format_incident_record(self, incident_record: dict) -> str:
         # shortcuts so the lines below stay readable
         details = incident_record['input']
@@ -395,54 +401,90 @@ class IOManager:
         return "\n".join(lines)
         
     @staticmethod
-    def find_by_title(incident_title:str):
-        results = managers.data_manager.query(
-            lambda record: (record.get("input", {}).get("incident_name") or "").strip().lower() == incident_title.strip().lower()
-        )
-        if results != None or []:
-            return results
-        else:
-            return []
+    def _search_text(value):
+        if not isinstance(value, str):
+            raise TypeError("Search text must be a string.")
+        value = value.strip().lower()
+        if not value:
+            raise ValueError("Search text cannot be empty.")
+        return value
 
-    @staticmethod
-    def find_by_category(incident_category:str):
-        results = managers.data_manager.query(
-            lambda record: (record.get("ai", {}).get("hazard_category") or "").strip().lower() == incident_category.strip().lower()
+    def find_by_title(self, incident_title: str):
+        """Return incidents with an exact, case-insensitive name match."""
+        title = self._search_text(incident_title)
+        return self._data_manager.query(
+            lambda record: ((record.get("input") or {}).get("incident_name") or "").strip().lower() == title
         )
-        if results != None or []:
-            return results
-        else:
-            return []
 
-    @staticmethod
-    def get_all_incident_categories():
-        incident_categories = sorted({
-            (record.get("ai", {}).get("hazard_category") or "").strip()
-                for record in managers.data_manager.query(lambda record: True)
-                if (record.get("ai", {}).get("hazard_category") or "").strip()
+    def find_by_category(self, incident_category: str):
+        #Return incidents with an exact, case-insensitive hazard match.
+        category = self._search_text(incident_category)
+        return self._data_manager.query(
+            lambda record: ((record.get("ai") or {}).get("hazard_category") or "").strip().lower() == category
+        )
+
+    def get_all_incident_categories(self):
+        #Return available hazard categories, or an empty list.
+        return sorted({
+            (record.get("ai") or {}).get("hazard_category", "").strip()
+            for record in self._data_manager.query(lambda record: True)
+            if ((record.get("ai") or {}).get("hazard_category") or "").strip()
         })
-        if(incident_categories):
-            return incident_categories
-        else:
-            return False
-    @staticmethod
-    def find_by_datetime_range(start_datetime:datetime, end_datetime:datetime):
-        search_results = managers.data_manager.query(
-            lambda record: start_datetime <= (record.get("input", {}).get("incident_datetime") or "") <= end_datetime
-        )
-        if not search_results:
-            return []
-        return search_results 
 
     @staticmethod
-    def find_by_specific_datetime(specific_datetime:datetime):
-        search_results = managers.data_manager.query(
-            lambda record: record.get("input", {}).get("incident_datetime") == specific_datetime
+    def _parse_search_datetime(value: str | datetime) -> datetime:
+        if isinstance(value, datetime):
+            return value
+        if not isinstance(value, str):
+            raise TypeError("Search date must be a datetime or a string.")
+        try:
+            return datetime.fromisoformat(value.strip())
+        except ValueError:
+            try:
+                return datetime.strptime(value.strip(), "%d-%m-%Y %H:%M")
+            except ValueError as exc:
+                raise ValueError("Search date must be ISO format or DD-MM-YYYY HH:MM.") from exc
+
+    def _incident_search_datetime(self, record, reference):
+        value = (record.get("input") or {}).get("incident_datetime")
+        if not value:
+            return None
+        try:
+            incident_datetime = self._parse_search_datetime(value)
+        except (TypeError, ValueError):
+            logging.getLogger(__name__).warning("Skipping an incident with an invalid date during search")
+            return None
+        if (incident_datetime.utcoffset() is None) != (reference.utcoffset() is None):
+            logging.getLogger(__name__).warning("Skipping an incident with an incompatible timezone during search")
+            return None
+        return incident_datetime
+
+    def find_by_datetime_range(self, start_datetime: str | datetime, end_datetime: str | datetime):
+        """Return incidents within an inclusive range.
+
+        Accept datetime objects, ISO strings, or DD-MM-YYYY HH:MM strings.
+        Invalid inputs and ranges raise ValueError or TypeError.
+        """
+        start = self._parse_search_datetime(start_datetime)
+        end = self._parse_search_datetime(end_datetime)
+        if (start.utcoffset() is None) != (end.utcoffset() is None):
+            raise ValueError("Search dates must both include a timezone or both omit it.")
+        if start > end:
+            raise ValueError("End date cannot be earlier than start date.")
+
+        def matches(record):
+            incident_datetime = self._incident_search_datetime(record, start)
+            return incident_datetime is not None and start <= incident_datetime <= end
+
+        return self._data_manager.query(matches)
+
+    def find_by_specific_datetime(self, specific_datetime: str | datetime):
+        #Return exact date/time matches using the same formats as range search.
+        target = self._parse_search_datetime(specific_datetime)
+        return self._data_manager.query(
+            lambda record: self._incident_search_datetime(record, target) == target
         )
-        if not search_results:
-            return []
-        else:
-            return search_results 
+
     @staticmethod
     def is_valid_dt_format(value_to_check):
         format="%d-%m-%Y %H:%M"

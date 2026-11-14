@@ -13,6 +13,6 @@ from dashboard.input_section import InputSection
 
 data_manager = DataManager()
 logic_manager = LogicManager()
-io_manager = IOManager()
+io_manager = IOManager(data_manager)
 input_section = InputSection()
 
