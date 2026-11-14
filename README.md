@@ -90,6 +90,7 @@ Copy `.env.example` to `.env` before running with live AI features (`.env` is gi
 | `ZAI_KEY` | For live AI triage | — | API key for the Z.ai OpenAI-compatible GLM endpoint (`ZaiLLMClient`) |
 | `SECRET_KEY` | Recommended in prod | `dev-only-secret-key-change-me` | Flask session & CSRF protection secret |
 | `DATABASE_URL` | Optional | `sqlite:///data/incidents.db` | SQLAlchemy database URI (`postgres://` normalised automatically to `postgresql://`) |
+| `SQLALCHEMY_ECHO` | Optional | `false` | Print SQL statements and bound parameters to the console |
 | `FLASK_DEBUG` | Optional | `True` (via `DevConfig`) | Set to `false` in containers/production |
 | `HOST` / `PORT` | Optional | `0.0.0.0` / `5000` | Web server bind address and port |
 | `WEBSITES_PORT` | Azure App Service | `5000` | Tells Azure App Service which port the container listens on |
@@ -111,6 +112,26 @@ python app.py
 ```
 
 Open `http://127.0.0.1:5000/` in your browser.
+
+To inspect the SQL sent to the database, enable the built-in SQLAlchemy engine
+logger before starting the app (PowerShell):
+
+```powershell
+$env:SQLALCHEMY_ECHO = "true"
+.\.venv\Scripts\python.exe app.py
+```
+
+For Windows CMD:
+
+```cmd
+set SQLALCHEMY_ECHO=true
+.venv\Scripts\python.exe app.py
+```
+
+Requests now print SQL, bound parameters, and transaction messages in the server
+console. Parameters can contain incident text. To turn logging off, stop the
+server, set `$env:SQLALCHEMY_ECHO = "false"`, and restart it. Python-side legacy
+date/severity filters do not generate extra SQL log entries.
 
 To populate sample data for exploring the analytics dashboard:
 
