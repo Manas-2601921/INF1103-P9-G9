@@ -1,13 +1,11 @@
 """Shared AI analysis for CLI and dashboard incident reports."""
-
+import managers
 class IncidentAnalyzer:
     """Run AI analysis and prepare its result for the logic manager."""
 
     def __init__(self):
         try:
-            from ai_manager import AIManager
-
-            self.ai_manager = AIManager()
+            self.ai_manager = managers.ai_manager
             self.ai_import_error = None
         except ImportError as exc:
             self.ai_manager = None
