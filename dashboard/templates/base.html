@@ -9,12 +9,13 @@
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
+    <div class="container flex-wrap gap-2">
         <a class="navbar-brand" href="{{ url_for('dashboard.home') }}">Incident Triage Assistant</a>
-        <div class="navbar-nav flex-row gap-3">
+        <div class="navbar-nav flex-row flex-wrap gap-3">
             <a class="nav-link" href="{{ url_for('dashboard.home') }}">Dashboard</a>
             <a class="nav-link" href="{{ url_for('dashboard.add_incident') }}">Add incident</a>
             <a class="nav-link" href="{{ url_for('dashboard.incidents') }}">View all incidents</a>
+            <a class="nav-link{% if request.endpoint == 'dashboard.search' %} active{% endif %}" href="{{ url_for('dashboard.search') }}" {% if request.endpoint == 'dashboard.search' %}aria-current="page"{% endif %}>Search incidents</a>
 
         </div>
     </div>

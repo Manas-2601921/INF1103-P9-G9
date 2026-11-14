@@ -51,10 +51,33 @@ Python callbacks. ID and named equality/title/category queries filter in SQL;
 category options use a distinct SQL projection. Relationships are loaded
 before the session closes so returned objects remain usable.
 
+Combined search narrows text and boolean filters in SQL first.
 Date-range/parsed-datetime searches and numeric legacy-severity filtering
-still run in Python: existing text dates have multiple formats and legacy
+still run in Python on those candidates: existing text dates have multiple formats and legacy
 severity JSON mixes numbers, numeric strings, and bands. Moving those filters
 fully into SQL requires normalising their stored representations first.
+
+---
+
+## Search and query pages (Pair B)
+
+Open `/search` or choose **Search incidents** in the navigation. Title searches
+use literal, case-insensitive partial matching by default; choose **Exact title**
+for the CLI-style full-name match. Combine record ID, hazard, location, severity,
+review queue, injury status, and date filters; every selected filter must match.
+An empty search browses all incidents. URLs preserve filters for bookmarking.
+
+Date ranges include the entire end date and allow either bound to be omitted.
+**Specific date and minute** matches any second within the selected minute.
+Dates use reported local time; timezone-aware and naive timestamps are not mixed.
+Results show a count and query summary, with 20 records per page and a link to
+incident details. The detail page follows Inputs / Review / Repeating unsafe
+practices / Recommendation and preserves the return link to filtered results.
+
+`DataManager.query_record_id`, `query_incident_name`, and `query_datetime_range`
+return `Incident` lists. `IOManager` delegates existing CLI date searches to the
+same database-layer parser and exposes `search_incidents` for the web view.
+Database load errors display a message; corrupt-database backup/reset is deferred.
 
 ---
 

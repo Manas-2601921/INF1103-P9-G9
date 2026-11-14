@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from dashboard.extensions import db
 from dashboard.incident import Incident
-from dashboard.models import IncidentModel, IOManagerModel, AIManagerModel
+from dashboard.models import IncidentModel, IOManagerModel, AIManagerModel, LogicManagerModel
 
 
 class DataManager:
@@ -112,19 +112,130 @@ class DataManager:
 
     def get_by_record_id(self, record_id: str) -> Incident | None:
         """Find a single incident by its public INC- identifier using its SQL key."""
-        if not isinstance(record_id, str) or re.fullmatch(r"INC-[0-9]+", record_id) is None:
-            return None
-        incident_id = int(record_id[4:])
-        if not 0 < incident_id <= 9223372036854775807:
-            return None
-        matches = self.query(IncidentModel.id == incident_id)
+        matches = self.query_record_id(record_id)
         return matches[0] if matches else None
+
+    @staticmethod
+    def _record_id_number(record_id):
+        if not isinstance(record_id, str) or re.fullmatch(r"INC-[0-9]{1,19}", record_id) is None:
+            return None
+        value = int(record_id[4:])
+        return value if 0 < value <= 9223372036854775807 else None
+
+    def query_record_id(self, record_id: str) -> list[Incident]:
+        """Return the incident matching a public INC- ID, or an empty list."""
+        incident_id = self._record_id_number(record_id)
+        return self.query(IncidentModel.id == incident_id) if incident_id else []
+
+    def query_incident_name(self, incident_name: str, exact=True) -> list[Incident]:
+        """Case-insensitive full-name or literal substring lookup."""
+        return self.search_incidents(incident_name=incident_name, exact_name=exact)
+
+    @staticmethod
+    def _parse_query_datetime(value):
+        from dashboard.analytics.incident_datetime_parser import IncidentDatetimeParser
+        if not isinstance(value, (str, datetime)):
+            raise TypeError("Search date must be a datetime or a string.")
+        parsed = IncidentDatetimeParser().parse(value)
+        if parsed is None:
+            raise ValueError("Enter an ISO date/time or DD-MM-YYYY HH:MM.")
+        return parsed
+
+    @classmethod
+    def _filter_datetime_range(cls, incidents, start=None, end=None):
+        """Parse legacy dates after SQL narrows the other search criteria.
+
+        Bounds are inclusive. Incompatible timezone records and invalid stored
+        dates are skipped, matching the original IOManager search behaviour.
+        """
+        from dashboard.analytics.incident_datetime_parser import IncidentDatetimeParser
+        start = cls._parse_query_datetime(start) if start is not None else None
+        end = cls._parse_query_datetime(end) if end is not None else None
+        if start is not None and end is not None:
+            if (start.utcoffset() is None) != (end.utcoffset() is None):
+                raise ValueError("Search dates must both include a timezone or both omit it.")
+            if start > end:
+                raise ValueError("End date cannot be earlier than start date.")
+        reference = start if start is not None else end
+        if reference is None:
+            return incidents
+        parser = IncidentDatetimeParser()
+        matches = []
+        for incident in incidents:
+            raw = incident.input_section.to_dict().get("incident_datetime") if incident.input_section else None
+            occurred = parser.parse(raw)
+            if occurred is None or (occurred.utcoffset() is None) != (reference.utcoffset() is None):
+                continue
+            if (start is None or start <= occurred) and (end is None or occurred <= end):
+                matches.append(incident)
+        return matches
+
+    def query_datetime_range(self, start_datetime=None, end_datetime=None) -> list[Incident]:
+        """Return incidents in an inclusive parsed range; either bound is optional."""
+        return self.search_incidents(start_datetime=start_datetime, end_datetime=end_datetime)
+
+    @staticmethod
+    def severity_band(incident):
+        """Resolve current bands and legacy numeric severity with pipeline thresholds."""
+        score = DataManager.numeric_severity(incident)
+        if score is not None:
+            return "high" if score > 0.7 else "medium" if score >= 0.4 else "low"
+        raw = incident.ai_section.to_dict().get("severity") if incident.ai_section else None
+        return raw.strip().lower() if isinstance(raw, str) and raw.strip().lower() in {"low", "medium", "high"} else None
+
+    def search_incidents(self, *, record_id="", incident_name="", exact_name=False,
+                         hazard_category="", location="", severity="", final_queue="",
+                         injury_reported=None, start_datetime=None, end_datetime=None) -> list[Incident]:
+        """AND-combine filters; return Incident objects in database ID order.
+
+        Text/boolean filters run in SQL with bound values. Date and severity
+        compatibility filters run only on that candidate set because legacy
+        records store mixed date formats and numeric/banded severity JSON.
+        Empty filters mean all incidents. Name/location substrings treat SQL
+        wildcard characters literally. No records are modified.
+        """
+        criteria = []
+        if record_id:
+            incident_id = self._record_id_number(record_id)
+            if incident_id is None:
+                raise ValueError("Record ID must look like INC-0001.")
+            criteria.append(IncidentModel.id == incident_id)
+        if incident_name:
+            name = func.lower(func.trim(IOManagerModel.incident_name))
+            value = incident_name.strip().lower()
+            criteria.append(IncidentModel.input_section.has(
+                name == value if exact_name else name.contains(value, autoescape=True)
+            ))
+        if location:
+            criteria.append(IncidentModel.input_section.has(
+                func.lower(IOManagerModel.location).contains(location.strip().lower(), autoescape=True)
+            ))
+        if hazard_category:
+            criteria.append(IncidentModel.ai_section.has(
+                func.lower(func.trim(AIManagerModel.hazard_category)) == hazard_category.strip().lower()
+            ))
+        if final_queue:
+            criteria.append(IncidentModel.logic_section.has(LogicManagerModel.final_queue == final_queue))
+        if injury_reported is not None:
+            if not isinstance(injury_reported, bool):
+                raise TypeError("Injury filter must be True, False, or None.")
+            criteria.append(IncidentModel.input_section.has(IOManagerModel.injury_reported == injury_reported))
+        if severity and severity not in {"low", "medium", "high", "unassessed"}:
+            raise ValueError("Select a valid severity.")
+        # Validate range before executing the database query, even on an empty DB.
+        if start_datetime is not None or end_datetime is not None:
+            self._filter_datetime_range([], start_datetime, end_datetime)
+        incidents = self.query(*criteria)
+        if severity:
+            incidents = [item for item in incidents
+                         if (self.severity_band(item) or "unassessed") == severity]
+        if start_datetime is not None or end_datetime is not None:
+            incidents = self._filter_datetime_range(incidents, start_datetime, end_datetime)
+        return incidents
 
     def query_title(self, title: str) -> list[Incident]:
         """Match an entire title case-insensitively, ignoring surrounding spaces."""
-        return self.query(IncidentModel.input_section.has(
-            func.lower(func.trim(IOManagerModel.incident_name)) == title.strip().lower()
-        ))
+        return self.query_incident_name(title, exact=True)
 
     def query_category(self, category: str) -> list[Incident]:
         """Match an entire hazard category case-insensitively."""

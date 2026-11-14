@@ -59,6 +59,7 @@
     </section>
 {% endmacro %}
 
+<div class="mb-3"><a class="btn btn-outline-secondary btn-sm" href="{{ back_url }}">{{ 'Back to search results' if from_search else 'Back to incidents' }}</a></div>
 <article class="incident-report">
     <header class="report-header">
         <p class="report-label">Workplace Incident Report</p>
@@ -66,9 +67,15 @@
         <p class="report-id">Record ID: {{ incident.get("record_id") or "Unassigned" }}</p>
     </header>
 
-    {{ report_section("Incident report", report) }}
-    {{ report_section("AI analysis", analysis) }}
-    {{ report_section("Triage decision", triage) }}
-    {{ report_section("Record information", metadata) }}
+    {{ report_section("Inputs", report) }}
+    {{ report_section("Review", review) }}
+    {{ report_section("Repeating unsafe practices", analysis.get("repeat_pattern_indicators") or {}) }}
+    {{ report_section("Recommendation", {"recommended_immediate_action": analysis.get("recommended_immediate_action")}) }}
+    <details class="mt-4">
+        <summary class="text-muted">Record information</summary>
+        <dl class="incident-fields mt-2">{% for key, value in metadata.items() %}
+            <div class="incident-field"><dt>{{ key|replace('_', ' ')|title }}</dt><dd>{{ display_value(value, key) }}</dd></div>
+        {% endfor %}</dl>
+    </details>
 </article>
 {% endblock %}

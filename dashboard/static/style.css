@@ -12,3 +12,10 @@ body {
 .queue-badge {
     min-width: 9rem;
 }
+
+/* Keep long incident titles from forcing a very wide results table. */
+.search-title {
+    min-width: 12rem;
+    max-width: 22rem;
+    overflow-wrap: anywhere;
+}

@@ -351,7 +351,7 @@ def handle_search_options():
                 continue
             break
 
-        # "or ''" treats a missing incident_datetime as an empty string, so that record is skipped instead of crashing
+        # The shared parser skips missing or invalid stored incident dates.
         search_results = managers.io_manager.find_by_datetime_range(valid_start_datetime, valid_end_datetime)
         search_string = f"incidents between {search_start_datetime_input} and {search_end_datetime_input}"
         return search_results, search_string

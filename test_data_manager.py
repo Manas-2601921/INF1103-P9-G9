@@ -67,6 +67,39 @@ class DataManagerTests(unittest.TestCase):
         db.session.remove()
         self.assertEqual(loaded.input_section.to_dict()["location"], "Warehouse")
 
+    def test_search_helpers_combine_filters_and_treat_wildcards_literally(self):
+        manager = self.manager()
+        target = self.completed()
+        target.input_section.manager_json["incident_name"] = "Forklift 100% check"
+        target.ai_section.manager_json["hazard_category"] = "mechanical"
+        manager.save(target)
+        other = self.completed()
+        other.input_section.manager_json["incident_name"] = "Forklift 1000 check"
+        manager.save(other)
+        self.assertEqual(manager.query_record_id(target.record_id)[0].record_id, target.record_id)
+        self.assertEqual(manager.query_record_id("INC-invalid"), [])
+        self.assertEqual(manager.query_incident_name("FORKLIFT 100% CHECK")[0].record_id, target.record_id)
+        matches = manager.search_incidents(incident_name="100%", hazard_category="mechanical",
+                                           location="ware", injury_reported=False)
+        self.assertEqual([item.record_id for item in matches], [target.record_id])
+        self.assertEqual(manager.search_incidents(incident_name="100%", injury_reported=True), [])
+
+    def test_datetime_range_handles_legacy_dates_boundaries_and_invalid_values(self):
+        manager = self.manager()
+        stored_ids = []
+        for value in ("2026-11-11T09:00:00", "11-11-2026 09:00", "invalid", "2026-11-11T09:00:00+08:00"):
+            incident = self.completed()
+            incident.input_section.manager_json["incident_datetime"] = value
+            manager.save(incident)
+            stored_ids.append(incident.record_id)
+        matches = manager.query_datetime_range("2026-11-11T09:00:00", "2026-11-11T09:00:00")
+        self.assertEqual([item.record_id for item in matches], stored_ids[:2])
+        self.assertEqual([item.record_id for item in manager.query_datetime_range("2026-11-11T09:00:00+08:00", None)], stored_ids[3:])
+        for start, end in (("bad", None), ("2026-11-12", "2026-11-11"),
+                           ("2026-11-11T09:00:00+08:00", "2026-11-11T09:00:00")):
+            with self.subTest(start=start, end=end), self.assertRaises(ValueError):
+                manager.query_datetime_range(start, end)
+
     def test_failed_commit_preserves_caller_and_rolls_back(self):
         incident = self.completed()
         original = incident.to_dict()

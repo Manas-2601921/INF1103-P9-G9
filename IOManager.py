@@ -425,58 +425,22 @@ class IOManager:
 
     @staticmethod
     def _parse_search_datetime(value: str | datetime) -> datetime:
-        if isinstance(value, datetime):
-            return value
-        if not isinstance(value, str):
-            raise TypeError("Search date must be a datetime or a string.")
-        try:
-            return datetime.fromisoformat(value.strip())
-        except ValueError:
-            try:
-                return datetime.strptime(value.strip(), "%d-%m-%Y %H:%M")
-            except ValueError as exc:
-                raise ValueError("Search date must be ISO format or DD-MM-YYYY HH:MM.") from exc
-
-    def _incident_search_datetime(self, record, reference):
-        value = record.input_section.to_dict().get("incident_datetime") if record.input_section else None
-        if not value:
-            return None
-        try:
-            incident_datetime = self._parse_search_datetime(value)
-        except (TypeError, ValueError):
-            logging.getLogger(__name__).warning("Skipping an incident with an invalid date during search")
-            return None
-        if (incident_datetime.utcoffset() is None) != (reference.utcoffset() is None):
-            logging.getLogger(__name__).warning("Skipping an incident with an incompatible timezone during search")
-            return None
-        return incident_datetime
+        return DataManager._parse_query_datetime(value)
 
     def find_by_datetime_range(self, start_datetime: str | datetime, end_datetime: str | datetime):
-        """Return incidents within an inclusive range.
-
-        Accept datetime objects, ISO strings, or DD-MM-YYYY HH:MM strings.
-        Invalid inputs and ranges raise ValueError or TypeError.
-        Returns Incident objects. Filtering remains in Python while legacy
-        text dates coexist with ISO timestamps; string ordering is unsafe.
-        """
-        start = self._parse_search_datetime(start_datetime)
-        end = self._parse_search_datetime(end_datetime)
-        if (start.utcoffset() is None) != (end.utcoffset() is None):
-            raise ValueError("Search dates must both include a timezone or both omit it.")
-        if start > end:
-            raise ValueError("End date cannot be earlier than start date.")
-
-        def matches(record):
-            incident_datetime = self._incident_search_datetime(record, start)
-            return incident_datetime is not None and start <= incident_datetime <= end
-
-        return [incident for incident in self._data_manager.load() if matches(incident)]
+        """Return Incident objects in an inclusive range, using shared storage parsing."""
+        return self._data_manager.query_datetime_range(start_datetime, end_datetime)
 
     def find_by_specific_datetime(self, specific_datetime: str | datetime):
-        #Return exact date/time matches using the same formats as range search.
         target = self._parse_search_datetime(specific_datetime)
-        return [incident for incident in self._data_manager.load()
-                if self._incident_search_datetime(incident, target) == target]
+        return self._data_manager.query_datetime_range(target, target)
+
+    def search_incidents(self, **filters):
+        """Reuse the same validated text search from web and terminal callers."""
+        for key in ("incident_name", "hazard_category", "location"):
+            if filters.get(key):
+                filters[key] = self._search_text(filters[key])
+        return self._data_manager.search_incidents(**filters)
 
     @staticmethod
     def is_valid_dt_format(value_to_check):
