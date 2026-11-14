@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Add incident - Workplace Incident Triage{% endblock %}
+{% block content %}
+<div class="mx-auto" style="max-width: 800px;">
+    <h1 class="mb-2">Incident reporting form</h1>
+    <p class="text-muted mb-4">Provide the details of the workplace incident.</p>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <form method="post" action="{{ url_for('dashboard.add_incident') }}">
+                <h2 class="h5 text-primary border-bottom pb-2 mb-4">Incident details</h2>
+
+                <div class="mb-3">
+                    <label for="incident_name" class="form-label">Incident name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="incident_name" name="incident_name"
+                           value="{{ form_data.get('incident_name', '') }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Incident description <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="description" name="description" rows="4" required>{{ form_data.get('description', '') }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="incident_datetime" class="form-label">Incident date and time <span class="text-danger">*</span></label>
+                    <input type="datetime-local" class="form-control" id="incident_datetime" name="incident_datetime"
+                           value="{{ form_data.get('incident_datetime', '') }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="location" class="form-label">Incident location <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="location" name="location"
+                           placeholder="e.g. Warehouse, Level 2" value="{{ form_data.get('location', '') }}" required>
+                </div>
+
+                <h2 class="h5 text-primary border-bottom pb-2 mb-4 mt-4">Reporter information</h2>
+
+                <div class="mb-3">
+                    <label for="reporter_role" class="form-label">Reporter role <span class="text-danger">*</span></label>
+                    <select class="form-select" id="reporter_role" name="reporter_role" required>
+                        <option value="" disabled {% if not form_data.get('reporter_role') %}selected{% endif %}>Select your role</option>
+                        {% for role in ["Employee", "Supervisor", "Manager", "Safety Officer", "Contractor", "Visitor", "Other"] %}
+                            <option value="{{ role }}" {% if form_data.get('reporter_role') == role %}selected{% endif %}>{{ role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <h2 class="h5 text-primary border-bottom pb-2 mb-4 mt-4">Injury and response</h2>
+
+                <div class="mb-3">
+                    <label for="injury_reported" class="form-label">Was an injury reported? <span class="text-danger">*</span></label>
+                    <select class="form-select" id="injury_reported" name="injury_reported" required>
+                        <option value="" disabled {% if not form_data.get('injury_reported') %}selected{% endif %}>Select an option</option>
+                        <option value="yes" {% if form_data.get('injury_reported') == 'yes' %}selected{% endif %}>Yes</option>
+                        <option value="no" {% if form_data.get('injury_reported') == 'no' %}selected{% endif %}>No</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label for="immediate_action" class="form-label">Immediate action taken <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="immediate_action" name="immediate_action" rows="4" required>{{ form_data.get('immediate_action', '') }}</textarea>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">Submit incident report</button>
+                </div>
+                <p class="text-muted small mt-3 mb-0 text-center">Fields marked with <span class="text-danger">*</span> are required.</p>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
