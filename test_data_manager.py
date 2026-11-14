@@ -104,17 +104,17 @@ class DataManagerTests(unittest.TestCase):
         manager.save.assert_not_called()
 
     def test_io_search_uses_shared_manager(self):
-        import managers
         from IOManager import IOManager
 
         manager = self.manager()
         incident = self.completed()
         incident.ai_section.manager_json["hazard_category"] = "mechanical"
         manager.save(incident)
-        with patch.object(managers, "data_manager", manager):
-            self.assertEqual(IOManager.find_by_title("test"), [incident.to_dict()])
-            self.assertEqual(IOManager.find_by_category("mechanical"), [incident.to_dict()])
-            self.assertEqual(IOManager.get_all_incident_categories(), ["mechanical"])
+        io = IOManager()
+        with patch.object(io, "_data_manager", manager):
+            self.assertEqual(io.find_by_title("test"), [incident.to_dict()])
+            self.assertEqual(io.find_by_category("mechanical"), [incident.to_dict()])
+            self.assertEqual(io.get_all_incident_categories(), ["mechanical"])
 
     def test_interactive_search_options_use_shared_manager(self):
         import managers
