@@ -1,91 +1,122 @@
 # Workplace Incident Triage Assistant
 
-An AI-assisted terminal application that analyses unstructured workplace incident reports, classifies their severity and hazard type, and prioritises them for appropriate follow-up.
+An AI-assisted, object-oriented web application (Flask + SQLite) that analyses unstructured workplace incident reports, classifies their severity and hazard type, prioritises follow-up actions using deterministic safety rules, and surfaces trend analytics on a live dashboard.
 
-The project is designed for small and medium-sized organisations, with an initial focus on Singapore Workplace Safety and Health (WSH) reporting.
-
----
-
-## Overview
-
-Workplace incident reports are often submitted as unstructured free-text descriptions. Important hazards, repeated near-misses, or serious incidents may therefore be difficult to identify consistently.
-
-This application provides an initial incident-triage process by:
-
-- Extracting important information from incident descriptions
-- Classifying incident severity
-- Identifying hazard categories
-- Detecting recurring incidents
-- Applying business rules for escalation
-- Storing processed incident records for future analysis
-
-The system provides **triage support only** and does not replace a qualified workplace safety investigation.
+The project is designed for small and medium-sized organisations, with an initial focus on Singapore Workplace Safety and Health (WSH) reporting. It provides **triage support only** and does not replace a qualified workplace safety investigation.
 
 ---
 
-## Application Flow
+## Key Capabilities
+
+- **Structured incident processing:** Collects validated report fields and turns free-text descriptions into schema-validated AI assessments (severity score/band, confidence, hazard category, incident type, safety indicators, repeat-pattern indicators, recommended action, and supporting phrase).
+- **Deterministic triage rules (`LogicManager`):** Applies safety escalation (high severity + fire/electrical hazard), injury/uncontrolled-hazard overrides, reporter–AI contradiction guards, 30-day recurrence checks, and near-duplicate detection.
+- **SQLite persistence (`DataManager` & `Incident`):** Stores every processed incident across four normalised SQLite tables (`Incidents`, `io_manager`, `ai_manager`, `logic_manager`) with atomic inserts and history queries.
+- **Analytics dashboard (`StatsService` & `HomeView`):** Computes severity, category, queue distributions, 14-day per-day incident counts, 30-day recurrence hotspots, and week-over-week rising hazard alerts rendered at `/`.
+
+---
+
+## Object-Oriented Architecture
+
+The system preserves the four separated manager responsibilities alongside domain, analytics, configuration, and web layers:
+
+- **`IOManager` (`IOManager.py`):** Input encapsulation/validation, search helpers, record formatting, and `IOManager.notify()` for Flask flash alerts.
+- **`AIManager` (`ai_manager.py` + `ai_modules/`):** Composes `PromptBuilder` and `ResponseValidator`, and delegates transport to the `LLMClient` ABC (`ZaiLLMClient` for Z.ai GLM, `RetryableLLMClient` decorator for transient error retries, `TestLLMClient` for offline tests).
+- **`LogicManager` (`logic_manager.py`):** Applies deterministic safety rules, severity/risk scoring, recurrence checks, duplicate detection, and queue routing (`Immediate Action`, `Priority Review`, `Recurring Review`, `Routine Log`, `Manual Review`).
+- **`DataManager` (`data_manager.py`) & Domain Aggregate (`dashboard/`):** Persists `Incident` aggregates composed of `SectionObject` subclasses (`InputSection`, `AISection`, `LogicSection`) to SQLite ORM models (`dashboard/models.py`).
+- **Analytics & Config Packages (`dashboard/analytics/`, `dashboard/config/`):** `StatsService` (composing `IncidentDatetimeParser` and returning `TrendPoint`, `Hotspot`, `RisingPattern` dataclasses), `Config` / `DevConfig` / `TestConfig`, Flask factory (`dashboard/__init__.py`), and `HomeView` (`dashboard/routes.py`).
 
 ```text
-User
-  |
-  v
-I/O Manager
-  |
-  v
-AI Manager
-  |
-  v
-Logic Manager
-  |
-  v
-Data Manager
-  |
-  v
-Stored Incident Record / Result
-
----
-
-## AI Manager Architecture (object-oriented)
-
-The AI manager (`ai_manager.py`) is a class, `AIManager`, that orchestrates
-one incident analysis: validate the shared record, build the prompt, query
-the LLM, validate the reply and reprompt on schema violations.
-
-Its collaborators live in `ai_modules/`:
-
-```text
-AIManager  (composes PromptBuilder + ResponseValidator, uses one LLMClient)
-  |
-  +-- PromptBuilder                ai_modules/prompt_builder.py
-  |     builds analysis / retry chat prompts (owns the schema contract text)
-  |
-  +-- ResponseValidator            ai_modules/response_validator.py
-  |     validates every raw reply against the reply schema
-  |
-  +-- LLMClient                     ai_modules/llm_client.py
-        abstract base class, the transport contract
-        |-- ZaiLLMClient           ai_modules/zai_llm_client.py
-        |     real Z.ai OpenAI-compatible endpoint
-        |-- RetryableLLMClient     ai_modules/retryable_llm_client.py
-        |     wraps ANY client, retries transient failures
-        +-- TestLLMClient          ai_modules/test_llm_client.py
-              scripted replies for offline tests
+User / Browser  ──▶  Flask App (app.py / HomeView)  ──▶  StatsService (Analytics)
+                            │
+                            ▼
+    IOManager  ──▶  AIManager (PromptBuilder + ResponseValidator + LLMClient)
+                            │
+                            ▼
+                    LogicManager  ──▶  DataManager (Incident + SQLite Models)
 ```
 
-Design notes:
+---
 
-- `LLMClient` is an abstract base class (interface): `AIManager` and the
-  retry wrapper only call its `complete` method, so the real API and the
-  offline test client are interchangeable (polymorphism / LSP).
-- The prompt builder and response validator are created inside `AIManager`
-  (composition); the LLM client is supplied from outside (aggregation), so
-  tests inject a `TestLLMClient` and future backends can be added without
-  modifying the manager (OCP).
-- `RetryableLLMClient` is itself an `LLMClient`, so retry behaviour is added
-  to any backend by wrapping it (inheritance + decorator pattern).
-- Configuration (attempt limits, backoff) is passed via the `AIManager`
-  constructor; internals use `_`-prefixed private attributes and methods
-  (encapsulation).
+## Environment Variables
 
-The test suite (`test_ai_manager.py`) runs fully offline by injecting the
-test client; `--live` switches to the real API.
+Copy `.env.example` to `.env` before running with live AI features (`.env` is git-ignored; **never commit secrets**):
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `ZAI_KEY` | For live AI triage | — | API key for the Z.ai OpenAI-compatible GLM endpoint (`ZaiLLMClient`) |
+| `SECRET_KEY` | Recommended in prod | `dev-only-secret-key-change-me` | Flask session & CSRF protection secret |
+| `DATABASE_URL` | Optional | `sqlite:///data/incidents.db` | SQLAlchemy database URI |
+| `FLASK_DEBUG` | Optional | `True` (via `DevConfig`) | Set to `false` in containers/production |
+| `HOST` / `PORT` | Optional | `0.0.0.0` / `5000` | Web server bind address and port |
+
+---
+
+## Local Setup & Running
+
+```bash
+python -m venv .venv
+# Windows PowerShell:
+.venv\Scripts\Activate.ps1
+# macOS / Linux:
+# source .venv/bin/activate
+
+pip install -r requirements.txt
+python -m flask --app app init-db
+python app.py
+```
+
+Open `http://127.0.0.1:5000/` in your browser.
+
+To populate sample data for exploring the analytics dashboard:
+
+```bash
+python -m scripts.seed_demo_data --force
+```
+
+---
+
+## Automated Tests (Offline — No API Key Required)
+
+All automated test suites run completely offline using scripted/mocked AI responses (`TestLLMClient`) and temporary SQLite databases (`TestConfig`):
+
+```bash
+python test_logic_manager.py
+python test_ai_manager.py
+python test_sections.py
+python -m unittest test_incident_sqlite test_data_manager
+python -m unittest discover -s tests -v
+python test_end_to_end.py
+```
+
+---
+
+## Docker & CI
+
+The `Dockerfile` in the repository root builds a self-contained `python:3.14-slim` image, initialises the SQLite database on startup, persists `/app/data` via a volume, and starts the Flask web application on port `5000`.
+
+### Build the image
+
+```bash
+docker build -t incident-triage:latest .
+```
+
+### Run the web application in Docker
+
+```bash
+docker run --rm -p 5000:5000 --env-file .env -v incident-data:/app/data incident-triage:latest
+```
+
+Then visit `http://127.0.0.1:5000/`.
+
+### Run all automated test suites inside Docker
+
+```bash
+docker run --rm incident-triage:latest python test_logic_manager.py
+docker run --rm incident-triage:latest python test_ai_manager.py
+docker run --rm incident-triage:latest python test_sections.py
+docker run --rm incident-triage:latest python -m unittest test_incident_sqlite test_data_manager
+docker run --rm incident-triage:latest python -m unittest discover -s tests
+docker run --rm incident-triage:latest python test_end_to_end.py
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs every test suite on the host, builds the Docker image, and re-runs every suite inside the built container on every push and pull request.

@@ -13,4 +13,6 @@ COPY . .
 # Write incident data to a volume so records survive container restarts
 VOLUME ["/app/data"]
 
-CMD ["sh", "-c", "python -m flask --app app init-db && exec python main.py"]
+EXPOSE 5000
+
+CMD ["sh", "-c", "python -m flask --app app init-db && exec python app.py"]
