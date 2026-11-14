@@ -66,9 +66,11 @@ class AddIncidentView(MethodView):
             return self._render_form(form_data, 500)
 
         try:
-            from main import analyse_incident
+            from incident_analyzer import incident_analyzer
 
-            ai_output = analyse_incident({"record_id": "", "input": record_input})
+            ai_output = incident_analyzer.analyse_incident(
+                {"record_id": "", "input": record_input}
+            )
         except RuntimeError:
             current_app.logger.exception("Incident analysis is unavailable")
             managers.io_manager.notify("Incident analysis is unavailable.")

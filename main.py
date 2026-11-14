@@ -19,19 +19,11 @@ from dashboard.incident import Incident
 from dashboard.input_section import InputSection
 from dashboard.ai_section import AISection
 from dashboard.logic_section import LogicSection
+from incident_analyzer import incident_analyzer
 #import io_manager as io
 
-# The AI stack needs the `openai` package. The menu still works without it
-# (viewing and searching stored incidents), so import failures are deferred
-# to the action that actually needs the AI.
-try:
-    from ai_manager import AIManager
-    # One shared AI manager instance: it composes the prompt builder, the
-    # response validator and the Z.ai client behind the LLMClient interface.
-    ai_manager = AIManager()
-except ImportError as exc:
-    ai_manager = None
-    AI_IMPORT_ERROR = str(exc)
+analyse_incident = incident_analyzer.analyse_incident
+to_severity_band = incident_analyzer.to_severity_band
 
 MENU_TITLE = "WORKPLACE INCIDENT TRIAGE ASSISTANT"
 
@@ -99,63 +91,6 @@ def collect_incident_input() -> dict | None:
         "incident_datetime": managers.io_manager.incident_datetime.isoformat(timespec="seconds"),
         "injury_reported": managers.io_manager.injury_reported,
         "immediate_action": managers.io_manager.immediate_action,
-    }
-
-
-def to_severity_band(ai_output: dict) -> dict:
-    """Map the AI's numeric 0.0-1.0 severity score onto the low/medium/high
-    bands the logic manager's business rules use.
-
-    The original score is kept under severity_score so no information is
-    lost.
-
-    Args:
-        ai_output: the validated analysis dict returned by ai_manager.
-
-    Returns:
-        The same dict with severity replaced by its band.
-    """
-    severity = ai_output.get("severity")
-    if isinstance(severity, (int, float)) and not isinstance(severity, bool):
-        ai_output["severity_score"] = severity
-        if severity > 0.7:
-            ai_output["severity"] = "high"
-        elif severity >= 0.4:
-            ai_output["severity"] = "medium"
-        else:
-            ai_output["severity"] = "low"
-    return ai_output
-
-
-def analyse_incident(record: dict) -> dict:
-    """Run the AI analysis for one record, with a manual-review fallback.
-
-    Args:
-        record: the shared record with the validated input section.
-
-    Returns:
-        The AI analysis dict, or a minimal stub when the AI failed so the
-        logic manager routes the incident to Manual Review instead of
-        silently dropping it.
-    """
-    if ai_manager is None:
-        raise RuntimeError(
-            f"the AI dependencies are unavailable ({AI_IMPORT_ERROR}); "
-            "run 'pip install -r requirements.txt' first"
-        )
-
-    ok, ai_output = ai_manager.analyze(record)
-    if ok:
-        return to_severity_band(ai_output)
-
-    print("\n[Warning] The AI analysis failed and this incident will be "
-          "queued for manual review.")
-    print(f"[Reason]  {ai_output}")
-    return {
-        "repeat_pattern_indicators": {
-            "datetime": record["input"]["incident_datetime"]
-        },
-        "ai_error": ai_output,
     }
 
 
