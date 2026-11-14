@@ -31,6 +31,9 @@ jobs:
       - name: Run section object tests
         run: python test_sections.py
 
+      - name: Run config tests (database URL resolution)
+        run: python test_config.py
+
       - name: Run SQLite storage tests
         run: python -m unittest test_incident_sqlite test_data_manager
 
@@ -48,6 +51,7 @@ jobs:
           docker run --rm incident-triage:${{ github.sha }} python test_logic_manager.py
           docker run --rm incident-triage:${{ github.sha }} python test_ai_manager.py
           docker run --rm incident-triage:${{ github.sha }} python test_sections.py
+          docker run --rm incident-triage:${{ github.sha }} python test_config.py
           docker run --rm incident-triage:${{ github.sha }} python -m unittest test_incident_sqlite test_data_manager
           docker run --rm incident-triage:${{ github.sha }} python -m unittest discover -s tests
           docker run --rm incident-triage:${{ github.sha }} python test_end_to_end.py
