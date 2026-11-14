@@ -12,8 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
 
-def database_url() -> str:
-    """Resolve the database URI from the environment.
+class DatabaseUrlResolver:
+    """Resolve and normalise the database URI from environment variables.
 
     Locally (no ``DATABASE_URL`` set) every consumer uses the SQLite file
     beside the legacy JSON store, so the CLI, the tests and the Docker
@@ -23,12 +23,18 @@ def database_url() -> str:
     ORM. Some cloud providers still hand out the legacy ``postgres://``
     scheme, which SQLAlchemy rejects, so it is normalised here.
     """
-    url = os.getenv(
-        "DATABASE_URL", f"sqlite:///{(DATA_DIR / 'incidents.db').as_posix()}"
-    )
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
-    return url
+
+    def __init__(self, data_dir: Path = DATA_DIR):
+        self._data_dir = data_dir
+
+    def resolve(self) -> str:
+        """Return the active SQLAlchemy database URI."""
+        url = os.getenv(
+            "DATABASE_URL", f"sqlite:///{(self._data_dir / 'incidents.db').as_posix()}"
+        )
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
 
 
 class Config:
@@ -43,7 +49,7 @@ class Config:
     # SQLite lives beside the legacy JSON store so the Docker volume
     # (/app/data) keeps persisting incident data across restarts; a
     # deployed environment swaps in PostgreSQL via DATABASE_URL.
-    SQLALCHEMY_DATABASE_URI = database_url()
+    SQLALCHEMY_DATABASE_URI = DatabaseUrlResolver().resolve()
 
     DEBUG = False
 
