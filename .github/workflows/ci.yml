@@ -1,12 +1,12 @@
 name: CI
 
-# Runs the three offline test suites (no API key needed), builds the Docker
-# image, then re-runs the same suites inside the built image.
+# Runs the offline test suites (no API key needed), builds the Docker image,
+# then re-runs the same suites inside the built image.
 on:
   push:
     branches: ["**"]
   pull_request:
-    branches: ["main", "phase2/dev"]
+    branches: ["main", "phase2/dev", "phase3/dev"]
 
 jobs:
   test-and-docker-build:
@@ -28,14 +28,26 @@ jobs:
       - name: Run ai_manager tests (stubbed API connector)
         run: python test_ai_manager.py
 
+      - name: Run section object tests
+        run: python test_sections.py
+
+      - name: Run SQLite storage tests
+        run: python -m unittest test_incident_sqlite test_data_manager
+
+      - name: Run analytics dashboard tests (StatsService and dashboard home)
+        run: python -m unittest discover -s tests
+
       - name: Run end-to-end tests (fake AI responses)
         run: python test_end_to_end.py
 
       - name: Build the Docker image
         run: docker build . --file Dockerfile --tag incident-triage:${{ github.sha }}
 
-      - name: Re-run all three test suites inside the Docker image
+      - name: Re-run all test suites inside the Docker image
         run: |
           docker run --rm incident-triage:${{ github.sha }} python test_logic_manager.py
           docker run --rm incident-triage:${{ github.sha }} python test_ai_manager.py
+          docker run --rm incident-triage:${{ github.sha }} python test_sections.py
+          docker run --rm incident-triage:${{ github.sha }} python -m unittest test_incident_sqlite test_data_manager
+          docker run --rm incident-triage:${{ github.sha }} python -m unittest discover -s tests
           docker run --rm incident-triage:${{ github.sha }} python test_end_to_end.py

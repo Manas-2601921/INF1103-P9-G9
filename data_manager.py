@@ -1,264 +1,282 @@
-from pathlib import Path
+"""SQLite persistence for Incident objects and dictionary-based query helpers."""
+
+from contextlib import contextmanager
 from datetime import datetime
-import json
 
-incidents_file = Path("data/incidents.json")
+from flask import current_app, has_app_context
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session, selectinload
 
-def load():
-    """Load incident records from the JSON database.
+from dashboard.extensions import db
+from dashboard.incident import Incident
+from dashboard.models import IncidentModel
 
-    Returns:
-        list: Stored records, or an empty list if the file is missing, cannot
-        be read, contains invalid JSON, or has a non-list top-level value.
-        A diagnostic message is printed when records cannot be loaded.
+
+class DataManager:
+    """Persist completed incidents; use a configured Flask app or the active app.
+
+    Without either, a default app is created lazily for terminal use. Initialize
+    its database with `python -m flask --app app init-db` before using storage.
+    Each operation owns a separate session, never committing unrelated changes.
     """
-    if incidents_file.exists():
+
+    def __init__(self, app=None):
+        self._app = app
+
+    @contextmanager
+    def _session(self):
+        app = self._app
+        if app is None and has_app_context():
+            app = current_app._get_current_object()
+        if app is None:
+            from dashboard import create_app
+            app = self._app = create_app()
+        with app.app_context():
+            with Session(db.engine) as session:
+                yield session
+
+    def load(self) -> list[Incident]:
+        """Return fully reconstructed incidents ordered by database ID.
+
+        Objects and sections remain usable after the session closes. Missing or
+        unreadable tables raise DataLoadError; damaged section graphs raise
+        InvalidIncidentDataError. No tables or files are reset automatically.
+        """
         try:
-            with open(incidents_file, "r", encoding="utf-8") as f:
-                incidents_data = json.load(f)
-                if isinstance(incidents_data, list):
-                    return incidents_data
-                else:
-                    print("\n" + "-"*60 + "\n")
-                    print("[Error]   : Fail to load data.")
-                    print("[Reason]  : JSON returns a top-level type that is not a list. Please contact the support team.")
-                    print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
-                    print("\n" + "-"*60 + "\n")
-                    return []
-                
-        except json.JSONDecodeError:    # if file exists but empty, this error is also raised
-            print("\n" + "-"*60 + "\n")
-            print("[Error]   : Fail to load data.")
-            print("[Reason]  : Invalid JSON format in the database file. Please contact the support team.")
-            print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
-            print("\n" + "-"*60 + "\n")
-            return []
+            with self._session() as session:
+                models = session.scalars(select(IncidentModel).options(
+                    selectinload(IncidentModel.input_section),
+                    selectinload(IncidentModel.ai_section),
+                    selectinload(IncidentModel.logic_section),
+                ).order_by(IncidentModel.id)).all()
+                try:
+                    return [Incident.from_db_model(model) for model in models]
+                except (ValueError, TypeError) as exc:
+                    raise InvalidIncidentDataError("Stored incident sections are invalid.") from exc
+        except SQLAlchemyError as exc:
+            raise DataLoadError("Cannot load incidents from SQLite; check database initialization.") from exc
+
+    def save(self, incident: Incident) -> Incident:
+        """Insert a completed Incident atomically and return the same instance.
+
+        All three sections must be attached. This inserts new records only;
+        previously saved incidents are rejected. ID and metadata are updated on
+        the caller only after commit succeeds. Field/domain validation belongs
+        to the layer that constructs each section.
+        """
+        if not isinstance(incident, Incident):
+            raise TypeError("save() requires an Incident instance.")
         
-        except Exception as e:
-            print("\n" + "-"*60 + "\n")
-            print("[Error]   : Fail to load data.")
-            print("[Reason]  : An unexpected error occurred while reading the database file. Please contact the support team.")
-            print(f"[Details] : {str(e)}")
-            print("[Warning] : New incidents will be saved to the new database file if you wish to continue.\n            Manual combination of the old and new database files may be required.")
-            print("\n" + "-"*60 + "\n")
-            return []
+        incident.validate_complete()
+
+        if incident.record_id is not None:
+            raise ValueError("save() inserts new incidents; this incident already has a record_id.")
         
-    else:
-        print("\n" + "-"*60 + "\n")
-        print("Database file not found. The application must be running for the first time.\nA new database file will be created upon adding the first incident.")
-        print("\nIf you are sure that you have recently saved data, please contact the Support Team.")
-        print("\n" + "-"*60 + "\n")
-    return []
+        metadata = incident.metadata
+        now = datetime.now().isoformat(timespec="seconds")
+        metadata.setdefault("created_at", incident.input_section.to_dict().get("incident_datetime") or now)
+        metadata.setdefault("processed_at", now)
+        model = incident.convert_to_db_model()
+        model.created_at = metadata["created_at"]
+        model.processed_at = metadata["processed_at"]
 
-def save(record):
-    """Assign an incident ID and append the updated record list as JSON.
+        try:
+            # Exiting session.begin() commits automatically, or rolls back if an error occurs
+            with self._session() as session:
+                with session.begin():
+                    session.add(model)
+                    session.flush()
+                    record_id = f"INC-{model.id:04d}"
+                # session.begin rolls back on failure; no partial section rows survive.
+        except SQLAlchemyError as exc:
+            raise DataSaveError("Cannot save incident to SQLite.") from exc
+        
+        incident.record_id = record_id
+        incident.metadata = metadata
+        return incident
 
-    Args:
-        record (dict): Incident containing ``input``, ``ai``, and ``logic``.
-            The ``ai.repeat_pattern_indicators.datetime`` value supplies
-            the creation timestamp; the processing timestamp is set now.
+    def query(self, filter_fn):
+        """Return stored records accepted by a predicate, in storage order.
 
-    Returns:
-        None.
+        Args:
+            filter_fn (callable): Function taking a record dictionary and returning
+                a truthy value when that record should be included.
 
-    Notes:
-        The ID increments the last stored record's ID, starting at INC-0001.
-        Creates the parent directory if needed and prints a success message.
-        The entire updated list is appended to the file, so saving to a
-        nonempty JSON database produces multiple JSON documents.
-    """
-    records = load()
-    next_id = int(records[-1]["record_id"].split("-")[1]) + 1 if records else 1 # update last ID to next ID otherwise start with 0001
-    stored_record = {
-        "record_id": f"INC-{next_id:04d}",
-        "input": record["input"],
-        "ai": record["ai"],
-        "logic": record["logic"],
-        "metadata": {
-            "created_at": record["ai"]["repeat_pattern_indicators"]["datetime"],
-            "processed_at": datetime.now().isoformat(timespec="seconds"),
-        },
-    }
-    records.append(stored_record)
-    content = json.dumps(records, indent=4, ensure_ascii=False)
+        Returns:
+            list: Matching records, or an empty list if none match or no records
+                are loaded. Exceptions from the predicate propagate.
+        """
+        records = [incident.to_dict() for incident in self.load()]
+        return [record for record in records if filter_fn(record)]
 
-    # Create the folder "data" if it doesn't exist
-    incidents_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Rewrite the whole file: appending would concatenate a second JSON
-    # array after the first and corrupt the database
-    with open(incidents_file, "w", encoding="utf-8") as f:
-        f.write(content)
-        f.write("\n")
-        print("Saved record to data/incidents.json")
+    # Query and summary helpers
 
-def query(filter_fn):
-    """Return stored records accepted by a predicate, in storage order.
+    def query_stored_incident_summaries(self):  # This function is to load every stored incidents on startup
+        """Build display summaries for all stored incidents.
 
-    Args:
-        filter_fn (callable): Function taking a record dictionary and returning
-            a truthy value when that record should be included.
+        Returns:
+            list[dict]: Summaries containing the record ID, incident date, location,
+                description, hazard category, severity, final queue, escalation
+                status, and risk score. Missing fields use display defaults; a
+                missing escalation status or risk score is None. Returns an empty
+                list if no records are loaded.
+                description, hazard category, severity, final queue, and escalation
+                status. Missing fields use display defaults; a missing escalation
+                status is None. Returns an empty list if no records are loaded.
+        """
+        records = [incident.to_dict() for incident in self.load()]
+        summaries = []
 
-    Returns:
-        list: Matching records, or an empty list if none match or no records
-            are loaded. Exceptions from the predicate propagate.
-    """
-    records = load()
-    return [record for record in records if filter_fn(record)]
+        for record in records:
+            user_input = record.get("input") or {}
+            ai_response = record.get("ai") or {}
+            logic = record.get("logic") or {}
+            summaries.append({
+                "record_id": record.get("record_id", "Unknown"),
 
-''' =================== Utility Functions Below ! =================== '''
+                "incident_date": user_input.get("incident_datetime", "Unknown"),
+                "location": user_input.get("location", "Unknown"),
+                "description": user_input.get("description", "No description provided."),
 
-def query_stored_incident_summaries():  # This function is to load every stored incidents on startup
-    """Build display summaries for all stored incidents.
+                "hazard_category": ai_response.get("hazard_category", "Not assessed"),
+                "severity": ai_response.get("severity", "Not assessed"),
 
-    Returns:
-        list[dict]: Summaries containing the record ID, incident date, location,
-            description, hazard category, severity, final queue, and escalation
-            status. Missing fields use display defaults; a missing escalation
-            status is None. Returns an empty list if no records are loaded.
-    """
-    records = load()
-    summaries = []
+                "final_queue": logic.get("final_queue", "Unassigned"),
+                "escalation_required": logic.get("escalation_required"),
+                "risk_score": logic.get("risk_score"),
+            })
 
-    for record in records:
-        user_input = record.get("input") or {}
-        ai_response = record.get("ai") or {}
-        logic = record.get("logic") or {}
-        summaries.append({
-            "record_id": record.get("record_id", "Unknown"),
+        return summaries
 
-            "incident_date": user_input.get("incident_datetime", "Unknown"),
-            "location": user_input.get("location", "Unknown"),
-            "description": user_input.get("description", "No description provided."),
+    def query_description(self, description):
+        """Return incidents whose input description exactly matches the value.
 
-            "hazard_category": ai_response.get("hazard_category", "Not assessed"),
-            "severity": ai_response.get("severity", "Not assessed"),
+        Args:
+            description (str): Full description to match, including letter case.
 
-            "final_queue": logic.get("final_queue", "Unassigned"),
-            "escalation_required": logic.get("escalation_required"),
-        })
+        Returns:
+            list: Matching incident records, or an empty list if none are found.
+        """
+        incidents = self.query(lambda record: record.get("input", {}).get("description") == description)
+        return incidents
 
-    return summaries
+    def query_location(self, location):
+        """Return incidents whose input location exactly matches the value.
 
-def query_description(description):
-    """Return incidents whose input description exactly matches the value.
+        Args:
+            location (str): Location to match, including letter case.
 
-    Args:
-        description (str): Full description to match, including letter case.
+        Returns:
+            list: Matching incident records, or an empty list if none are found.
+        """
+        incidents = self.query(lambda record: record.get("input", {}).get("location") == location)
+        return incidents
 
-    Returns:
-        list: Matching incident records, or an empty list if none are found.
-    """
-    incidents = query(lambda record: record.get("input", {}).get("description") == description)
-    return incidents
+    def query_reporter_role(self, reporter_role):
+        """Return incidents whose input reporter role exactly matches the value.
 
-def query_location(location):
-    """Return incidents whose input location exactly matches the value.
+        Args:
+            reporter_role (str): Reporter role to match, including letter case.
 
-    Args:
-        location (str): Location to match, including letter case.
+        Returns:
+            list: Matching incident records, or an empty list if none are found.
+        """
+        incidents = self.query(lambda record: record.get("input", {}).get("reporter_role") == reporter_role)
+        return incidents
 
-    Returns:
-        list: Matching incident records, or an empty list if none are found.
-    """
-    incidents = query(lambda record: record.get("input", {}).get("location") == location)
-    return incidents
+    def query_incident_datetime(self, incident_datetime):
+        """Return incidents whose input datetime exactly matches the stored value.
 
-def query_reporter_role(reporter_role):
-    """Return incidents whose input reporter role exactly matches the value.
+        Args:
+            incident_datetime (str): Datetime in the same format as the stored
+                input datetime. No date parsing or normalization is performed.
 
-    Args:
-        reporter_role (str): Reporter role to match, including letter case.
+        Returns:
+            list: Matching incident records, or an empty list if none are found.
+        """
+        incidents = self.query(lambda record: record.get("input", {}).get("incident_datetime") == incident_datetime)
+        return incidents
 
-    Returns:
-        list: Matching incident records, or an empty list if none are found.
-    """
-    incidents = query(lambda record: record.get("input", {}).get("reporter_role") == reporter_role)
-    return incidents
+    def query_injury_reported(self, injury_reported):
+        """Return incidents whose input injury status equals the supplied value.
 
-def query_incident_datetime(incident_datetime):
-    """Return incidents whose input datetime exactly matches the stored value.
+        Args:
+            injury_reported: Injury status in the same type and format as the
+                stored ``input.injury_reported`` value.
 
-    Args:
-        incident_datetime (str): Datetime in the same format as the stored
-            input datetime. No date parsing or normalization is performed.
+        Returns:
+            list: Matching incident records, or an empty list if none are found.
+        """
+        incidents = self.query(lambda record: record.get("input", {}).get("injury_reported") == injury_reported)
+        return incidents
 
-    Returns:
-        list: Matching incident records, or an empty list if none are found.
-    """
-    incidents = query(lambda record: record.get("input", {}).get("incident_datetime") == incident_datetime)
-    return incidents
-    
-def query_injury_reported(injury_reported):
-    """Return incidents whose input injury status equals the supplied value.
+    @staticmethod
+    def numeric_severity(record):
+        """Return a record's numeric severity, or None when it has none.
 
-    Args:
-        injury_reported: Injury status in the same type and format as the
-            stored ``input.injury_reported`` value.
-
-    Returns:
-        list: Matching incident records, or an empty list if none are found.
-    """
-    incidents = query(lambda record: record.get("input", {}).get("injury_reported") == injury_reported)
-    return incidents
-
-def numeric_severity(record):
-    """Return a record's numeric severity, or None when it has none.
-
-    Current records keep the 0-1 score in severity_score alongside a banded
-    severity ("high"/"medium"/"low"); older records store the number in
-    severity directly.
-    """
-    ai = record.get("ai", {})
-    for key in ("severity_score", "severity"):
-        value = ai.get(key)
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            return float(value)
-        if isinstance(value, str):
-            try:
+        Current records keep the 0-1 score in severity_score alongside a banded
+        severity ("high"/"medium"/"low"); older records store the number in
+        severity directly.
+        """
+        ai = record.get("ai", {})
+        for key in ("severity_score", "severity"):
+            value = ai.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
                 return float(value)
-            except ValueError:
-                continue
-    return None
+            if isinstance(value, str):
+                try:
+                    return float(value)
+                except ValueError:
+                    continue
+        return None
 
-def query_severity(severity, comparison_operator):
-    """Filter incidents by comparing their numeric AI severity to a threshold.
+    def query_severity(self, severity, comparison_operator):
+        """Filter incidents by comparing their numeric AI severity to a threshold.
 
-    Args:
-        severity (int or float): Numeric value to compare stored severities to.
-        comparison_operator (str): One of ``==``, ``>``, or ``<``.
+        Args:
+            severity (int or float): Numeric value to compare stored severities to.
+            comparison_operator (str): One of ``==``, ``>``, or ``<``.
 
-    Returns:
-        list: Matching incident records. An unsupported operator prints an
-            error message and returns an empty list.
+        Returns:
+            list: Matching incident records. An unsupported operator prints an
+                error message and returns an empty list.
 
-    Raises:
-        TypeError: A stored severity cannot be converted to a float, or an
-            ordering comparison uses an incompatible threshold type.
-        ValueError: A stored severity string is not a valid number.
-    """
-    # records without a usable numeric severity are skipped, not crashed on
-    if comparison_operator == "==":
-        incidents = query(lambda record: (s := numeric_severity(record)) is not None and s == severity)
-    elif comparison_operator == ">":
-        incidents = query(lambda record: (s := numeric_severity(record)) is not None and s > severity)
-    elif comparison_operator == "<":
-        incidents = query(lambda record: (s := numeric_severity(record)) is not None and s < severity)
-    else:
-        print("Invalid comparison operator. Use '==', '>', or '<'.")
-        return [] # or raise an exception
-    return incidents
+        Raises:
+            TypeError: An ordering comparison uses an incompatible threshold type.
+        """
+        # records without a usable numeric severity are skipped, not crashed on
+        if comparison_operator == "==":
+            incidents = self.query(lambda record: (s := self.numeric_severity(record)) is not None and s == severity)
+        elif comparison_operator == ">":
+            incidents = self.query(lambda record: (s := self.numeric_severity(record)) is not None and s > severity)
+        elif comparison_operator == "<":
+            incidents = self.query(lambda record: (s := self.numeric_severity(record)) is not None and s < severity)
+        else:
+            print("Invalid comparison operator. Use '==', '>', or '<'.")
+            return [] # or raise an exception
+        return incidents
 
-def query_hazard_category(hazard_category):
-    """Return incidents whose AI hazard category exactly matches the value.
+    def query_hazard_category(self, hazard_category):
+        """Return incidents whose AI hazard category exactly matches the value.
 
-    Args:
-        hazard_category (str): Hazard category to match, including letter case.
+        Args:
+            hazard_category (str): Hazard category to match, including letter case.
 
-    Returns:
-        list: Matching incident records, or an empty list if none are found.
-    """
-    incidents = query(lambda record: record.get("ai", {}).get("hazard_category") == hazard_category)
-    return incidents
+        Returns:
+            list: Matching incident records, or an empty list if none are found.
+        """
+        incidents = self.query(lambda record: record.get("ai", {}).get("hazard_category") == hazard_category)
+        return incidents
 
-# And so on...
+
+class DataLoadError(Exception):
+    """Stored incidents could not be read."""
+
+
+class InvalidIncidentDataError(DataLoadError):
+    """Stored incident rows could not be reconstructed."""
+
+
+class DataSaveError(Exception):
+    """An incident transaction could not be committed."""

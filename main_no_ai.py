@@ -14,11 +14,14 @@ Removed compared to main.py:
 
 Keep this file in sync with main.py: if main.py changes its flow
 (severity banding, the failure stub, the record handed to
-data_manager.save), update the matching function here.
+managers.data_manager.save), update the matching function here.
 """
 
-import data_manager
-import logic_manager
+import managers
+from dashboard.incident import Incident
+from dashboard.input_section import InputSection
+from dashboard.ai_section import AISection
+from dashboard.logic_section import LogicSection
 
 
 def to_severity_band(ai_output: dict) -> dict:
@@ -86,6 +89,7 @@ def print_triage_summary(logic_result: dict) -> None:
     print("Escalation Required  : ", logic_result.get("escalation_required"))
     print("Recurring            : ", logic_result.get("recurring"))
     print("Possible Duplicate   : ", logic_result.get("duplicate_possible"))
+    print("Risk Score           : ", logic_result.get("risk_score"))
     print("Rule Applied         : ", logic_result.get("rule_applied"))
     print("AI Explanation       : ", logic_result.get("ai_explanation"))
     print("Supporting Phrase    : ", logic_result.get("supporting_phrase"))
@@ -101,11 +105,15 @@ def report_new_incident(record_input: dict, ai_result) -> dict:
     Returns:
         The logic decision stored with the record.
     """
+    incident = Incident()
+    incident.input_section = InputSection.from_dict(record_input)
     ai_output = analyse_incident(record_input, ai_result)
-    history = data_manager.load()
-    logic_result = logic_manager.determine_final_status(
+    incident.ai_section = AISection.from_dict(ai_output)
+    history = [item.to_dict() for item in managers.data_manager.load()]
+    logic_result = managers.logic_manager.determine_final_status(
         record_input, ai_output, history
     )
-    data_manager.save({"input": record_input, "ai": ai_output, "logic": logic_result})
+    incident.logic_section = LogicSection.from_dict(logic_result)
+    managers.data_manager.save(incident)
     print_triage_summary(logic_result)
     return logic_result
