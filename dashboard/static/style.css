@@ -1,4 +1,5 @@
 /* Small overrides on top of Bootstrap for the incident dashboard. */
+@import url("incident_details.css");
 
 body {
     background-color: #f5f6f8;

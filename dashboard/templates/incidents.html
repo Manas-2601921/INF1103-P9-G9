@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Incidents - Workplace Incident Triage{% endblock %}
+{% block content %}
+<h1 class="mb-4">Incidents</h1>
+
+{% if not error and not incidents %}
+    <div class="alert alert-info" role="status">No incidents have been reported yet.</div>
+{% elif not error %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">Incident</th>
+                    <th scope="col">Date and time</th>
+                    <th scope="col">Location</th>
+                    <th scope="col">Hazard</th>
+                    <th scope="col">Severity</th>
+                    <th scope="col">Queue</th>
+                    <th scope="col">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for incident in incidents %}
+                    {% set report = incident.input_section.to_dict() if incident.input_section else {} %}
+                    {% set analysis = incident.ai_section.to_dict() if incident.ai_section else {} %}
+                    {% set triage = incident.logic_section.to_dict() if incident.logic_section else {} %}
+                    {% set severity = analysis.get("severity") %}
+                    <tr>
+                        <th scope="row" class="text-nowrap">{{ incident.record_id or "Unassigned" }}</th>
+                        <td>{{ report.get("incident_name") or "Not available" }}</td>
+                        <td>{{ report.get("incident_datetime") or "Not available" }}</td>
+                        <td>{{ report.get("location") or "Not available" }}</td>
+                        <td>{{ analysis.get("hazard_category") or "Not assessed" }}</td>
+                        <td>{{ severity if severity is not none and severity != "" else "Not assessed" }}</td>
+                        <td>{{ triage.get("final_queue") or "Unassigned" }}</td>
+                        <td>
+                            {% if incident.record_id %}
+                                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dashboard.incident_details', record_id=incident.record_id) }}">View more details</a>
+                            {% else %}
+                                <button type="button" class="btn btn-sm btn-outline-primary">View more details</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+{% endblock %}
