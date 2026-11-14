@@ -9,7 +9,7 @@ carries no decorators. The HTTP verb becomes a method name (``get``,
 from flask import Blueprint, render_template
 from flask.views import MethodView
 
-from dashboard.stats import StatsService
+from dashboard.analytics.stats_service import StatsService
 
 bp = Blueprint("dashboard", __name__)
 
@@ -18,7 +18,7 @@ class HomeView(MethodView):
     """Main dashboard page serving the incident trends analytics."""
 
     def get(self):
-        import managers  # lazy: the shared manager singletons
+        import managers  
 
         payload = StatsService(managers.data_manager).dashboard_payload()
         if payload["rising"]:

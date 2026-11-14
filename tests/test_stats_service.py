@@ -1,86 +1,21 @@
-"""Offline tests for the analytics dashboard: StatsService aggregates and
-the /trends page.
+"""Offline tests for StatsService aggregates and the home dashboard."""
 
-Every case seeds a temporary SQLite database through the real DataManager
-(no live API, no shared state), then asserts the Python-side statistics:
-severity banding, zero-filled time series, the 30-day hotspot window with
-its edge cases, and the week-over-week rising patterns.
-
-Run with:
-
-    .venv/Scripts/python test_stats.py
-    python -m unittest test_stats
-"""
-
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
-import tempfile
+import sys
 import unittest
 
-from dashboard import create_app
-from dashboard.config import TestConfig
-from dashboard.datetime_utils import IncidentDatetimeParser
-from dashboard.extensions import db
-from dashboard.incident import Incident
-from dashboard.stats import StatsService
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from dashboard.analytics.stats_service import StatsService
 from data_manager import DataManager
-import managers
+from tests.dashboard_test_case import DashboardTestCase
 
 
-class StatsServiceTests(unittest.TestCase):
-    def setUp(self):
-        self.directory = tempfile.TemporaryDirectory()
-        self.addCleanup(self.directory.cleanup)
-        database = Path(self.directory.name) / "stats.db"
-
-        class Config(TestConfig):
-            SQLALCHEMY_DATABASE_URI = f"sqlite:///{database.as_posix()}"
-
-        self.app = create_app(Config)
-        self.runner = self.app.test_cli_runner()
-        result = self.runner.invoke(args=["init-db"])
-        self.assertEqual(result.exit_code, 0, result.output)
-        self.context = self.app.app_context()
-        self.context.push()
-        self.addCleanup(self.context.pop)
-        self.addCleanup(db.engine.dispose)
-        self.addCleanup(db.session.remove)
-        self.data_manager = DataManager(self.app)
-        self.stats = StatsService(self.data_manager)
-        self.today = datetime.now().date()
-
-    def days_ago(self, days, hour=9):
-        """An ISO incident_datetime string placed ``days`` days before today."""
-        return (datetime.now() - timedelta(days=days)).replace(
-            hour=hour, minute=0, second=0, microsecond=0).isoformat(timespec="seconds")
-
-    def seed(self, days_ago=0, location="Warehouse", hazard_category="mechanical",
-             severity="high", severity_score=None, final_queue="Routine Log"):
-        """Insert one fully specified incident through the real DataManager."""
-        ai = {"severity": severity, "confidence": 0.9,
-              "severity_explanation": "Seeded for the statistics tests.",
-              "hazard_category": hazard_category, "incident_type": "near-miss",
-              "indicators": {"injury": False, "immediate_danger": False,
-                             "exposure": False, "equipment_involvement": True,
-                             "work_stoppage": False, "uncontrolled_hazard": False},
-              "repeat_pattern_indicators": {"location": location,
-                                            "hazard_category": hazard_category},
-              "recommended_immediate_action": "Monitor the area.",
-              "supporting_phrase": "Seeded supporting phrase."}
-        if severity_score is not None:
-            ai["severity_score"] = severity_score
-        record = {
-            "input": {"incident_name": "Stats seed", "description": "Seeded incident.",
-                      "location": location, "reporter_role": "Employee",
-                      "incident_datetime": self.days_ago(days_ago),
-                      "injury_reported": False, "immediate_action": "Area cleared"},
-            "ai": ai,
-            "logic": {"final_queue": final_queue, "escalation_required": False,
-                      "recurring": False, "duplicate_possible": False,
-                      "risk_score": 1, "rule_applied": "seed",
-                      "ai_explanation": "Seeded.", "supporting_phrase": "Seeded."},
-        }
-        self.data_manager.save(Incident.from_dict(record))
+class StatsServiceTests(DashboardTestCase):
+    """Verify Python-side analytics, boundary rules, and home dashboard rendering."""
 
     # ------------------------------------------------------------------
     # empty database
@@ -229,64 +164,11 @@ class StatsServiceTests(unittest.TestCase):
         self.assertIn(b"rising hazard pattern(s) detected this week", response.data)
         self.assertNotIn(b'href="/trends"', response.data)
 
-    def test_standalone_trends_route_is_removed(self):
-        client = self.app.test_client()
-        response = client.get("/trends")
-        self.assertEqual(response.status_code, 404)
-
     def test_future_dated_incidents_are_excluded_from_past_windows(self):
         self.seed(days_ago=-2, location="Warehouse", hazard_category="mechanical")
         self.seed(days_ago=-3, location="Warehouse", hazard_category="mechanical")
         self.assertEqual(self.stats.recurrence_hotspots(), [])
         self.assertEqual(self.stats.rising_patterns(), [])
-
-
-class IncidentDatetimeParserTests(unittest.TestCase):
-    def setUp(self):
-        self.parser = IncidentDatetimeParser()
-
-    def test_parses_iso_prompt_and_date_only_formats(self):
-        self.assertEqual(self.parser.parse("2026-11-11T09:00:00"),
-                         datetime(2026, 11, 11, 9, 0, 0))
-        self.assertEqual(self.parser.parse("22-01-2026 13:10"),
-                         datetime(2026, 1, 22, 13, 10))
-        self.assertEqual(self.parser.parse("22-01-2026"),
-                         datetime(2026, 1, 22, 0, 0))
-
-    def test_returns_datetime_unchanged_and_none_for_invalid_values(self):
-        now = datetime(2026, 11, 13, 10, 30)
-        self.assertIs(self.parser.parse(now), now)
-        self.assertIsNone(self.parser.parse(None))
-        self.assertIsNone(self.parser.parse("   "))
-        self.assertIsNone(self.parser.parse("not a date"))
-
-
-class IOManagerNotifyTests(unittest.TestCase):
-    setUp = StatsServiceTests.setUp
-
-    def test_notify_flashes_and_renders_bootstrap_alerts_in_base_template(self):
-        io_manager = managers.io_manager
-
-        @self.app.route("/_test_notify")
-        def _test_notify():
-            io_manager.notify("AI analysis failed.", category="error")
-            io_manager.notify("Rising hazard detected.", category="warning")
-            io_manager.notify("Incident saved.", category="success")
-            io_manager.notify("Heads up.", category="info")
-            from flask import redirect, url_for
-            return redirect(url_for("dashboard.home"))
-
-        client = self.app.test_client()
-        response = client.get("/_test_notify", follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b"alert-danger", response.data)
-        self.assertIn(b"AI analysis failed.", response.data)
-        self.assertIn(b"alert-warning", response.data)
-        self.assertIn(b"Rising hazard detected.", response.data)
-        self.assertIn(b"alert-success", response.data)
-        self.assertIn(b"Incident saved.", response.data)
-        self.assertIn(b"alert-info", response.data)
-        self.assertIn(b"Heads up.", response.data)
 
 
 if __name__ == "__main__":

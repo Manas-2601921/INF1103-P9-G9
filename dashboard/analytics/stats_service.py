@@ -9,43 +9,14 @@ manual-review stubs never crash the dashboard.
 """
 
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from datetime import date, timedelta
 
-from dashboard.datetime_utils import IncidentDatetimeParser
+from dashboard.analytics.hotspot import Hotspot
+from dashboard.analytics.incident_datetime_parser import IncidentDatetimeParser
+from dashboard.analytics.rising_pattern import RisingPattern
+from dashboard.analytics.trend_point import TrendPoint
 from dashboard.incident import Incident
-
-
-@dataclass(frozen=True)
-class TrendPoint:
-    """One labelled bucket of a time series (e.g. one day's incident count)."""
-
-    label: str
-    count: int
-
-
-@dataclass(frozen=True)
-class Hotspot:
-    """A location and hazard category repeatedly hit inside a time window."""
-
-    location: str
-    hazard_category: str
-    count: int
-    last_seen: str
-
-
-@dataclass(frozen=True)
-class RisingPattern:
-    """A location and hazard category whose recent week outnumbers the prior one.
-
-    These mark "possible incoming incidents": the same hazard is now
-    happening more often than it did the week before.
-    """
-
-    location: str
-    hazard_category: str
-    recent_count: int
-    prior_count: int
 
 
 class StatsService:
