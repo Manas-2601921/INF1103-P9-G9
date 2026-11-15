@@ -14,6 +14,12 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # SQLAlchemy's built-in engine logger prints SQL and bound parameters.
+    # Set in the shell before starting the app; keep normal runs quiet.
+    SQLALCHEMY_ECHO = os.getenv("SQLALCHEMY_ECHO", "false").lower() in (
+        "1", "true", "yes",
+    )
+
     # SQLite lives beside the legacy JSON store so the Docker volume
     # (/app/data) keeps persisting incident data across restarts; a
     # deployed environment swaps in PostgreSQL via DATABASE_URL.

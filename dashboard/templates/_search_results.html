@@ -1,0 +1,74 @@
+{% macro sort_header(column, label) %}
+{% set active = current_sort == column %}
+{% set state = 'ascending' if active and current_dir == 'asc' else ('descending' if active and current_dir == 'desc' else 'none') %}
+<th scope="col" aria-sort="{{ state }}">
+    <a class="text-reset text-decoration-none d-inline-flex align-items-center gap-1" data-ajax-search href="{{ sort_urls[column] }}#results-heading"
+       aria-label="Sort by {{ label }}{% if active %} ({{ 'ascending' if current_dir == 'asc' else 'descending' }} order shown){% endif %}">
+        {{ label }}<span aria-hidden="true">{% if active %}{{ '▲' if current_dir == 'asc' else '▼' }}{% else %}⇅{% endif %}</span>
+    </a>
+</th>
+{% endmacro %}
+<section aria-labelledby="results-heading" id="search-results-section">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <h2 class="h4 mb-1" id="results-heading">{{ total }} incident{{ '' if total == 1 else 's' }} found</h2>
+            <p class="text-muted text-break mb-0" id="query-summary">{{ query_text }}</p>
+        </div>
+        {% if csv_url and total %}
+        <a class="btn btn-outline-secondary btn-sm text-nowrap" href="{{ csv_url }}">Export CSV ({{ total }} record{{ '' if total == 1 else 's' }})</a>
+        {% endif %}
+    </div>
+    {% if chips %}
+    <ul class="d-flex flex-wrap gap-2 list-unstyled mt-2 mb-3" aria-label="Active filters">
+        {% for chip in chips %}
+        <li>
+            <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" data-ajax-search href="{{ chip.url }}#results-heading">
+                {{ chip.text }}<span aria-hidden="true">&times;</span><span class="visually-hidden">Remove this filter</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% if not incidents %}
+    <div class="alert alert-info" role="status">No incidents match these filters. Try a shorter title, a wider date range, or <a class="alert-link" href="{{ url_for('dashboard.search') }}">clear all filters</a>.</div>
+    {% else %}
+    <div class="card"><div class="table-responsive" id="search-results-scroll">
+        <table class="table table-striped table-hover align-middle mb-0" id="search-results-table" aria-describedby="query-summary">
+            <caption class="visually-hidden">Incidents matching the current search filters</caption>
+            <thead><tr>{% for column, label in sort_columns %}{{ sort_header(column, label) }}{% endfor %}<th scope="col">Details</th></tr></thead>
+            <tbody>{% for incident in incidents %}
+                {% set report = incident.input_section.to_dict() %}
+                {% set analysis = incident.ai_section.to_dict() %}
+                {% set triage = incident.logic_section.to_dict() %}
+                {% set band = severity_band(incident) %}
+                <tr>
+                    <th scope="row" class="text-nowrap">{{ incident.record_id }}</th>
+                    <td class="search-title">{{ report.get('incident_name') or 'Unnamed incident' }}</td>
+                    <td>{{ format_datetime(report.get('incident_datetime')) if report.get('incident_datetime') else 'Not available' }}</td>
+                    <td>{{ report.get('location') or 'Not available' }}</td>
+                    <td>{{ analysis.get('hazard_category') or 'Not assessed' }}</td>
+                    <td><span class="badge text-bg-{{ {'high': 'danger', 'medium': 'warning', 'low': 'success'}.get(band, 'secondary') }}">{{ severities.get(band, 'Not assessed') }}</span></td>
+                    <td>{{ triage.get('final_queue') or 'Unassigned' }}</td>
+                    <td><a class="btn btn-sm btn-outline-primary text-nowrap" aria-label="View details for {{ incident.record_id }}" href="{{ url_for('dashboard.incident_details', record_id=incident.record_id, search=request.query_string.decode('utf-8', errors='replace')) }}">View details</a></td>
+                </tr>
+            {% endfor %}</tbody>
+        </table>
+    </div></div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+        <p class="text-muted small mb-0">Showing {{ first }}–{{ last }} of {{ total }} — Page {{ page }} of {{ pages }}</p>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <div class="btn-group" role="group" aria-label="Incidents shown per page">
+                <span class="small text-muted align-self-center me-1">Per page:</span>
+                {% for size in page_sizes %}
+                <a class="btn btn-sm {{ 'btn-primary' if size == page_size else 'btn-outline-secondary' }}" data-ajax-search
+                   href="{{ page_size_urls[size] }}#results-heading" {% if size == page_size %}aria-current="true"{% endif %}>{{ size }}</a>
+                {% endfor %}
+            </div>
+            {% if pages > 1 %}<nav aria-label="Search results pages" class="d-flex gap-2">
+                {% if previous_url %}<a class="btn btn-outline-primary btn-sm" data-ajax-search rel="prev" href="{{ previous_url }}#results-heading">Previous</a>{% endif %}
+                {% if next_url %}<a class="btn btn-outline-primary btn-sm" data-ajax-search rel="next" href="{{ next_url }}#results-heading">Next</a>{% endif %}
+            </nav>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</section>
