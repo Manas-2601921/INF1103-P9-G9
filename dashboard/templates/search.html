@@ -32,7 +32,8 @@
 <div class="card shadow-sm mb-4">
     <div class="card-body p-4">
         <form method="get" action="{{ url_for('dashboard.search') }}">
-            <h2 class="h5 text-primary border-bottom pb-2 mb-3">Find an incident</h2>
+            <fieldset class="m-0 p-0 border-0">
+            <legend class="h5 text-primary border-bottom pb-2 mb-3 w-100 float-none">Find an incident</legend>
             <div class="row g-3">
                 {{ text_field('incident_name', 'Incident title', 'e.g. forklift') }}
                 <div class="col-md-6 col-xl-4">
@@ -63,7 +64,9 @@
                 </div>
                 {{ select_field('injury_reported', 'Injury reported', [('yes', 'Yes'), ('no', 'No')], 'Either') }}
             </div>
-            <h2 class="h5 text-primary border-bottom pb-2 mb-3 mt-4">Incident date and time</h2>
+            </fieldset>
+            <fieldset class="m-0 p-0 border-0 mt-4">
+            <legend class="h5 text-primary border-bottom pb-2 mb-3 w-100 float-none">Incident date and time</legend>
             <div class="row g-3">
                 <div class="col-md-6 col-xl-4">
                     <label class="form-label" for="date_mode">Search dates by</label>
@@ -89,6 +92,7 @@
                     {{ feedback('specific_datetime') }}<div class="form-text">Matches any second within the selected minute.</div>
                 </div>
             </div>
+            </fieldset>
             <p class="form-text mt-3 mb-0">Dates use the incident's reported local time. All selected filters must match. Leave filters blank to browse all incidents.</p>
             <div class="d-flex flex-wrap gap-2 mt-4">
                 <button type="submit" class="btn btn-primary">Search incidents</button>
@@ -98,42 +102,7 @@
     </div>
 </div>
 {% if not failed and not errors %}
-<section aria-labelledby="results-heading">
-    <h2 class="h4" id="results-heading">{{ total }} incident{{ '' if total == 1 else 's' }} found</h2>
-    <p class="text-muted text-break" id="query-summary">{{ query_text }}</p>
-    {% if not incidents %}
-    <div class="alert alert-info" role="status">No incidents match these filters. Try a shorter title, a wider date range, or <a class="alert-link" href="{{ url_for('dashboard.search') }}">clear all filters</a>.</div>
-    {% else %}
-    <div class="card"><div class="table-responsive">
-        <table class="table table-striped table-hover align-middle mb-0" aria-describedby="query-summary">
-            <thead><tr><th scope="col">ID</th><th scope="col">Incident</th><th scope="col">Date and time</th><th scope="col">Location</th><th scope="col">Hazard</th><th scope="col">Severity</th><th scope="col">Queue</th><th scope="col">Details</th></tr></thead>
-            <tbody>{% for incident in incidents %}
-                {% set report = incident.input_section.to_dict() %}
-                {% set analysis = incident.ai_section.to_dict() %}
-                {% set triage = incident.logic_section.to_dict() %}
-                {% set band = severity_band(incident) %}
-                <tr>
-                    <th scope="row" class="text-nowrap">{{ incident.record_id }}</th>
-                    <td class="search-title">{{ report.get('incident_name') or 'Unnamed incident' }}</td>
-                    <td>{{ format_datetime(report.get('incident_datetime')) if report.get('incident_datetime') else 'Not available' }}</td>
-                    <td>{{ report.get('location') or 'Not available' }}</td>
-                    <td>{{ analysis.get('hazard_category') or 'Not assessed' }}</td>
-                    <td><span class="badge text-bg-{{ {'high': 'danger', 'medium': 'warning', 'low': 'success'}.get(band, 'secondary') }}">{{ severities.get(band, 'Not assessed') }}</span></td>
-                    <td>{{ triage.get('final_queue') or 'Unassigned' }}</td>
-                    <td><a class="btn btn-sm btn-outline-primary text-nowrap" aria-label="View details for {{ incident.record_id }}" href="{{ url_for('dashboard.incident_details', record_id=incident.record_id, search=request.query_string.decode('utf-8', errors='replace')) }}">View details</a></td>
-                </tr>
-            {% endfor %}</tbody>
-        </table>
-    </div></div>
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
-        <p class="text-muted small mb-0">Showing {{ first }}?{{ last }} of {{ total }} ? Page {{ page }} of {{ pages }}</p>
-        {% if pages > 1 %}<nav aria-label="Search results pages" class="d-flex gap-2">
-            {% if previous_url %}<a class="btn btn-outline-primary btn-sm" rel="prev" href="{{ previous_url }}#results-heading">Previous</a>{% endif %}
-            {% if next_url %}<a class="btn btn-outline-primary btn-sm" rel="next" href="{{ next_url }}#results-heading">Next</a>{% endif %}
-        </nav>{% endif %}
-    </div>
-    {% endif %}
-</section>
+{% include "_search_results.html" %}
 {% endif %}
 <script>
 const dateMode = document.getElementById('date_mode');
@@ -146,5 +115,51 @@ function updateDateFields() {
 }
 dateMode.addEventListener('change', updateDateFields);
 updateDateFields();
+</script>
+<script>
+(function () {
+    var RESULTS_ID = "search-results-section";
+
+    function applyFragment(html, url, pushHistory) {
+        var next = new DOMParser().parseFromString(html, "text/html").getElementById(RESULTS_ID);
+        var current = document.getElementById(RESULTS_ID);
+        if (!next || !current) {
+            window.location = url;
+            return;
+        }
+        current.replaceWith(next);
+        bindLinks();
+        if (pushHistory) {
+            history.pushState({ ajaxSearch: true }, "", url);
+        }
+    }
+
+    function loadResults(url, pushHistory) {
+        fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then(function (response) {
+                if (!response.ok) { throw new Error("search fragment request failed"); }
+                return response.text();
+            })
+            .then(function (html) { applyFragment(html, url, pushHistory); })
+            .catch(function () { window.location = url; });
+    }
+
+    function bindLinks() {
+        var container = document.getElementById(RESULTS_ID);
+        if (!container) { return; }
+        container.querySelectorAll("a[data-ajax-search]").forEach(function (link) {
+            link.addEventListener("click", function (event) {
+                event.preventDefault();
+                loadResults(link.href, true);
+            });
+        });
+    }
+
+    bindLinks();
+    history.replaceState({ ajaxSearch: true }, "", location.href);
+    window.addEventListener("popstate", function () {
+        loadResults(location.href, false);
+    });
+})();
 </script>
 {% endblock %}
