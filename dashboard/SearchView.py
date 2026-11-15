@@ -8,9 +8,13 @@ from flask import Response, current_app, render_template, request, url_for
 from flask.views import MethodView
 
 import managers
+from dashboard.analytics.incident_datetime_parser import IncidentDatetimeParser
 from data_manager import DataLoadError, DataManager
 
 _SEVERITY_SORT_ORDER = {"high": 2, "medium": 1, "low": 0}
+# Shared with the trends page so a "22-01-2026" row and a "2026-01-22T09:00:00"
+# row sort the same way here as they do there.
+_DATETIME_PARSER = IncidentDatetimeParser()
 
 
 def _sort_key_record_id(incident):
@@ -23,8 +27,24 @@ def _sort_key_incident_name(incident):
 
 
 def _sort_key_incident_datetime(incident):
+    """Sort by the parsed datetime, not the stored string.
+
+    Legacy "DD-MM-YYYY HH:MM" rows and ISO rows must interleave by actual
+    time, which raw string comparison cannot do (e.g. "31-12-2025" would
+    sort before "2026-01-01" as text despite being later). Unparsed or
+    missing values sort as the earliest possible date, mirroring how
+    unassessed severity sorts below every known band. A timezone-aware
+    value is normalised to naive by dropping its offset, since the rest of
+    the app treats every stored incident_datetime as the reporter's local,
+    offset-less time and never otherwise mixes aware and naive values.
+    """
     data = incident.input_section.manager_json if incident.input_section else {}
-    return data.get("incident_datetime") or ""
+    value = _DATETIME_PARSER.parse(data.get("incident_datetime"))
+    if value is None:
+        return datetime.min
+    if value.utcoffset() is not None:
+        value = value.replace(tzinfo=None)
+    return value
 
 
 def _sort_key_location(incident):
@@ -147,8 +167,12 @@ class SearchView(MethodView):
             errors["page"] = "Page must be a positive whole number."
             page = 1
         raw_page_size = request.args.get("page_size", "")
-        page_size = (int(raw_page_size) if raw_page_size.isdigit() and int(raw_page_size) in self.PAGE_SIZES
-                    else self.PAGE_SIZE)
+        try:
+            page_size = int(raw_page_size)
+        except ValueError:
+            page_size = self.PAGE_SIZE
+        if page_size not in self.PAGE_SIZES:
+            page_size = self.PAGE_SIZE
         incidents, categories, failed = [], [], False
         try:
             categories = managers.io_manager.get_all_incident_categories()

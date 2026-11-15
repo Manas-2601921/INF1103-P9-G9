@@ -119,6 +119,27 @@ updateDateFields();
 <script>
 (function () {
     var RESULTS_ID = "search-results-section";
+    // Fields inside the filter <form>, which the AJAX swap below never
+    // touches since it only replaces #search-results-section. Without this,
+    // a filter-chip removal updates the results but leaves the form showing
+    // the old value, so re-submitting the form (or Back/Forward) would
+    // silently reapply a filter the user had just removed.
+    var FORM_FIELD_IDS = ["incident_name", "name_match", "record_id", "hazard_category",
+                          "location", "severity", "final_queue", "injury_reported",
+                          "date_mode", "date_from", "date_to", "specific_datetime"];
+    var FIELD_DEFAULTS = { name_match: "contains", date_mode: "any" };
+
+    function syncFormFromUrl(url) {
+        var params = new URL(url, location.href).searchParams;
+        FORM_FIELD_IDS.forEach(function (name) {
+            var field = document.getElementById(name);
+            if (!field) { return; }
+            field.value = params.get(name) || FIELD_DEFAULTS[name] || "";
+        });
+        if (typeof updateDateFields === "function") {
+            updateDateFields();
+        }
+    }
 
     function applyFragment(html, url, pushHistory) {
         var next = new DOMParser().parseFromString(html, "text/html").getElementById(RESULTS_ID);
@@ -129,6 +150,7 @@ updateDateFields();
         }
         current.replaceWith(next);
         bindLinks();
+        syncFormFromUrl(url);
         if (pushHistory) {
             history.pushState({ ajaxSearch: true }, "", url);
         }
