@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Add incident - Workplace Incident Triage{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='loader.css') }}">
+{% endblock %}
 {% block content %}
+{% include "loader.html" %}
 <div class="mx-auto" style="max-width: 800px;">
     <h1 class="mb-2">Incident reporting form</h1>
     <p class="text-muted mb-4">Provide the details of the workplace incident.</p>
@@ -112,11 +116,27 @@
 
 <script>
     const form = document.querySelector("form");
+    const submitButton = form.querySelector('button[type="submit"]');
+    const loader = document.getElementById("incident-submit-loader");
+    let submissionInProgress = false;
+
     form.addEventListener("submit", function(event) {
         if (!form.checkValidity()) {
             event.preventDefault();
+            form.classList.add("was-validated");
+            return;
         }
-        form.classList.add("was-validated");
+
+        if (submissionInProgress) {
+            event.preventDefault();
+            return;
+        }
+
+        submissionInProgress = true;
+        loader.hidden = false;
+        loader.setAttribute("aria-hidden", "false");
+        submitButton.disabled = true;
+        submitButton.textContent = "Submitting...";
     });
 </script>
 {% endblock %}
