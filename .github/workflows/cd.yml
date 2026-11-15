@@ -1,8 +1,8 @@
 name: CD
 
 # Deploys the Docker image to Azure App Service (`inf1103` in RG `devops`).
-# Runs manually from the Actions tab (CD → Run workflow) until automatic
-# deploys are enabled.
+# Runs CI first and deploys automatically on pushes to `main` (or manually via
+# Actions → CD → Run workflow).
 #
 # GitHub repository secrets required:
 #   - AZURE_PUBLISH_PROFILE : XML downloaded from App Service → Overview
@@ -19,7 +19,7 @@ name: CD
 on:
   workflow_dispatch:
   push:
-    branches: [cd/azure-app-service]
+    branches: [main]
 
 permissions:
   contents: read
