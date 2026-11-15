@@ -150,14 +150,12 @@ def generate_incident_review(incident_id):
     if(incident_id == ""):
         print("Error: Incident id is missing")
         return False
-    # search all records and keep every one whose record_id matches the incident id (the list is empty if none match)
-    matching_records = managers.data_manager.query(lambda record: record.get("record_id", {}) == incident_id)
-    # stop early if nothing matched, before trying to take the first item (taking [0] of an empty list would crash)
-    if len(matching_records) == 0:
+    # Look up the database key, then convert only for this console formatter.
+    incident = managers.data_manager.get_by_record_id(incident_id)
+    if incident is None:
         print("Error: No such record exists in our records.")
         return False
-    # at least one match exists, so it is now safe to take the first one
-    incident_record = matching_records[0]
+    incident_record = incident.to_dict()
  
     #processing information
     # convert the ISO timestamp strings into datetime objects so they can be formatted and subtracted
@@ -292,18 +290,12 @@ def handle_search_options():
         if title_search_value is None:
             print(QUIT_MESSAGE)
             return False
-        search_results = managers.data_manager.query(
-            lambda record: (record.get("input", {}).get("incident_name") or "").strip().lower() == title_search_value.lower()
-        )
+        search_results = managers.io_manager.find_by_title(title_search_value)
         return search_results, title_search_value
 
     # option 2: search by incident category
     if search_option == "2":
-        incident_categories = sorted({
-            (record.get("ai", {}).get("hazard_category") or "").strip()
-            for record in managers.data_manager.query(lambda record: True)
-            if (record.get("ai", {}).get("hazard_category") or "").strip()
-        })
+        incident_categories = managers.io_manager.get_all_incident_categories()
 
         if incident_categories:
             print("\nCategories related to all your incidents:")
@@ -320,9 +312,7 @@ def handle_search_options():
             if category_search_value is None:
                 print(QUIT_MESSAGE)
                 return False
-            search_results = managers.data_manager.query(
-                lambda record: (record.get("ai", {}).get("hazard_category") or "").strip().lower() == category_search_value.lower()
-            )
+            search_results = managers.io_manager.find_by_category(category_search_value)
             if len(search_results) == 0:
                 print(f"Error: Invalid category input. Please re-enter a valid category.")
                 continue
@@ -361,10 +351,8 @@ def handle_search_options():
                 continue
             break
 
-        # "or ''" treats a missing incident_datetime as an empty string, so that record is skipped instead of crashing
-        search_results = managers.data_manager.query(
-            lambda record: valid_start_datetime <= (record.get("input", {}).get("incident_datetime") or "") <= valid_end_datetime
-        )
+        # The shared parser skips missing or invalid stored incident dates.
+        search_results = managers.io_manager.find_by_datetime_range(valid_start_datetime, valid_end_datetime)
         search_string = f"incidents between {search_start_datetime_input} and {search_end_datetime_input}"
         return search_results, search_string
 
@@ -374,16 +362,14 @@ def handle_search_options():
         print(QUIT_MESSAGE)
         return False
     valid_search_datetime, search_datetime_input = exact
-    search_results = managers.data_manager.query(
-        lambda record: record.get("input", {}).get("incident_datetime") == valid_search_datetime
-    )
+    search_results = managers.io_manager.find_by_specific_datetime(valid_search_datetime)
     return search_results, search_datetime_input
             
 #function to display a numbered list of search results, ask the user to pick one, and then show that incident's full review report
 def display_search_results(search_results_data, user_search_query):
     """
     Prints a numbered list of search results, asks the user to pick one, and shows that incident's
-    full review report. Every record in search_results_data must contain a "record_id".
+    full review report. search_results_data contains Incident objects with a record_id.
 
     Returns False if there are no results or the user types 'quit'. Returns nothing after showing a report.
     """
@@ -393,7 +379,8 @@ def display_search_results(search_results_data, user_search_query):
         return False
 
     print(f"\n{num_of_search_results} incident(s) for '{user_search_query}':\n")
-    for i, data in enumerate(search_results_data, start=1):
+    for i, incident in enumerate(search_results_data, start=1):
+        data = incident.to_dict()
         formatted_datetime = datetime.fromisoformat(data['input']['incident_datetime']).strftime("%d %B %Y, %H:%M")
         print(f"[{i}] {data['input']['incident_name']}")
         print(f"{'Incident Date and Time':<22}: {formatted_datetime}")
@@ -422,7 +409,7 @@ def display_search_results(search_results_data, user_search_query):
 
         break
 
-    view_incident_data_id = search_results_data[view_incident_number - 1]['record_id']
+    view_incident_data_id = search_results_data[view_incident_number - 1].record_id
 
     # print("\n")
     generate_incident_review(view_incident_data_id)

@@ -1,4 +1,5 @@
 /* Small overrides on top of Bootstrap for the incident dashboard. */
+@import url("incident_details.css");
 
 body {
     background-color: #f5f6f8;
@@ -10,4 +11,24 @@ body {
 
 .queue-badge {
     min-width: 9rem;
+}
+
+/* Keep long incident titles from forcing a very wide results table. */
+.search-title {
+    min-width: 12rem;
+    max-width: 22rem;
+    overflow-wrap: anywhere;
+}
+
+#search-results-scroll {
+    max-height: 70vh;
+    overflow: auto;
+}
+
+#search-results-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background-color: #fff;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.175);
 }

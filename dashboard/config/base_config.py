@@ -1,10 +1,8 @@
 """Base configuration shared by every dashboard environment."""
 
 import os
-from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-DATA_DIR = BASE_DIR / "data"
+from dashboard.config.database_url_resolver import BASE_DIR, DATA_DIR, DatabaseUrlResolver
 
 
 class Config:
@@ -16,10 +14,15 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # SQLite lives beside the legacy JSON store so the Docker volume
-    # (/app/data) keeps persisting incident data across restarts.
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", f"sqlite:///{(DATA_DIR / 'incidents.db').as_posix()}"
+    # SQLAlchemy's built-in engine logger prints SQL and bound parameters.
+    # Set in the shell before starting the app; keep normal runs quiet.
+    SQLALCHEMY_ECHO = os.getenv("SQLALCHEMY_ECHO", "false").lower() in (
+        "1", "true", "yes",
     )
+
+    # SQLite lives beside the legacy JSON store so the Docker volume
+    # (/app/data) keeps persisting incident data across restarts; a
+    # deployed environment swaps in PostgreSQL via DATABASE_URL.
+    SQLALCHEMY_DATABASE_URI = DatabaseUrlResolver().resolve()
 
     DEBUG = False

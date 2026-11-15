@@ -1,0 +1,85 @@
+.incident-report {
+    max-width: 56rem;
+    margin: 0 auto;
+    padding: 3rem;
+    background: #fff;
+    border: 1px solid #dfe3e8;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.report-header {
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid #343a40;
+}
+
+.report-label {
+    margin-bottom: 0.5rem;
+    color: #5c6670;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.report-header h1 {
+    margin-bottom: 0.5rem;
+    font-size: 1.75rem;
+}
+
+.report-id {
+    margin-bottom: 0;
+    color: #5c6670;
+}
+
+.report-section {
+    margin-top: 2rem;
+}
+
+.report-section h2 {
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
+.incident-fields {
+    margin-bottom: 0;
+}
+
+.incident-field {
+    display: grid;
+    grid-template-columns: minmax(9rem, 30%) minmax(0, 1fr);
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.incident-field dt,
+.incident-nested dt {
+    color: #5c6670;
+    font-weight: 600;
+}
+
+.incident-field dd,
+.incident-nested dd {
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
+}
+
+.incident-nested dd + dt {
+    margin-top: 0.5rem;
+}
+
+.incident-text {
+    white-space: pre-wrap;
+}
+
+@media (max-width: 575.98px) {
+    .incident-report {
+        padding: 1.5rem;
+    }
+
+    .incident-field {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
+    }
+}

@@ -54,7 +54,7 @@ class DataManagerTests(unittest.TestCase):
         self.assertIsInstance(loaded, Incident)
         self.assertIsInstance(loaded.input_section, InputSection)
         self.assertEqual(loaded.to_dict(), incident.to_dict())
-        self.assertEqual(manager.query_location("Warehouse"), [incident.to_dict()])
+        self.assertEqual([item.to_dict() for item in manager.query_location("Warehouse")], [incident.to_dict()])
         self.assertEqual(manager.query_stored_incident_summaries()[0]["record_id"], incident.record_id)
         with self.assertRaises(ValueError):
             manager.save(incident)
@@ -66,6 +66,39 @@ class DataManagerTests(unittest.TestCase):
         # Plain sections remain usable after all database sessions close.
         db.session.remove()
         self.assertEqual(loaded.input_section.to_dict()["location"], "Warehouse")
+
+    def test_search_helpers_combine_filters_and_treat_wildcards_literally(self):
+        manager = self.manager()
+        target = self.completed()
+        target.input_section.manager_json["incident_name"] = "Forklift 100% check"
+        target.ai_section.manager_json["hazard_category"] = "mechanical"
+        manager.save(target)
+        other = self.completed()
+        other.input_section.manager_json["incident_name"] = "Forklift 1000 check"
+        manager.save(other)
+        self.assertEqual(manager.query_record_id(target.record_id)[0].record_id, target.record_id)
+        self.assertEqual(manager.query_record_id("INC-invalid"), [])
+        self.assertEqual(manager.query_incident_name("FORKLIFT 100% CHECK")[0].record_id, target.record_id)
+        matches = manager.search_incidents(incident_name="100%", hazard_category="mechanical",
+                                           location="ware", injury_reported=False)
+        self.assertEqual([item.record_id for item in matches], [target.record_id])
+        self.assertEqual(manager.search_incidents(incident_name="100%", injury_reported=True), [])
+
+    def test_datetime_range_handles_legacy_dates_boundaries_and_invalid_values(self):
+        manager = self.manager()
+        stored_ids = []
+        for value in ("2026-11-11T09:00:00", "11-11-2026 09:00", "invalid", "2026-11-11T09:00:00+08:00"):
+            incident = self.completed()
+            incident.input_section.manager_json["incident_datetime"] = value
+            manager.save(incident)
+            stored_ids.append(incident.record_id)
+        matches = manager.query_datetime_range("2026-11-11T09:00:00", "2026-11-11T09:00:00")
+        self.assertEqual([item.record_id for item in matches], stored_ids[:2])
+        self.assertEqual([item.record_id for item in manager.query_datetime_range("2026-11-11T09:00:00+08:00", None)], stored_ids[3:])
+        for start, end in (("bad", None), ("2026-11-12", "2026-11-11"),
+                           ("2026-11-11T09:00:00+08:00", "2026-11-11T09:00:00")):
+            with self.subTest(start=start, end=end), self.assertRaises(ValueError):
+                manager.query_datetime_range(start, end)
 
     def test_failed_commit_preserves_caller_and_rolls_back(self):
         incident = self.completed()
@@ -104,17 +137,17 @@ class DataManagerTests(unittest.TestCase):
         manager.save.assert_not_called()
 
     def test_io_search_uses_shared_manager(self):
-        import managers
         from IOManager import IOManager
 
         manager = self.manager()
         incident = self.completed()
         incident.ai_section.manager_json["hazard_category"] = "mechanical"
         manager.save(incident)
-        with patch.object(managers, "data_manager", manager):
-            self.assertEqual(IOManager.find_by_title("test"), [incident.to_dict()])
-            self.assertEqual(IOManager.find_by_category("mechanical"), [incident.to_dict()])
-            self.assertEqual(IOManager.get_all_incident_categories(), ["mechanical"])
+        io = IOManager()
+        with patch.object(io, "_data_manager", manager):
+            self.assertEqual([item.to_dict() for item in io.find_by_title("test")], [incident.to_dict()])
+            self.assertEqual([item.to_dict() for item in io.find_by_category("mechanical")], [incident.to_dict()])
+            self.assertEqual(io.get_all_incident_categories(), ["mechanical"])
 
     def test_interactive_search_options_use_shared_manager(self):
         import managers
@@ -135,7 +168,7 @@ class DataManagerTests(unittest.TestCase):
                 with self.subTest(option=option, answers=answers), \
                         patch("builtins.input", side_effect=answers):
                     records, _ = IOManager().handle_search_option(option)
-                    self.assertEqual(records, [incident.to_dict()])
+                    self.assertEqual([item.to_dict() for item in records], [incident.to_dict()])
 
     def test_uninitialized_database_and_missing_section_are_reported(self):
         db.session.execute(text("PRAGMA foreign_keys=ON"))

@@ -1,0 +1,3 @@
+# Keep shell scripts Linux-safe: Windows autocrlf must not inject CRLF
+# into startup.sh, which the Azure App Service executes with /bin/sh.
+*.sh text eol=lf

@@ -1,16 +1,18 @@
-"""SQLite persistence for Incident objects and dictionary-based query helpers."""
+"""SQLAlchemy persistence and incident queries returning domain objects."""
 
 from contextlib import contextmanager
 from datetime import datetime
+import re
 
 from flask import current_app, has_app_context
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from dashboard.extensions import db
+from dashboard.database_recovery import recover_corrupt_sqlite, SQLiteRecoveryError, sqlite_has_journal_files
 from dashboard.incident import Incident
-from dashboard.models import IncidentModel
+from dashboard.models import IncidentModel, IOManagerModel, AIManagerModel, LogicManagerModel
 
 
 class DataManager:
@@ -36,26 +38,35 @@ class DataManager:
             with Session(db.engine) as session:
                 yield session
 
+    def _read(self, reader, message):
+        """Use the same corruption handling for incident and category reads."""
+        app, engine = None, None
+        had_journals = False
+        try:
+            with self._session() as session:
+                app = current_app._get_current_object()
+                engine = session.get_bind()
+                had_journals = sqlite_has_journal_files(engine)
+                return reader(session)
+        except SQLAlchemyError as exc:
+            # The read session has exited before recovery touches any files.
+            if app is not None and engine is not None:
+                try:
+                    if recover_corrupt_sqlite(app, engine, exc, had_journals=had_journals):
+                        return []
+                except SQLiteRecoveryError as recovery_error:
+                    raise DataLoadError(str(recovery_error)) from recovery_error
+            raise DataLoadError(message) from exc
+
     def load(self) -> list[Incident]:
         """Return fully reconstructed incidents ordered by database ID.
 
-        Objects and sections remain usable after the session closes. Missing or
-        unreadable tables raise DataLoadError; damaged section graphs raise
-        InvalidIncidentDataError. No tables or files are reset automatically.
+        Objects and sections remain usable after the session closes. Confirmed
+        corruption of a local SQLite file is backed up and reset once, returning
+        an empty list. Other read failures raise DataLoadError; damaged section
+        graphs raise InvalidIncidentDataError without resetting stored data.
         """
-        try:
-            with self._session() as session:
-                models = session.scalars(select(IncidentModel).options(
-                    selectinload(IncidentModel.input_section),
-                    selectinload(IncidentModel.ai_section),
-                    selectinload(IncidentModel.logic_section),
-                ).order_by(IncidentModel.id)).all()
-                try:
-                    return [Incident.from_db_model(model) for model in models]
-                except (ValueError, TypeError) as exc:
-                    raise InvalidIncidentDataError("Stored incident sections are invalid.") from exc
-        except SQLAlchemyError as exc:
-            raise DataLoadError("Cannot load incidents from SQLite; check database initialization.") from exc
+        return self.query()
 
     def save(self, incident: Incident) -> Incident:
         """Insert a completed Incident atomically and return the same instance.
@@ -96,19 +107,171 @@ class DataManager:
         incident.metadata = metadata
         return incident
 
-    def query(self, filter_fn):
-        """Return stored records accepted by a predicate, in storage order.
+    def query(self, *criteria) -> list[Incident]:
+        """Filter in SQL using SQLAlchemy expressions; return detached Incidents.
 
-        Args:
-            filter_fn (callable): Function taking a record dictionary and returning
-                a truthy value when that record should be included.
-
-        Returns:
-            list: Matching records, or an empty list if none match or no records
-                are loaded. Exceptions from the predicate propagate.
+        With no criteria this loads all incidents. Multiple criteria are ANDed.
+        Python callbacks are deliberately unsupported: SQLAlchemy cannot turn
+        an arbitrary Python lambda into SQL. Prefer the named query helpers
+        so callers do not need to import persistence models.
         """
-        records = [incident.to_dict() for incident in self.load()]
-        return [record for record in records if filter_fn(record)]
+        if any(callable(criterion) for criterion in criteria):
+            raise TypeError("query() requires SQL expressions, not Python callbacks.")
+        statement = select(IncidentModel).where(*criteria).options(
+            selectinload(IncidentModel.input_section),
+            selectinload(IncidentModel.ai_section),
+            selectinload(IncidentModel.logic_section),
+        ).order_by(IncidentModel.id)
+        def read_incidents(session):
+            models = session.scalars(statement).all()
+            try:
+                return [Incident.from_db_model(model) for model in models]
+            except (ValueError, TypeError) as exc:
+                raise InvalidIncidentDataError("Stored incident sections are invalid.") from exc
+        return self._read(read_incidents, "Cannot query incidents; check database initialization.")
+
+    def get_by_record_id(self, record_id: str) -> Incident | None:
+        """Find a single incident by its public INC- identifier using its SQL key."""
+        matches = self.query_record_id(record_id)
+        return matches[0] if matches else None
+
+    @staticmethod
+    def _record_id_number(record_id):
+        if not isinstance(record_id, str) or re.fullmatch(r"INC-[0-9]{1,19}", record_id) is None:
+            return None
+        value = int(record_id[4:])
+        return value if 0 < value <= 9223372036854775807 else None
+
+    def query_record_id(self, record_id: str) -> list[Incident]:
+        """Return the incident matching a public INC- ID, or an empty list."""
+        incident_id = self._record_id_number(record_id)
+        return self.query(IncidentModel.id == incident_id) if incident_id else []
+
+    def query_incident_name(self, incident_name: str, exact=True) -> list[Incident]:
+        """Case-insensitive full-name or literal substring lookup."""
+        return self.search_incidents(incident_name=incident_name, exact_name=exact)
+
+    @staticmethod
+    def _parse_query_datetime(value):
+        from dashboard.analytics.incident_datetime_parser import IncidentDatetimeParser
+        if not isinstance(value, (str, datetime)):
+            raise TypeError("Search date must be a datetime or a string.")
+        parsed = IncidentDatetimeParser().parse(value)
+        if parsed is None:
+            raise ValueError("Enter an ISO date/time or DD-MM-YYYY HH:MM.")
+        return parsed
+
+    @classmethod
+    def _filter_datetime_range(cls, incidents, start=None, end=None):
+        """Parse legacy dates after SQL narrows the other search criteria.
+
+        Bounds are inclusive. Incompatible timezone records and invalid stored
+        dates are skipped, matching the original IOManager search behaviour.
+        """
+        from dashboard.analytics.incident_datetime_parser import IncidentDatetimeParser
+        start = cls._parse_query_datetime(start) if start is not None else None
+        end = cls._parse_query_datetime(end) if end is not None else None
+        if start is not None and end is not None:
+            if (start.utcoffset() is None) != (end.utcoffset() is None):
+                raise ValueError("Search dates must both include a timezone or both omit it.")
+            if start > end:
+                raise ValueError("End date cannot be earlier than start date.")
+        reference = start if start is not None else end
+        if reference is None:
+            return incidents
+        parser = IncidentDatetimeParser()
+        matches = []
+        for incident in incidents:
+            raw = incident.input_section.to_dict().get("incident_datetime") if incident.input_section else None
+            occurred = parser.parse(raw)
+            if occurred is None or (occurred.utcoffset() is None) != (reference.utcoffset() is None):
+                continue
+            if (start is None or start <= occurred) and (end is None or occurred <= end):
+                matches.append(incident)
+        return matches
+
+    def query_datetime_range(self, start_datetime=None, end_datetime=None) -> list[Incident]:
+        """Return incidents in an inclusive parsed range; either bound is optional."""
+        return self.search_incidents(start_datetime=start_datetime, end_datetime=end_datetime)
+
+    @staticmethod
+    def severity_band(incident):
+        """Resolve current bands and legacy numeric severity with pipeline thresholds."""
+        score = DataManager.numeric_severity(incident)
+        if score is not None:
+            return "high" if score > 0.7 else "medium" if score >= 0.4 else "low"
+        raw = incident.ai_section.to_dict().get("severity") if incident.ai_section else None
+        return raw.strip().lower() if isinstance(raw, str) and raw.strip().lower() in {"low", "medium", "high"} else None
+
+    def search_incidents(self, *, record_id="", incident_name="", exact_name=False,
+                         hazard_category="", location="", severity="", final_queue="",
+                         injury_reported=None, start_datetime=None, end_datetime=None) -> list[Incident]:
+        """AND-combine filters; return Incident objects in database ID order.
+
+        Text/boolean filters run in SQL with bound values. Date and severity
+        compatibility filters run only on that candidate set because legacy
+        records store mixed date formats and numeric/banded severity JSON.
+        Empty filters mean all incidents. Name/location substrings treat SQL
+        wildcard characters literally. Individual incidents are never modified;
+        confirmed file corruption uses the shared backup/reset recovery.
+        """
+        criteria = []
+        if record_id:
+            incident_id = self._record_id_number(record_id)
+            if incident_id is None:
+                raise ValueError("Record ID must look like INC-0001.")
+            criteria.append(IncidentModel.id == incident_id)
+        if incident_name:
+            name = func.lower(func.trim(IOManagerModel.incident_name))
+            value = incident_name.strip().lower()
+            criteria.append(IncidentModel.input_section.has(
+                name == value if exact_name else name.contains(value, autoescape=True)
+            ))
+        if location:
+            criteria.append(IncidentModel.input_section.has(
+                func.lower(IOManagerModel.location).contains(location.strip().lower(), autoescape=True)
+            ))
+        if hazard_category:
+            criteria.append(IncidentModel.ai_section.has(
+                func.lower(func.trim(AIManagerModel.hazard_category)) == hazard_category.strip().lower()
+            ))
+        if final_queue:
+            criteria.append(IncidentModel.logic_section.has(LogicManagerModel.final_queue == final_queue))
+        if injury_reported is not None:
+            if not isinstance(injury_reported, bool):
+                raise TypeError("Injury filter must be True, False, or None.")
+            criteria.append(IncidentModel.input_section.has(IOManagerModel.injury_reported == injury_reported))
+        if severity and severity not in {"low", "medium", "high", "unassessed"}:
+            raise ValueError("Select a valid severity.")
+        # Validate range before executing the database query, even on an empty DB.
+        if start_datetime is not None or end_datetime is not None:
+            self._filter_datetime_range([], start_datetime, end_datetime)
+        incidents = self.query(*criteria)
+        if severity:
+            incidents = [item for item in incidents
+                         if (self.severity_band(item) or "unassessed") == severity]
+        if start_datetime is not None or end_datetime is not None:
+            incidents = self._filter_datetime_range(incidents, start_datetime, end_datetime)
+        return incidents
+
+    def query_title(self, title: str) -> list[Incident]:
+        """Match an entire title case-insensitively, ignoring surrounding spaces."""
+        return self.query_incident_name(title, exact=True)
+
+    def query_category(self, category: str) -> list[Incident]:
+        """Match an entire hazard category case-insensitively."""
+        return self.query(IncidentModel.ai_section.has(
+            func.lower(func.trim(AIManagerModel.hazard_category)) == category.strip().lower()
+        ))
+
+    def get_all_incident_categories(self) -> list[str]:
+        """Select distinct nonblank categories without loading incident objects."""
+        category = func.trim(AIManagerModel.hazard_category)
+        statement = select(category).join(
+            IncidentModel, IncidentModel.id == AIManagerModel.incident_id
+        ).where(category != "").distinct().order_by(category)
+        return self._read(lambda session: list(session.scalars(statement)),
+                          "Cannot load incident categories.")
 
     # Query and summary helpers
 
@@ -156,9 +319,9 @@ class DataManager:
             description (str): Full description to match, including letter case.
 
         Returns:
-            list: Matching incident records, or an empty list if none are found.
+            list[Incident]: Matching incidents, or an empty list if none are found.
         """
-        incidents = self.query(lambda record: record.get("input", {}).get("description") == description)
+        incidents = self.query(IncidentModel.input_section.has(IOManagerModel.description == description))
         return incidents
 
     def query_location(self, location):
@@ -168,9 +331,9 @@ class DataManager:
             location (str): Location to match, including letter case.
 
         Returns:
-            list: Matching incident records, or an empty list if none are found.
+            list[Incident]: Matching incidents, or an empty list if none are found.
         """
-        incidents = self.query(lambda record: record.get("input", {}).get("location") == location)
+        incidents = self.query(IncidentModel.input_section.has(IOManagerModel.location == location))
         return incidents
 
     def query_reporter_role(self, reporter_role):
@@ -180,9 +343,9 @@ class DataManager:
             reporter_role (str): Reporter role to match, including letter case.
 
         Returns:
-            list: Matching incident records, or an empty list if none are found.
+            list[Incident]: Matching incidents, or an empty list if none are found.
         """
-        incidents = self.query(lambda record: record.get("input", {}).get("reporter_role") == reporter_role)
+        incidents = self.query(IncidentModel.input_section.has(IOManagerModel.reporter_role == reporter_role))
         return incidents
 
     def query_incident_datetime(self, incident_datetime):
@@ -193,9 +356,9 @@ class DataManager:
                 input datetime. No date parsing or normalization is performed.
 
         Returns:
-            list: Matching incident records, or an empty list if none are found.
+            list[Incident]: Matching incidents, or an empty list if none are found.
         """
-        incidents = self.query(lambda record: record.get("input", {}).get("incident_datetime") == incident_datetime)
+        incidents = self.query(IncidentModel.input_section.has(IOManagerModel.incident_datetime == incident_datetime))
         return incidents
 
     def query_injury_reported(self, injury_reported):
@@ -206,9 +369,9 @@ class DataManager:
                 stored ``input.injury_reported`` value.
 
         Returns:
-            list: Matching incident records, or an empty list if none are found.
+            list[Incident]: Matching incidents, or an empty list if none are found.
         """
-        incidents = self.query(lambda record: record.get("input", {}).get("injury_reported") == injury_reported)
+        incidents = self.query(IncidentModel.input_section.has(IOManagerModel.injury_reported == injury_reported))
         return incidents
 
     @staticmethod
@@ -219,7 +382,10 @@ class DataManager:
         severity ("high"/"medium"/"low"); older records store the number in
         severity directly.
         """
-        ai = record.get("ai", {})
+        if isinstance(record, Incident):
+            ai = record.ai_section.to_dict() if record.ai_section else {}
+        else:
+            ai = record.get("ai", {})
         for key in ("severity_score", "severity"):
             value = ai.get(key)
             if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -239,19 +405,24 @@ class DataManager:
             comparison_operator (str): One of ``==``, ``>``, or ``<``.
 
         Returns:
-            list: Matching incident records. An unsupported operator prints an
+            list[Incident]: Matching incidents. An unsupported operator prints an
                 error message and returns an empty list.
 
         Raises:
             TypeError: An ordering comparison uses an incompatible threshold type.
         """
-        # records without a usable numeric severity are skipped, not crashed on
+        # Legacy severity is JSON containing numbers, numeric strings, or bands.
+        # Keep this compatibility filter in Python until that field is normalised.
+        # Every result is still an Incident, consistent with other retrieval APIs.
         if comparison_operator == "==":
-            incidents = self.query(lambda record: (s := self.numeric_severity(record)) is not None and s == severity)
+            incidents = [incident for incident in self.load()
+                         if (s := self.numeric_severity(incident)) is not None and s == severity]
         elif comparison_operator == ">":
-            incidents = self.query(lambda record: (s := self.numeric_severity(record)) is not None and s > severity)
+            incidents = [incident for incident in self.load()
+                         if (s := self.numeric_severity(incident)) is not None and s > severity]
         elif comparison_operator == "<":
-            incidents = self.query(lambda record: (s := self.numeric_severity(record)) is not None and s < severity)
+            incidents = [incident for incident in self.load()
+                         if (s := self.numeric_severity(incident)) is not None and s < severity]
         else:
             print("Invalid comparison operator. Use '==', '>', or '<'.")
             return [] # or raise an exception
@@ -264,9 +435,9 @@ class DataManager:
             hazard_category (str): Hazard category to match, including letter case.
 
         Returns:
-            list: Matching incident records, or an empty list if none are found.
+            list[Incident]: Matching incidents, or an empty list if none are found.
         """
-        incidents = self.query(lambda record: record.get("ai", {}).get("hazard_category") == hazard_category)
+        incidents = self.query(IncidentModel.ai_section.has(AIManagerModel.hazard_category == hazard_category))
         return incidents
 
 

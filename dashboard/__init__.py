@@ -9,6 +9,8 @@ Flask itself is imported inside ``create_app`` on purpose: importing the
 managers that create them) load without the web or database stack.
 """
 
+import os
+
 from dashboard.config import DevConfig
 
 
@@ -24,11 +26,32 @@ def create_app(config_class=DevConfig):
         flask.Flask: The configured application with extensions bound.
     """
     from flask import Flask
-
+    from werkzeug.middleware.proxy_fix import ProxyFix
     from dashboard.extensions import db
 
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    proxy_fix_enabled = bool(
+        os.getenv("WEBSITE_SITE_NAME")
+        or os.getenv("ENABLE_PROXY_FIX", "").lower() in ("1", "true", "yes")
+    )
+    if proxy_fix_enabled and not app.testing:
+        # Trust Azure App Service's reverse-proxy headers so scheme, host,
+        # client IP, and CSRF referer checks match the public HTTPS origin.
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            x_for=1,
+            x_proto=1,
+            x_host=1,
+            x_port=1,
+            x_prefix=0,
+        )
+        if os.getenv("WEBSITE_SITE_NAME"):
+            app.config["DEBUG"] = False
+            app.config["SESSION_COOKIE_SECURE"] = True
+            app.config["SESSION_COOKIE_HTTPONLY"] = True
+            app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     # Extensions
     db.init_app(app)

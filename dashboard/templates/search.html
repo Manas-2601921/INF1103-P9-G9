@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Search incidents - Workplace Incident Triage{% endblock %}
+{% block content %}
+<h1 class="mb-2">Search incidents</h1>
+<p class="text-muted mb-4">Find a report by its title, hazard category or date. Combine filters to narrow your results.</p>
+
+{% macro feedback(name) %}
+{% if errors.get(name) %}<div id="{{ name }}-error" class="invalid-feedback d-block">{{ errors[name] }}</div>{% endif %}
+{% endmacro %}
+{% macro text_field(name, label, placeholder='') %}
+<div class="col-md-6 col-xl-4">
+    <label class="form-label" for="{{ name }}">{{ label }}</label>
+    <input type="text" class="form-control{% if errors.get(name) %} is-invalid{% endif %}" id="{{ name }}" name="{{ name }}"
+           value="{{ form[name] }}" placeholder="{{ placeholder }}"{% if errors.get(name) %} aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
+    {{ feedback(name) }}
+</div>
+{% endmacro %}
+{% macro select_field(name, label, options, empty_label='Any') %}
+<div class="col-md-6 col-xl-4">
+    <label class="form-label" for="{{ name }}">{{ label }}</label>
+    <select class="form-select{% if errors.get(name) %} is-invalid{% endif %}" id="{{ name }}" name="{{ name }}"{% if errors.get(name) %} aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
+        <option value="">{{ empty_label }}</option>
+        {% for value, text in options %}<option value="{{ value }}"{% if form[name] == value %} selected{% endif %}>{{ text }}</option>{% endfor %}
+    </select>
+    {{ feedback(name) }}
+</div>
+{% endmacro %}
+
+{% if errors %}
+<div class="alert alert-danger" role="alert">Please correct the highlighted filters before searching.{% if errors.get('page') %} {{ errors.page }}{% endif %}</div>
+{% endif %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-4">
+        <form method="get" action="{{ url_for('dashboard.search') }}">
+            <fieldset class="m-0 p-0 border-0">
+            <legend class="h5 text-primary border-bottom pb-2 mb-3 w-100 float-none">Find an incident</legend>
+            <div class="row g-3">
+                {{ text_field('incident_name', 'Incident title', 'e.g. forklift') }}
+                <div class="col-md-6 col-xl-4">
+                    <label class="form-label" for="name_match">Title matching</label>
+                    <select class="form-select{% if errors.get('name_match') %} is-invalid{% endif %}" id="name_match" name="name_match">
+                        <option value="contains"{% if form.name_match == 'contains' %} selected{% endif %}>Contains this text</option>
+                        <option value="exact"{% if form.name_match == 'exact' %} selected{% endif %}>Exact title</option>
+                    </select>{{ feedback('name_match') }}
+                    <div class="form-text">Title searches ignore letter case.</div>
+                </div>
+                {{ text_field('record_id', 'Record ID', 'e.g. INC-0001') }}
+                <div class="col-md-6 col-xl-4">
+                    <label class="form-label" for="hazard_category">Hazard category</label>
+                    <select class="form-select" id="hazard_category" name="hazard_category">
+                        <option value="">Any hazard</option>
+                        {% if form.hazard_category and form.hazard_category not in categories %}<option value="{{ form.hazard_category }}" selected>{{ form.hazard_category }}</option>{% endif %}
+                        {% for category in categories %}<option value="{{ category }}"{% if form.hazard_category == category %} selected{% endif %}>{{ category|capitalize }}</option>{% endfor %}
+                    </select>
+                </div>
+                {{ text_field('location', 'Location contains', 'e.g. Warehouse') }}
+                {{ select_field('severity', 'Severity', severities.items(), 'Any severity') }}
+                <div class="col-md-6 col-xl-4">
+                    <label class="form-label" for="final_queue">Review queue</label>
+                    <select class="form-select{% if errors.get('final_queue') %} is-invalid{% endif %}" id="final_queue" name="final_queue">
+                        <option value="">Any queue</option>
+                        {% for queue in queues %}<option value="{{ queue }}"{% if form.final_queue == queue %} selected{% endif %}>{{ queue }}</option>{% endfor %}
+                    </select>{{ feedback('final_queue') }}
+                </div>
+                {{ select_field('injury_reported', 'Injury reported', [('yes', 'Yes'), ('no', 'No')], 'Either') }}
+            </div>
+            </fieldset>
+            <fieldset class="m-0 p-0 border-0 mt-4">
+            <legend class="h5 text-primary border-bottom pb-2 mb-3 w-100 float-none">Incident date and time</legend>
+            <div class="row g-3">
+                <div class="col-md-6 col-xl-4">
+                    <label class="form-label" for="date_mode">Search dates by</label>
+                    <select class="form-select{% if errors.get('date_mode') %} is-invalid{% endif %}" id="date_mode" name="date_mode">
+                        {% for value, label in [('any', 'Any date'), ('range', 'Date range'), ('exact', 'Specific date and minute')] %}
+                        <option value="{{ value }}"{% if form.date_mode == value %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>{{ feedback('date_mode') }}
+                </div>
+                <div class="col-md-6 col-xl-4" data-date-mode="range">
+                    <label class="form-label" for="date_from">From date</label>
+                    <input class="form-control{% if errors.get('date_from') %} is-invalid{% endif %}" type="date" id="date_from" name="date_from" value="{{ form.date_from }}">
+                    {{ feedback('date_from') }}<div class="form-text">Leave blank for any earlier date.</div>
+                </div>
+                <div class="col-md-6 col-xl-4" data-date-mode="range">
+                    <label class="form-label" for="date_to">Through date</label>
+                    <input class="form-control{% if errors.get('date_to') %} is-invalid{% endif %}" type="date" id="date_to" name="date_to" value="{{ form.date_to }}">
+                    {{ feedback('date_to') }}<div class="form-text">Includes the whole end date.</div>
+                </div>
+                <div class="col-md-6 col-xl-4" data-date-mode="exact">
+                    <label class="form-label" for="specific_datetime">Specific date and time</label>
+                    <input class="form-control{% if errors.get('specific_datetime') %} is-invalid{% endif %}" type="datetime-local" id="specific_datetime" name="specific_datetime" value="{{ form.specific_datetime }}">
+                    {{ feedback('specific_datetime') }}<div class="form-text">Matches any second within the selected minute.</div>
+                </div>
+            </div>
+            </fieldset>
+            <p class="form-text mt-3 mb-0">Dates use the incident's reported local time. All selected filters must match. Leave filters blank to browse all incidents.</p>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">Search incidents</button>
+                <a class="btn btn-outline-secondary" href="{{ url_for('dashboard.search') }}">Clear filters</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% if not failed and not errors %}
+{% include "_search_results.html" %}
+{% endif %}
+<script>
+const dateMode = document.getElementById('date_mode');
+function updateDateFields() {
+    document.querySelectorAll('[data-date-mode]').forEach(group => {
+        const active = group.dataset.dateMode === dateMode.value;
+        group.hidden = !active;
+        group.querySelectorAll('input').forEach(input => input.disabled = !active);
+    });
+}
+dateMode.addEventListener('change', updateDateFields);
+updateDateFields();
+</script>
+<script>
+(function () {
+    var RESULTS_ID = "search-results-section";
+    // Fields inside the filter <form>, which the AJAX swap below never
+    // touches since it only replaces #search-results-section. Without this,
+    // a filter-chip removal updates the results but leaves the form showing
+    // the old value, so re-submitting the form (or Back/Forward) would
+    // silently reapply a filter the user had just removed.
+    var FORM_FIELD_IDS = ["incident_name", "name_match", "record_id", "hazard_category",
+                          "location", "severity", "final_queue", "injury_reported",
+                          "date_mode", "date_from", "date_to", "specific_datetime"];
+    var FIELD_DEFAULTS = { name_match: "contains", date_mode: "any" };
+
+    function syncFormFromUrl(url) {
+        var params = new URL(url, location.href).searchParams;
+        FORM_FIELD_IDS.forEach(function (name) {
+            var field = document.getElementById(name);
+            if (!field) { return; }
+            field.value = params.get(name) || FIELD_DEFAULTS[name] || "";
+        });
+        if (typeof updateDateFields === "function") {
+            updateDateFields();
+        }
+    }
+
+    function applyFragment(html, url, pushHistory) {
+        var next = new DOMParser().parseFromString(html, "text/html").getElementById(RESULTS_ID);
+        var current = document.getElementById(RESULTS_ID);
+        if (!next || !current) {
+            window.location = url;
+            return;
+        }
+        current.replaceWith(next);
+        bindLinks();
+        syncFormFromUrl(url);
+        if (pushHistory) {
+            history.pushState({ ajaxSearch: true }, "", url);
+        }
+    }
+
+    function loadResults(url, pushHistory) {
+        fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then(function (response) {
+                if (!response.ok) { throw new Error("search fragment request failed"); }
+                return response.text();
+            })
+            .then(function (html) { applyFragment(html, url, pushHistory); })
+            .catch(function () { window.location = url; });
+    }
+
+    function bindLinks() {
+        var container = document.getElementById(RESULTS_ID);
+        if (!container) { return; }
+        container.querySelectorAll("a[data-ajax-search]").forEach(function (link) {
+            link.addEventListener("click", function (event) {
+                event.preventDefault();
+                loadResults(link.href, true);
+            });
+        });
+    }
+
+    bindLinks();
+    history.replaceState({ ajaxSearch: true }, "", location.href);
+    window.addEventListener("popstate", function () {
+        loadResults(location.href, false);
+    });
+})();
+</script>
+{% endblock %}
