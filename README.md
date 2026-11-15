@@ -77,7 +77,41 @@ practices / Recommendation and preserves the return link to filtered results.
 `DataManager.query_record_id`, `query_incident_name`, and `query_datetime_range`
 return `Incident` lists. `IOManager` delegates existing CLI date searches to the
 same database-layer parser and exposes `search_incidents` for the web view.
-Database load errors display a message; corrupt-database backup/reset is deferred.
+Confirmed local SQLite corruption is preserved and reset as described below.
+Other database read failures display an error without resetting the database.
+
+---
+
+## Corrupt SQLite database recovery
+
+On a confirmed SQLite `SQLITE_CORRUPT` or `SQLITE_NOTADB` error during incident
+reads, category reads, or `init-db`, the app:
+
+1. Closes its failed read session and pooled database connections.
+2. Copies the damaged file beside the original as
+   `incidents.corrupt-<UTC timestamp>-<unique suffix>.db`.
+3. Builds all four tables in a separate temporary database, then replaces the
+   damaged database only after the backup and new schema succeed.
+4. Returns an empty result and logs a warning. Web requests also show a warning
+   explaining where the previous database was preserved.
+
+This preserves the damaged file; it does **not** restore the old incidents.
+New incidents can be saved to the replacement database. A failed backup or
+replacement leaves the original database in place and reports an error.
+
+Recovery is attempted once per app instance. If another corruption or recovery
+failure occurs, stop the app and inspect the files before restarting. Missing
+schema, invalid incident section graphs, locked/read-only databases, disk-full
+errors, and write failures never trigger automatic reset. PostgreSQL, in-memory
+SQLite, and SQLite URI databases are excluded.
+
+This is intended for the single-process local coursework app. Automatic reset
+is refused if SQLite journal/WAL sidecars were present before the failing read
+or remain during recovery. Stop every process using that database and inspect
+it manually in that case. Scheduled backups, concurrent-process recovery, and
+record salvage are outside this feature's scope.
+
+Recovery tests use disposable temporary databases, not `data/incidents.db`.
 
 ---
 

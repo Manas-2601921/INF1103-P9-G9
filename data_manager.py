@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from dashboard.extensions import db
+from dashboard.database_recovery import recover_corrupt_sqlite, SQLiteRecoveryError, sqlite_has_journal_files
 from dashboard.incident import Incident
 from dashboard.models import IncidentModel, IOManagerModel, AIManagerModel, LogicManagerModel
 
@@ -37,12 +38,33 @@ class DataManager:
             with Session(db.engine) as session:
                 yield session
 
+    def _read(self, reader, message):
+        """Use the same corruption handling for incident and category reads."""
+        app, engine = None, None
+        had_journals = False
+        try:
+            with self._session() as session:
+                app = current_app._get_current_object()
+                engine = session.get_bind()
+                had_journals = sqlite_has_journal_files(engine)
+                return reader(session)
+        except SQLAlchemyError as exc:
+            # The read session has exited before recovery touches any files.
+            if app is not None and engine is not None:
+                try:
+                    if recover_corrupt_sqlite(app, engine, exc, had_journals=had_journals):
+                        return []
+                except SQLiteRecoveryError as recovery_error:
+                    raise DataLoadError(str(recovery_error)) from recovery_error
+            raise DataLoadError(message) from exc
+
     def load(self) -> list[Incident]:
         """Return fully reconstructed incidents ordered by database ID.
 
-        Objects and sections remain usable after the session closes. Missing or
-        unreadable tables raise DataLoadError; damaged section graphs raise
-        InvalidIncidentDataError. No tables or files are reset automatically.
+        Objects and sections remain usable after the session closes. Confirmed
+        corruption of a local SQLite file is backed up and reset once, returning
+        an empty list. Other read failures raise DataLoadError; damaged section
+        graphs raise InvalidIncidentDataError without resetting stored data.
         """
         return self.query()
 
@@ -100,15 +122,13 @@ class DataManager:
             selectinload(IncidentModel.ai_section),
             selectinload(IncidentModel.logic_section),
         ).order_by(IncidentModel.id)
-        try:
-            with self._session() as session:
-                models = session.scalars(statement).all()
-                try:
-                    return [Incident.from_db_model(model) for model in models]
-                except (ValueError, TypeError) as exc:
-                    raise InvalidIncidentDataError("Stored incident sections are invalid.") from exc
-        except SQLAlchemyError as exc:
-            raise DataLoadError("Cannot query incidents; check database initialization.") from exc
+        def read_incidents(session):
+            models = session.scalars(statement).all()
+            try:
+                return [Incident.from_db_model(model) for model in models]
+            except (ValueError, TypeError) as exc:
+                raise InvalidIncidentDataError("Stored incident sections are invalid.") from exc
+        return self._read(read_incidents, "Cannot query incidents; check database initialization.")
 
     def get_by_record_id(self, record_id: str) -> Incident | None:
         """Find a single incident by its public INC- identifier using its SQL key."""
@@ -192,7 +212,8 @@ class DataManager:
         compatibility filters run only on that candidate set because legacy
         records store mixed date formats and numeric/banded severity JSON.
         Empty filters mean all incidents. Name/location substrings treat SQL
-        wildcard characters literally. No records are modified.
+        wildcard characters literally. Individual incidents are never modified;
+        confirmed file corruption uses the shared backup/reset recovery.
         """
         criteria = []
         if record_id:
@@ -249,11 +270,8 @@ class DataManager:
         statement = select(category).join(
             IncidentModel, IncidentModel.id == AIManagerModel.incident_id
         ).where(category != "").distinct().order_by(category)
-        try:
-            with self._session() as session:
-                return list(session.scalars(statement))
-        except SQLAlchemyError as exc:
-            raise DataLoadError("Cannot load incident categories.") from exc
+        return self._read(lambda session: list(session.scalars(statement)),
+                          "Cannot load incident categories.")
 
     # Query and summary helpers
 

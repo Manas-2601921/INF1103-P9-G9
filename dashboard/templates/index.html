@@ -3,7 +3,9 @@
 {% block content %}
 <h1 class="h3 mb-4">Incident dashboard &amp; trends</h1>
 
-{% if total == 0 %}
+{% if load_error %}
+<div class="alert alert-danger" role="alert">Dashboard incidents could not be loaded. Please check the server log and try again later.</div>
+{% elif total == 0 %}
 <div class="alert alert-info">
     No incidents are stored yet. Report one through the terminal app or run
     <code>python scripts/seed_demo_data.py</code> to load demo data for the charts.
