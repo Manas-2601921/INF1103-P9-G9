@@ -15,5 +15,8 @@ docker-image
 submission-zip
 tmp/
 *.db
+**/*.db
 *.db-wal
+**/*.db-wal
 *.db-shm
+**/*.db-shm
