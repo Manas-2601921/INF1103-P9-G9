@@ -32,6 +32,11 @@ class BrowseTests(DashboardTestCase):
         for path in ("/", "/incidents", "/incidents/add"):
             self.assertIn(b'href="/search"', self.app.test_client().get(path).data)
 
+        add_incident_page = self.app.test_client().get("/incidents/add")
+        self.assertIn(b'id="incident-submit-loader"', add_incident_page.data)
+        self.assertIn(b'hidden aria-hidden="true"', add_incident_page.data)
+        self.assertIn(b'href="/static/loader.css"', add_incident_page.data)
+
     def test_combined_filters_and_partial_title(self):
         target = self.store()
         self.store(title="Office trip", input={"location": "Office"}, ai={"hazard_category": "slip/trip/fall"})
