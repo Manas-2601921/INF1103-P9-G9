@@ -30,7 +30,11 @@ env:
   AZURE_APP_NAME: inf1103
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
