@@ -43,54 +43,6 @@ class IOManager:
     @property
     def immediate_action(self):
         return self.__immediate_action
-    
-    def prompt_incident_name(self):
-        while True:
-            newIncidentName = input("Enter the name of the incident (or type 'quit' to exit): ")
-            if newIncidentName.lower() == 'quit':
-                return "quit"
-            if not newIncidentName.strip():
-                print("Incident name cannot be empty. Please give the incident a short title.")
-                continue
-            return newIncidentName
-
-    def prompt_incident_description(self):
-        while True:
-            newIncidentDescription = input("Enter the description of the incident (or type 'quit' to exit): ")
-            if newIncidentDescription.lower() == 'quit':
-                return "quit"
-            if not newIncidentDescription.strip():
-                print("Description cannot be empty. Please describe what happened.")
-                continue
-            return newIncidentDescription
-
-    def prompt_incident_datetime(self):
-        while True:
-            newIncidentDateTime = input("Enter the date and time of the incident (DD-MM-YYYY HH:MM) (or type 'quit' to exit):")
-            if newIncidentDateTime.lower() == 'quit':
-                return "quit"
-            elif newIncidentDateTime is None:
-                print("Invalid input. Please enter a valid incident date and time.")
-                continue
-            else:
-                try:
-                    newIncidentDateTime = datetime.strptime(newIncidentDateTime, "%d-%m-%Y %H:%M")
-                    return newIncidentDateTime
-                except ValueError:
-                    print("Invalid date and time format. Please enter the date and time in the format DD-MM-YYYY HH:MM.")
-                    continue
-
-    def prompt_incident_location(self):
-        while True:
-            newIncidentLocation = input(f"Enter the location of the incident (or type 'quit' to exit): " + "\nFor example: Warehouse, Office, Factory, etc.")
-    
-            if newIncidentLocation.lower() == 'quit':
-                return "quit"
-            if not newIncidentLocation.strip():
-                print("Location cannot be empty. Please enter where the incident happened.")
-                continue
-            return newIncidentLocation
-
     # Constants for the different roles that can report an incident. The keys are the input values that the user can enter, and the values are the corresponding role names.
     ROLE_OPTIONS = {
         "1": "Employee", "employee": "Employee",
@@ -117,72 +69,6 @@ class IOManager:
                 return role
     
             print("Invalid input. Please enter a valid role.")
-
-    def prompt_injury_reported(self):
-        while True:
-            newIncidentInjuryReported = input("Was there any injury reported Y/N (or type 'quit' to exit): ")
-            if newIncidentInjuryReported.lower() == 'quit':
-                return "quit"
-            elif newIncidentInjuryReported.upper() == 'Y' or newIncidentInjuryReported.upper() == 'YES':
-                newIncidentInjuryReported = True
-                return newIncidentInjuryReported
-            elif newIncidentInjuryReported.upper() == 'N' or newIncidentInjuryReported.upper() == 'NO':
-                newIncidentInjuryReported = False
-                return newIncidentInjuryReported
-            else:
-                print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
-                continue
-
-    def prompt_immediate_action(self):
-        while True:
-            immediateAction = input("Was there any immediate action taken Y/N (or type 'quit' to exit): ")
-            if immediateAction.lower() == 'quit':
-                return "quit"
-            elif immediateAction.upper() == 'Y' or immediateAction.upper() == 'YES':
-                while True:
-                    newImmediateAction = input("Please describe the immediate action taken: ")
-                    if newImmediateAction.strip():
-                        return newImmediateAction
-                    print("Description cannot be empty. Please describe the action taken.")
-            elif immediateAction.upper() == 'N' or immediateAction.upper() == 'NO':
-                immediateAction = "No immediate action was taken"
-                return immediateAction
-            else:
-                print("Invalid input. Please enter 'Y' for Yes or 'N' for No.")
-                continue
-
-    # function to collect all the incident details from the user and store them in the class attributes. If the user types "quit" at any point, the function will return False to indicate that the process was aborted.
-    def collect_incident_details(self):
-        
-        self.__incident_name = self.prompt_incident_name()
-        if self.__incident_name == "quit":
-            return False
-
-        self.__incident_description = self.prompt_incident_description()
-        if self.__incident_description == "quit":
-            return False
-
-        self.__location = self.prompt_incident_location()
-        if self.__location == "quit":
-            return False
-
-        self.__reporter_role = self.prompt_reporter_role()
-        if self.__reporter_role == "quit":
-            return False
-
-        self.__incident_datetime = self.prompt_incident_datetime()
-        if self.__incident_datetime == "quit":
-            return False
-
-        self.__injury_reported = self.prompt_injury_reported()
-        if self.__injury_reported == "quit":
-            return False
-
-        self.__immediate_action = self.prompt_immediate_action()
-        if self.__immediate_action == "quit":
-            return False
-
-        return True
 
     @staticmethod
     def display_search_options():
