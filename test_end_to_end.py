@@ -1,11 +1,10 @@
-"""End-to-end test script: full pipeline without the AI manager.
+"""End-to-end test script: full triage pipeline without live AI calls.
 
-Drives main_no_ai.report_new_incident() (a copy of main.py's flow with
-the AI manager removed) through the real logic -> data chain: every case
-states the full AI response it feeds the pipeline (the exact output the
-working AI manager is assumed to produce), and every incident is
-persisted to a temporary database so the real data/incidents.json is
-never touched.
+Drives IncidentAnalyzer + LogicManager + Incident + DataManager through the
+real web pipeline flow (replacing the retired main_no_ai.py helper): every
+case states the full AI response (or failure tuple) fed into the pipeline, and
+every incident is persisted to a temporary database so the real data/incidents.db
+is never touched.
 
 Every case is one literal dictionary in the CASES list:
 
@@ -30,6 +29,7 @@ Fully offline (no API key, no network):
     .venv/bin/python test_end_to_end.py
 """
 
+from copy import deepcopy
 import io
 import json
 import sys
@@ -39,9 +39,13 @@ from pathlib import Path
 
 from unittest.mock import patch
 
+from dashboard.ai_section import AISection
+from dashboard.incident import Incident
+from dashboard.input_section import InputSection
+from dashboard.logic_section import LogicSection
 from data_manager import DataManager
+from incident_analyzer import incident_analyzer
 import managers
-import main_no_ai
 
 passed = 0
 failed = 0
@@ -795,18 +799,30 @@ def build_history_entry(overrides):
 # ---------------------------------------------------------------------------
 
 def run_pipeline(ai_reply, report):
-    """Run one report_new_incident with the app's printing silenced so the
-    per-case results stay readable. The terminal prompts are not involved:
-    the report dictionary is injected directly."""
+    """Run one incident through IncidentAnalyzer, LogicManager, and DataManager."""
     record_input = dict(DEFAULT_REPORT, **report,
                         incident_datetime=INCIDENT_AT.isoformat(timespec="seconds"))
+    mocked_ai = ai_reply if isinstance(ai_reply, tuple) else (True, deepcopy(ai_reply))
+    fake_manager = type("_StubAIManager", (), {"analyze": staticmethod(lambda _rec: mocked_ai)})()
 
     saved_stdout = sys.stdout
     sys.stdout = io.StringIO()
     try:
-        main_no_ai.report_new_incident(record_input, ai_reply)
+        with patch.object(incident_analyzer, "ai_manager", fake_manager):
+            ai_output = incident_analyzer.analyse_incident({"record_id": "", "input": record_input})
     finally:
         sys.stdout = saved_stdout
+
+    history = [item.to_dict() for item in managers.data_manager.load()]
+    logic_result = managers.logic_manager.determine_final_status(
+        record_input, ai_output, history
+    )
+    incident = Incident(
+        input_section=InputSection.from_dict(record_input),
+        ai_section=AISection.from_dict(ai_output),
+        logic_section=LogicSection.from_dict(logic_result),
+    )
+    managers.data_manager.save(incident)
 
 
 def actual_of(records):

@@ -126,15 +126,17 @@ class DataManagerTests(unittest.TestCase):
         self.manager().save(incident)
         self.assertEqual(incident.metadata["created_at"], incident.metadata["processed_at"])
 
-    def test_cancelled_report_does_not_analyse_or_save(self):
-        import main
+    def test_invalid_web_submission_does_not_analyse_or_save(self):
+        from incident_analyzer import incident_analyzer
+        import managers
 
-        with patch.object(main, "collect_incident_input", return_value=None), \
-                patch.object(main, "analyse_incident") as analyse, \
-                patch.object(main.managers, "data_manager") as manager:
-            main.report_new_incident()
+        manager = self.manager()
+        with patch.object(managers, "data_manager", manager), \
+                patch.object(incident_analyzer, "analyse_incident") as analyse:
+            response = self.app.test_client().post("/incidents/add", data={"incident_name": "Missing fields"})
+        self.assertEqual(response.status_code, 400)
         analyse.assert_not_called()
-        manager.save.assert_not_called()
+        self.assertEqual(manager.load(), [])
 
     def test_io_search_uses_shared_manager(self):
         from IOManager import IOManager

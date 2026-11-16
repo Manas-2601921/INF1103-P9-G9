@@ -17,25 +17,34 @@ The project is designed for small and medium-sized organisations, with an initia
 
 ## Object-Oriented Architecture
 
-The system preserves the four separated manager responsibilities alongside domain, analytics, configuration, and web layers:
+The system preserves the four separated manager responsibilities alongside shared AI orchestration, domain, analytics, configuration, recovery, and web layers (legacy terminal entrypoints retired):
 
-- **`IOManager` (`IOManager.py`):** Input encapsulation/validation, search helpers, record formatting, and `IOManager.notify()` for Flask flash alerts.
+- **`IOManager` (`IOManager.py`):** Input encapsulation/validation, search helpers (`search_incidents()`, `get_all_incident_categories()`, `format_incident_datetime()`), and `IOManager.notify()` for Flask flash alerts.
+- **`IncidentAnalyzer` (`incident_analyzer.py`):** Wraps `managers.ai_manager` for web triage, converts numeric scores to bands (`to_severity_band()`), surfaces `RuntimeError` if AI deps are unavailable, and returns an `ai_error` Manual Review stub on failure.
 - **`AIManager` (`ai_manager.py` + `ai_modules/`):** Composes `PromptBuilder` and `ResponseValidator`, and delegates transport to the `LLMClient` ABC (`ZaiLLMClient` for Z.ai GLM, `RetryableLLMClient` decorator for transient error retries, `TestLLMClient` for offline tests).
 - **`LogicManager` (`logic_manager.py`):** Applies deterministic safety rules, severity/risk scoring, recurrence checks, duplicate detection, and queue routing (`Immediate Action`, `Priority Review`, `Recurring Review`, `Routine Log`, `Manual Review`).
-- **`DataManager` (`data_manager.py`) & Domain Aggregate (`dashboard/`):** Persists `Incident` aggregates composed of `SectionObject` subclasses (`InputSection`, `AISection`, `LogicSection`) to SQLAlchemy ORM models (`dashboard/models.py`).
-- **Analytics & Config Packages (`dashboard/analytics/`, `dashboard/config/`):** `StatsService` (composing `IncidentDatetimeParser` and returning `TrendPoint`, `Hotspot`, `RisingPattern` dataclasses), `DatabaseUrlResolver` / `Config` / `DevConfig` / `TestConfig`, Flask factory (`dashboard/__init__.py`), and `HomeView` (`dashboard/routes.py`).
+- **`DataManager` (`data_manager.py`) & Domain Aggregate (`dashboard/`):** Persists `Incident` aggregates composed of `SectionObject` subclasses (`InputSection`, `AISection`, `LogicSection`) to SQLAlchemy ORM models (`dashboard/models.py`), invoking `recover_corrupt_sqlite()` (`dashboard/database_recovery.py`) on confirmed local SQLite corruption.
+- **Web Views, Analytics & Config (`dashboard/`):** Five Flask `MethodView` routes (`HomeView` `/`, `AddIncidentView` `/incidents/add`, `SearchView` `/search` with OWASP-safe CSV export, `IncidentsView` `/incidents`, `IncidentDetailsView` `/incidents/<record_id>`), `StatsService` (`dashboard/analytics/`), `DatabaseUrlResolver` / `Config` / `DevConfig` / `TestConfig`, and `create_app()` with Werkzeug `ProxyFix`.
 
 ```text
-User / Browser  ──▶  Flask App (app.py / HomeView)  ──▶  StatsService (Analytics)
+User / Browser  ──▶  Flask App (app.py + MethodViews: /, /incidents/add, /search, /incidents)
+                            │
+                            ├──▶  StatsService (Analytics Dashboard)
+                            ▼
+    IOManager  ──▶  IncidentAnalyzer / AIManager (PromptBuilder + ResponseValidator + LLMClient)
                             │
                             ▼
-    IOManager  ──▶  AIManager (PromptBuilder + ResponseValidator + LLMClient)
-                            │
-                            ▼
-                    LogicManager  ──▶  DataManager (Incident + SQLAlchemy Models)
+                    LogicManager  ──▶  DataManager (Incident + ORM Models + SQLite Recovery)
 ```
 
 ---
+
+## Web application views
+
+- **`/` (`HomeView`):** Incident trends analytics dashboard (metric cards, Chart.js visualisations, 30-day recurrence hotspots, rising pattern warnings).
+- **`/incidents/add` (`AddIncidentView`):** Validated report submission (`GET`/`POST` with PRG redirect to details); runs live AI analysis via `IncidentAnalyzer` + `LogicManager` triage rules and falls back to `Manual Review` on AI failure.
+- **`/search` (`SearchView`):** Multi-filter search (`record_id`, contains/exact `incident_name`, `hazard_category`, `location`, `severity`, `final_queue`, `injury_reported`, date range or specific minute), AJAX sorting across 7 columns, removable filter chips, pagination (`10`/`20`/`50`/`100`), and formula-safe CSV export (`export=csv`).
+- **`/incidents` (`IncidentsView`) & `/incidents/<record_id>` (`IncidentDetailsView`):** Browse all incidents and view structured Inputs / Review / Repeating unsafe practices / Recommendation reports (preserving filtered `?search=` return links and redirecting unknown IDs safely).
 
 ## Incident query contract
 
@@ -227,7 +236,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs every test suite on the host, b
 
 ## Deployment (Azure App Service + PostgreSQL + Docker image)
 
-The CD workflow (`.github/workflows/cd.yml`) deploys the **same Docker image the Dockerfile defines** to Azure App Service: it builds, pushes to GitHub Container Registry, and releases the image in one run so the deployment promotes the exact artifact built by CI.
+The CD workflow (`.github/workflows/cd.yml`) is gated behind CI (`.github/workflows/ci.yml` via `workflow_call`, `needs: ci`), builds the `Dockerfile` image, pushes it to **Azure Container Registry** (`inf1103.azurecr.io/incident-triage`), and deploys automatically on pushes to `main` (or manually via `workflow_dispatch`) to Azure App Service (`inf1103`).
 
 Two database environments coexist via `DatabaseUrlResolver` (`dashboard/config/database_url_resolver.py`):
 
@@ -236,20 +245,19 @@ Two database environments coexist via `DatabaseUrlResolver` (`dashboard/config/d
 | Local, Docker, tests | SQLite (auto-created) | `DATABASE_URL` unset (default) |
 | Azure deployment | PostgreSQL | `DATABASE_URL` injected by the cloud database |
 
-The models are dialect-agnostic ORM, so no application code differs between the two.
+The models are dialect-agnostic ORM (`psycopg[binary]` + `psycopg2-binary`), and `create_app()` automatically enables Werkzeug `ProxyFix` + secure session cookie flags when `WEBSITE_SITE_NAME` or `ENABLE_PROXY_FIX=true` is present.
 
-Setup steps (detailed at the top of `.github/workflows/cd.yml`):
+Setup summary (also documented at the top of `.github/workflows/cd.yml`):
 
-1. Create an Azure App Service (Linux) and an Azure Database for PostgreSQL Flexible Server.
-2. Set `DATABASE_URL`, `ZAI_KEY`, `SECRET_KEY`, and `WEBSITES_PORT=5000` as App Service environment variables.
-3. Store the App Service publish profile as the GitHub secret `AZURE_PUBLISH_PROFILE` and set the App Service name in `cd.yml`.
-4. After the first CD run, set the pushed GHCR package to **Public** so App Service can pull it.
-5. Enable App Service Authentication (Easy Auth) and allow-list the team's emails, then run the **CD** workflow (or uncomment its push trigger to deploy on every commit to `phase3/dev`).
-6. In App Service, set the startup command to `startup.sh` (`init-db` + `FLASK_DEBUG=false` + `python app.py`).
+1. Azure App Service (Linux container `inf1103`, `WEBSITES_PORT=5000`), Azure Container Registry (`inf1103.azurecr.io`), and Azure Database for PostgreSQL Flexible Server (`inf1103-pg-eastasia`).
+2. App Service environment variables: `DATABASE_URL`, `ZAI_KEY`, `SECRET_KEY`, and `WEBSITES_PORT=5000`.
+3. GitHub repository secrets: `AZURE_PUBLISH_PROFILE`, `ACR_USERNAME`, and `ACR_PASSWORD`.
+4. App Service Authentication (Easy Auth) with Google OAuth allow-listing authorised test users (`HTTP 302`/`401` at the edge; checked by the post-deploy smoke test).
 
-Seed the deployed database with demo data:
+Seed the deployed PostgreSQL database from a workstation or container whose IP is permitted in PostgreSQL networking:
 
-```bash
-az webapp ssh --name <app-service-name>
+```powershell
+$env:DATABASE_URL = "<DATABASE_URL from Azure App Service Environment Variables>"
 python scripts/seed_demo_data.py --force
+Remove-Item Env:DATABASE_URL
 ```
