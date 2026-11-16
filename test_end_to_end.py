@@ -1,10 +1,10 @@
-"""End-to-end test script: full triage pipeline without live AI calls.
+"""End-to-end test script: full Flask web triage pipeline without live AI calls.
 
-Drives IncidentAnalyzer + LogicManager + Incident + DataManager through the
-real web pipeline flow (replacing the retired main_no_ai.py helper): every
-case states the full AI response (or failure tuple) fed into the pipeline, and
-every incident is persisted to a temporary database so the real data/incidents.db
-is never touched.
+Drives real HTTP form submissions through the Flask test client
+(``POST /incidents/add`` -> ``302`` -> ``GET /incidents/<record_id>``)
+against ``AddIncidentView``, ``IncidentAnalyzer`` (stubbed offline so no API
+key is needed), ``LogicManager``, ``Incident``, ``DataManager``, and
+``IncidentDetailsView`` into a temporary SQLite database.
 
 Every case is one literal dictionary in the CASES list:
 
@@ -39,10 +39,6 @@ from pathlib import Path
 
 from unittest.mock import patch
 
-from dashboard.ai_section import AISection
-from dashboard.incident import Incident
-from dashboard.input_section import InputSection
-from dashboard.logic_section import LogicSection
 from data_manager import DataManager
 from incident_analyzer import incident_analyzer
 import managers
@@ -739,11 +735,11 @@ CASES = [
                 "supporting_phrase": "sample phrase",
             },
             "report": {
-                "description": "Chemical vapour leak detected in the storage room. " * 12,
+                "description": ("Chemical vapour leak detected in the storage room. " * 12).strip(),
                 "immediate_action": "No immediate action was taken",
             },
         },
-        "expected": {"stored_description": "Chemical vapour leak detected in the storage room. " * 12,
+        "expected": {"stored_description": ("Chemical vapour leak detected in the storage room. " * 12).strip(),
                      "risk_score": 2},
     },
 ]
@@ -798,10 +794,18 @@ def build_history_entry(overrides):
 # runner
 # ---------------------------------------------------------------------------
 
-def run_pipeline(ai_reply, report):
-    """Run one incident through IncidentAnalyzer, LogicManager, and DataManager."""
-    record_input = dict(DEFAULT_REPORT, **report,
-                        incident_datetime=INCIDENT_AT.isoformat(timespec="seconds"))
+def run_pipeline(client, ai_reply, report):
+    """Submit a real HTTP POST /incidents/add form via the Flask test client."""
+    merged = dict(DEFAULT_REPORT, **report)
+    form_data = {
+        "incident_name": merged["incident_name"],
+        "description": merged["description"],
+        "incident_datetime": INCIDENT_AT.isoformat(timespec="seconds"),
+        "location": merged["location"],
+        "reporter_role": merged["reporter_role"],
+        "injury_reported": "yes" if merged["injury_reported"] else "no",
+        "immediate_action": merged["immediate_action"],
+    }
     mocked_ai = ai_reply if isinstance(ai_reply, tuple) else (True, deepcopy(ai_reply))
     fake_manager = type("_StubAIManager", (), {"analyze": staticmethod(lambda _rec: mocked_ai)})()
 
@@ -809,24 +813,18 @@ def run_pipeline(ai_reply, report):
     sys.stdout = io.StringIO()
     try:
         with patch.object(incident_analyzer, "ai_manager", fake_manager):
-            ai_output = incident_analyzer.analyse_incident({"record_id": "", "input": record_input})
+            post_resp = client.post("/incidents/add", data=form_data, follow_redirects=False)
     finally:
         sys.stdout = saved_stdout
 
-    history = [item.to_dict() for item in managers.data_manager.load()]
-    logic_result = managers.logic_manager.determine_final_status(
-        record_input, ai_output, history
-    )
-    incident = Incident(
-        input_section=InputSection.from_dict(record_input),
-        ai_section=AISection.from_dict(ai_output),
-        logic_section=LogicSection.from_dict(logic_result),
-    )
-    managers.data_manager.save(incident)
+    assert post_resp.status_code == 302, f"Expected 302 redirect, got {post_resp.status_code}"
+    detail_resp = client.get(post_resp.headers["Location"])
+    assert detail_resp.status_code == 200, f"Expected 200 detail page, got {detail_resp.status_code}"
+    return detail_resp.get_data(as_text=True)
 
 
-def actual_of(records):
-    """Flatten the newest stored record into the keys a case can expect."""
+def actual_of(records, detail_html):
+    """Flatten the newest stored record and rendered HTML output into expected keys."""
     record = records[-1]
     logic, ai, inp = record["logic"], record["ai"], record["input"]
     return {
@@ -843,6 +841,7 @@ def actual_of(records):
         "record_id": record.get("record_id"),
         "stored_description": inp.get("description"),
         "records_saved": len(records),
+        "rendered_html": detail_html,
     }
 
 
@@ -868,6 +867,7 @@ def run_case(case):
         app = create_app(Config)
         assert app.test_cli_runner().invoke(args=["init-db"]).exit_code == 0
         manager = DataManager(app)
+        detail_html = ""
         try:
             with app.app_context():
                 for h in case_input.get("history") or []:
@@ -875,14 +875,15 @@ def run_case(case):
                 db.session.commit()
             ai_reply = ((False, case_input["ai_refuses"]) if case_input.get("ai_refuses")
                         else case_input["ai"])
+            client = app.test_client()
             with patch.object(managers, "data_manager", manager):
-                run_pipeline(ai_reply, case_input.get("report") or {})
+                detail_html = run_pipeline(client, ai_reply, case_input.get("report") or {})
             records = [incident.to_dict() for incident in manager.load()]
         finally:
             with app.app_context():
                 db.session.remove()
                 db.engine.dispose()
-    actual = actual_of(records) if records else {}
+    actual = actual_of(records, detail_html) if records else {}
 
     mismatches = []
     for key, want in expected.items():
@@ -890,6 +891,10 @@ def run_case(case):
         ok = (want in got) if key == "ai_error_contains" and isinstance(got, str) else got == want
         if not ok:
             mismatches.append(key)
+    if "final_queue" in expected and expected["final_queue"] not in detail_html:
+        mismatches.append("rendered_final_queue")
+    if "record_id" in expected and expected["record_id"] not in detail_html:
+        mismatches.append("rendered_record_id")
 
     if mismatches:
         failed += 1
