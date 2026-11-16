@@ -1,8 +1,4 @@
-"""Entry point for the Workplace Incident Triage dashboard.
-
-Running this file starts the web dashboard; the terminal application is
-still available with ``python main.py``.
-"""
+"""Entry point for the Workplace Incident Triage dashboard."""
 
 from dashboard import create_app
 
