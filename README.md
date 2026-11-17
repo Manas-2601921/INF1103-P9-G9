@@ -184,9 +184,9 @@ python -m scripts.seed_demo_data --force
 
 ---
 
-## Automated Tests (Offline — No API Key Required)
+## Automated Tests (Offline — No `.env` or API Key Required)
 
-All automated test suites run completely offline using scripted/mocked AI responses (`TestLLMClient`) and temporary SQLite databases (`TestConfig`):
+All seven automated test suites run completely offline **without a `.env` file or API key**, using scripted/mocked AI responses (`TestLLMClient` / stubbed `incident_analyzer.ai_manager`) and temporary SQLite databases (`TestConfig`):
 
 ```bash
 python test_logic_manager.py
@@ -202,9 +202,9 @@ python test_end_to_end.py
 
 ## Docker & CI
 
-The `Dockerfile` in the repository root builds a self-contained `python:3.14-slim` image, initialises the SQLite database on startup, persists `/app/data` via a volume, exposes port `5000`, and starts the Flask web application (`app.py`).
+The `Dockerfile` in the repository root builds a self-contained `python:3.14-slim` image, initialises the SQLite database on startup, persists `/app/data` via a volume, exposes port `5000`, and starts the Flask web application (`app.py`). `.dockerignore` excludes `.env` so building never requires or embeds secrets.
 
-### Build the image
+### Build the image (no `.env` required)
 
 ```bash
 docker build -t incident-triage:latest .
@@ -212,13 +212,23 @@ docker build -t incident-triage:latest .
 
 ### Run the web application in Docker
 
+Without `.env` (dashboard, search, CSV export, seeding, and `Manual Review` fallback on `/incidents/add` all work without an API key):
+
+```bash
+docker run --rm -p 5000:5000 -v incident-data:/app/data incident-triage:latest
+```
+
+With `.env` (enables live Z.ai classification via `ZAI_KEY`):
+
 ```bash
 docker run --rm -p 5000:5000 --env-file .env -v incident-data:/app/data incident-triage:latest
 ```
 
 Then visit `http://127.0.0.1:5000/`.
 
-### Run all automated test suites inside Docker
+### Run all automated test suites inside Docker (no `.env` required)
+
+No `--env-file` or `ZAI_KEY` is needed to run any of the suites inside the container:
 
 ```bash
 docker run --rm incident-triage:latest python test_logic_manager.py
